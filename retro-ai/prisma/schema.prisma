@@ -1,0 +1,106 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id            String         @id @default(cuid())
+  email         String         @unique
+  password      String
+  name          String?
+  teams         TeamMember[]
+  stickies      Sticky[]
+  createdBoards Board[]
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+}
+
+model Team {
+  id        String         @id @default(cuid())
+  name      String
+  code      String         @unique
+  members   TeamMember[]
+  boards    Board[]
+  createdAt DateTime       @default(now())
+  updatedAt DateTime       @updatedAt
+}
+
+model TeamMember {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  teamId    String
+  team      Team     @relation(fields: [teamId], references: [id])
+  role      Role     @default(MEMBER)
+  joinedAt  DateTime @default(now())
+  
+  @@unique([userId, teamId])
+}
+
+model Board {
+  id          String     @id @default(cuid())
+  title       String
+  description String?
+  teamId      String
+  team        Team       @relation(fields: [teamId], references: [id])
+  templateId  String?
+  template    Template?  @relation(fields: [templateId], references: [id])
+  columns     Column[]
+  stickies    Sticky[]
+  createdById String
+  createdBy   User       @relation(fields: [createdById], references: [id])
+  isArchived  Boolean    @default(false)
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+}
+
+model Template {
+  id          String   @id @default(cuid())
+  name        String   @unique
+  description String
+  columns     Json     // JSON array of column definitions
+  boards      Board[]
+  isDefault   Boolean  @default(false)
+  createdAt   DateTime @default(now())
+}
+
+model Column {
+  id       String   @id @default(cuid())
+  title    String
+  order    Int
+  boardId  String
+  board    Board    @relation(fields: [boardId], references: [id], onDelete: Cascade)
+  stickies Sticky[]
+  color    String?
+  
+  @@unique([boardId, order])
+}
+
+model Sticky {
+  id        String   @id @default(cuid())
+  content   String
+  color     String   @default("#FFE066")
+  boardId   String
+  board     Board    @relation(fields: [boardId], references: [id], onDelete: Cascade)
+  columnId  String?
+  column    Column?  @relation(fields: [columnId], references: [id])
+  positionX Float
+  positionY Float
+  authorId  String
+  author    User     @relation(fields: [authorId], references: [id])
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+enum Role {
+  OWNER
+  ADMIN
+  MEMBER
+}

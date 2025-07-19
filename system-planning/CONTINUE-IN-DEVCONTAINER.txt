@@ -1,0 +1,21 @@
+To continue this conversation inside the dev container:
+
+1. Open VS Code and reopen in the dev container
+2. Open a terminal in VS Code
+3. Run: claude
+4. Copy and paste this message to Claude:
+
+---
+
+I'm continuing work on a retrospective web app for agile teams. The project uses Next.js, TypeScript, Shadcn UI, and PostgreSQL. The dev container is set up with the database running. 
+
+Please read CLAUDE-MEMORY.md and PLAN.md to understand the project context. The next task is to initialize the Next.js project inside this dev container and set up the basic project structure.
+
+The database connection string is: postgresql://retroai:password@db:5432/retroai
+
+Let's continue from where we left off by:
+1. Initializing the Next.js project
+2. Setting up Prisma with the database schema
+3. Configuring authentication
+
+---

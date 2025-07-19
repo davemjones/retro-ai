@@ -1,34 +1,41 @@
 {
-  "name": "Retro AI Development",
+  "name": "Retro AI",
   "dockerComposeFile": "docker-compose.yml",
   "service": "app",
-  "workspaceFolder": "/workspace",
+  "workspaceFolder": "/workspaces/${localWorkspaceFolderBasename}",
   
   "features": {
-    "ghcr.io/devcontainers/features/git:1": {},
     "ghcr.io/devcontainers/features/node:1": {
       "version": "20"
-    }
+    },
+    "ghcr.io/devcontainers/features/git:1": {},
+    "ghcr.io/devcontainers/features/github-cli:1": {}
   },
 
   "customizations": {
     "vscode": {
       "settings": {
-        "terminal.integrated.shell.linux": "/bin/bash"
+        "editor.formatOnSave": true,
+        "editor.defaultFormatter": "esbenp.prettier-vscode",
+        "typescript.updateImportsOnFileMove.enabled": "always",
+        "typescript.preferences.importModuleSpecifier": "relative"
       },
       "extensions": [
         "dbaeumer.vscode-eslint",
         "esbenp.prettier-vscode",
         "bradlc.vscode-tailwindcss",
         "prisma.prisma",
-        "ms-azuretools.vscode-docker"
+        "ms-azuretools.vscode-docker",
+        "unifiedjs.vscode-mdx"
       ]
     }
   },
 
   "forwardPorts": [3000, 5432],
   
-  "postCreateCommand": "npm install",
+  "postCreateCommand": "npm install -g @anthropic-ai/claude-code",
+  
+  "postStartCommand": "echo 'Claude Code is installed. Run `claude` in the terminal to continue your conversation.'",
   
   "remoteUser": "node"
 }
