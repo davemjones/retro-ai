@@ -1,3 +1,6 @@
+# This docker-compose file is for production-like deployment
+# For development, use VS Code Dev Containers with .devcontainer/docker-compose.yml
+
 version: '3.8'
 
 services:
@@ -6,18 +9,14 @@ services:
     container_name: retro-ai-app
     ports:
       - "3000:3000"
-    volumes:
-      - .:/app
-      - /app/node_modules
-      - /app/.next
     environment:
-      - NODE_ENV=development
+      - NODE_ENV=production
       - DATABASE_URL=postgresql://retroai:password@db:5432/retroai
       - NEXTAUTH_URL=http://localhost:3000
-      - NEXTAUTH_SECRET=your-secret-key-change-in-production
+      - NEXTAUTH_SECRET=${NEXTAUTH_SECRET:-your-secret-key-change-in-production}
     depends_on:
       - db
-    command: sh -c "npx prisma migrate dev && npm run dev"
+    restart: unless-stopped
 
   db:
     image: postgres:15-alpine
@@ -30,6 +29,7 @@ services:
       - POSTGRES_DB=retroai
     volumes:
       - postgres_data:/var/lib/postgresql/data
+    restart: unless-stopped
 
 volumes:
   postgres_data:

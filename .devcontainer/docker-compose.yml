@@ -1,0 +1,37 @@
+version: '3.8'
+
+services:
+  app:
+    build: 
+      context: .
+      dockerfile: Dockerfile
+    volumes:
+      - ../..:/workspaces:cached
+      - /workspace/node_modules
+    environment:
+      - NODE_ENV=development
+      - DATABASE_URL=postgresql://retroai:password@db:5432/retroai
+      - NEXTAUTH_URL=http://localhost:3000
+      - NEXTAUTH_SECRET=your-secret-key-change-in-production
+    command: sleep infinity
+    networks:
+      - retro-network
+
+  db:
+    image: postgres:15-alpine
+    restart: unless-stopped
+    environment:
+      - POSTGRES_USER=retroai
+      - POSTGRES_PASSWORD=password
+      - POSTGRES_DB=retroai
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - retro-network
+
+volumes:
+  postgres_data:
+
+networks:
+  retro-network:
+    driver: bridge
