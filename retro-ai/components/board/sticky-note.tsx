@@ -30,11 +30,10 @@ interface StickyNoteProps {
     };
     createdAt: string;
   };
-  boardId: string;
   userId: string;
 }
 
-export function StickyNote({ sticky, boardId, userId }: StickyNoteProps) {
+export function StickyNote({ sticky, userId }: StickyNoteProps) {
   const [showEditDialog, setShowEditDialog] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
 

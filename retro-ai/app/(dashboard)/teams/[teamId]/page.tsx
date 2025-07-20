@@ -7,7 +7,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import Link from "next/link";
-import { ArrowLeft, Plus, Copy, UserPlus, Shield, Crown, User } from "lucide-react";
+import { ArrowLeft, Plus, Shield, Crown, User } from "lucide-react";
 import { TeamInviteDialog } from "@/components/teams/team-invite-dialog";
 
 async function getTeam(teamId: string, userId: string) {

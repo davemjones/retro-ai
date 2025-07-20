@@ -75,7 +75,7 @@ export function TeamInviteDialog({ teamCode }: TeamInviteDialogProps) {
             <p>Team members can join by:</p>
             <ol className="list-decimal list-inside mt-2 space-y-1">
               <li>Going to the Teams page</li>
-              <li>Clicking "Join Team"</li>
+              <li>Clicking &quot;Join Team&quot;</li>
               <li>Entering this code</li>
             </ol>
           </div>

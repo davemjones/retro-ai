@@ -26,11 +26,10 @@ interface ColumnProps {
       createdAt: string;
     }>;
   };
-  boardId: string;
   userId: string;
 }
 
-export function Column({ column, boardId, userId }: ColumnProps) {
+export function Column({ column, userId }: ColumnProps) {
   const { setNodeRef, isOver } = useDroppable({
     id: column.id,
   });
@@ -62,7 +61,6 @@ export function Column({ column, boardId, userId }: ColumnProps) {
             <StickyNote
               key={sticky.id}
               sticky={sticky}
-              boardId={boardId}
               userId={userId}
             />
           ))}
