@@ -63,15 +63,16 @@ function getRoleIcon(role: string) {
 export default async function TeamPage({
   params,
 }: {
-  params: { teamId: string };
+  params: Promise<{ teamId: string }>;
 }) {
+  const { teamId } = await params;
   const session = await getServerSession(authOptions);
 
   if (!session?.user?.id) {
     redirect("/login");
   }
 
-  const team = await getTeam(params.teamId, session.user.id);
+  const team = await getTeam(teamId, session.user.id);
 
   if (!team) {
     notFound();

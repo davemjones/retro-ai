@@ -56,15 +56,16 @@ async function getBoard(boardId: string, userId: string) {
 export default async function BoardPage({
   params,
 }: {
-  params: { boardId: string };
+  params: Promise<{ boardId: string }>;
 }) {
+  const { boardId } = await params;
   const session = await getServerSession(authOptions);
 
   if (!session?.user?.id) {
     redirect("/login");
   }
 
-  const board = await getBoard(params.boardId, session.user.id);
+  const board = await getBoard(boardId, session.user.id);
 
   if (!board) {
     notFound();

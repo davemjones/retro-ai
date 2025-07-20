@@ -15,6 +15,7 @@ import {
 import { arrayMove, SortableContext } from "@dnd-kit/sortable";
 import { Column } from "./column";
 import { CreateStickyDialog } from "./create-sticky-dialog";
+import { CreateColumnDialog } from "./create-column-dialog";
 import { StickyNote } from "./sticky-note";
 import { Button } from "@/components/ui/button";
 import { Plus } from "lucide-react";
@@ -27,7 +28,7 @@ interface BoardData {
     id: string;
     title: string;
     order: number;
-    color?: string;
+    color?: string | null;
     stickies: Array<{
       id: string;
       content: string;
@@ -68,6 +69,7 @@ export function BoardCanvas({ board, columns: initialColumns, userId }: BoardCan
   const [columns, setColumns] = useState(initialColumns);
   const [activeId, setActiveId] = useState<string | null>(null);
   const [showCreateDialog, setShowCreateDialog] = useState(false);
+  const [showCreateColumnDialog, setShowCreateColumnDialog] = useState(false);
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -289,10 +291,7 @@ export function BoardCanvas({ board, columns: initialColumns, userId }: BoardCan
             <Button
               variant="outline"
               className="w-full h-12 border-2 border-dashed"
-              onClick={() => {
-                // TODO: Implement add column
-                toast.info("Add column feature coming soon!");
-              }}
+              onClick={() => setShowCreateColumnDialog(true)}
             >
               <Plus className="mr-2 h-4 w-4" />
               Add Column
@@ -316,6 +315,16 @@ export function BoardCanvas({ board, columns: initialColumns, userId }: BoardCan
           columns={columns}
           onStickyCreated={() => {
             setShowCreateDialog(false);
+            router.refresh();
+          }}
+        />
+
+        <CreateColumnDialog
+          open={showCreateColumnDialog}
+          onOpenChange={setShowCreateColumnDialog}
+          boardId={board.id}
+          onColumnCreated={() => {
+            setShowCreateColumnDialog(false);
             router.refresh();
           }}
         />
