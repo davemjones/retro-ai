@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useCallback } from "react";
+import { useRouter } from "next/navigation";
 import {
   DndContext,
   DragEndEvent,
@@ -61,6 +62,7 @@ interface BoardCanvasProps {
 }
 
 export function BoardCanvas({ board, columns: initialColumns, userId }: BoardCanvasProps) {
+  const router = useRouter();
   const [columns, setColumns] = useState(initialColumns);
   const [activeId, setActiveId] = useState<string | null>(null);
   const [showCreateDialog, setShowCreateDialog] = useState(false);
@@ -295,8 +297,8 @@ export function BoardCanvas({ board, columns: initialColumns, userId }: BoardCan
           boardId={board.id}
           columns={columns}
           onStickyCreated={() => {
-            // TODO: Refresh board data
-            window.location.reload();
+            setShowCreateDialog(false);
+            router.refresh();
           }}
         />
       </div>
