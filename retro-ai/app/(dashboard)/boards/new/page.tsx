@@ -31,7 +31,7 @@ interface Template {
 function NewBoardForm() {
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
-  const [selectedTeam, setSelectedTeam] = useState("");
+  const [selectedTeam, setSelectedTeam] = useState<string | undefined>(undefined);
   const [selectedTemplate, setSelectedTemplate] = useState<string | undefined>(undefined);
   const [teams, setTeams] = useState<Team[]>([]);
   const [templates, setTemplates] = useState<Template[]>([]);

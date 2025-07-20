@@ -47,7 +47,7 @@ export function CreateColumnDialog({
 }: CreateColumnDialogProps) {
   const router = useRouter();
   const [title, setTitle] = useState("");
-  const [color, setColor] = useState("");
+  const [color, setColor] = useState<string | undefined>(undefined);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -80,7 +80,7 @@ export function CreateColumnDialog({
 
       toast.success("Column created successfully!");
       setTitle("");
-      setColor("");
+      setColor(undefined);
       onColumnCreated();
       router.refresh();
     } catch (error) {
@@ -94,7 +94,7 @@ export function CreateColumnDialog({
   const handleClose = () => {
     if (!isSubmitting) {
       setTitle("");
-      setColor("");
+      setColor(undefined);
       onOpenChange(false);
     }
   };

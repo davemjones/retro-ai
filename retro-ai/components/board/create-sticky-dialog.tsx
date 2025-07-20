@@ -43,7 +43,7 @@ export function CreateStickyDialog({
 }: CreateStickyDialogProps) {
   const [content, setContent] = useState("");
   const [color, setColor] = useState(STICKY_COLORS[0].value);
-  const [columnId, setColumnId] = useState<string>("");
+  const [columnId, setColumnId] = useState<string | undefined>(undefined);
   const [isLoading, setIsLoading] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -66,7 +66,7 @@ export function CreateStickyDialog({
           content: content.trim(),
           color,
           boardId,
-          columnId: columnId || null,
+          columnId: columnId === "free-placement" ? null : columnId || null,
           positionX: Math.random() * 100,
           positionY: Math.random() * 100,
         }),
@@ -81,7 +81,7 @@ export function CreateStickyDialog({
       toast.success("Sticky note created!");
       setContent("");
       setColor(STICKY_COLORS[0].value);
-      setColumnId("");
+      setColumnId(undefined);
       onOpenChange(false);
       onStickyCreated();
     } catch (error) {
@@ -142,7 +142,7 @@ export function CreateStickyDialog({
                 <SelectValue placeholder="Place on board or select column" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">Free placement on board</SelectItem>
+                <SelectItem value="free-placement">Free placement on board</SelectItem>
                 {columns.map((column) => (
                   <SelectItem key={column.id} value={column.id}>
                     {column.title}
