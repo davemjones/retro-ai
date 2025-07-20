@@ -73,6 +73,64 @@ export function BoardCanvas({ board, columns: initialColumns, userId }: BoardCan
     })
   );
 
+  const columnsMap = Object.fromEntries(columns.map((col) => [col.id, col]));
+
+  const findContainer = useCallback((id: string): string | undefined => {
+    if (id in columnsMap) {
+      return id;
+    }
+
+    // Check if it's a sticky note in a column
+    for (const column of columns) {
+      if (column.stickies.some((sticky) => sticky.id === id)) {
+        return column.id;
+      }
+    }
+
+    // Check if it's a sticky note on the board
+    if (board.stickies.some((sticky) => sticky.id === id)) {
+      return "board";
+    }
+
+    return undefined;
+  }, [columnsMap, columns, board.stickies]);
+
+  const getItemsForContainer = useCallback((containerId: string) => {
+    if (containerId === "board") {
+      return board.stickies;
+    }
+    return columnsMap[containerId]?.stickies || [];
+  }, [board.stickies, columnsMap]);
+
+  const moveBetweenContainers = useCallback((
+    columns: BoardData["columns"],
+    activeContainer: string,
+    overContainer: string,
+    activeIndex: number,
+    overIndex: number
+  ) => {
+    // This is a simplified version - you'd need to handle board-level stickies too
+    return columns.map((column) => {
+      if (column.id === activeContainer) {
+        // Remove from active container
+        return {
+          ...column,
+          stickies: column.stickies.filter((_, index) => index !== activeIndex),
+        };
+      } else if (column.id === overContainer) {
+        // Add to over container
+        const activeItem = getItemsForContainer(activeContainer)[activeIndex];
+        const newStickies = [...column.stickies];
+        newStickies.splice(overIndex, 0, activeItem);
+        return {
+          ...column,
+          stickies: newStickies,
+        };
+      }
+      return column;
+    });
+  }, [getItemsForContainer]);
+
   const handleDragStart = useCallback((event: DragStartEvent) => {
     setActiveId(event.active.id as string);
   }, []);
@@ -119,7 +177,7 @@ export function BoardCanvas({ board, columns: initialColumns, userId }: BoardCan
         newIndex
       );
     });
-  }, []);
+  }, [columnsMap, findContainer, getItemsForContainer, moveBetweenContainers]);
 
   const handleDragEnd = useCallback(async (event: DragEndEvent) => {
     const { active, over } = event;
@@ -184,65 +242,7 @@ export function BoardCanvas({ board, columns: initialColumns, userId }: BoardCan
     }
 
     setActiveId(null);
-  }, [initialColumns]);
-
-  const columnsMap = Object.fromEntries(columns.map((col) => [col.id, col]));
-
-  function findContainer(id: string): string | undefined {
-    if (id in columnsMap) {
-      return id;
-    }
-
-    // Check if it's a sticky note in a column
-    for (const column of columns) {
-      if (column.stickies.some((sticky) => sticky.id === id)) {
-        return column.id;
-      }
-    }
-
-    // Check if it's a sticky note on the board
-    if (board.stickies.some((sticky) => sticky.id === id)) {
-      return "board";
-    }
-
-    return undefined;
-  }
-
-  function getItemsForContainer(containerId: string) {
-    if (containerId === "board") {
-      return board.stickies;
-    }
-    return columnsMap[containerId]?.stickies || [];
-  }
-
-  function moveBetweenContainers(
-    columns: BoardData["columns"],
-    activeContainer: string,
-    overContainer: string,
-    activeIndex: number,
-    overIndex: number
-  ) {
-    // This is a simplified version - you'd need to handle board-level stickies too
-    return columns.map((column) => {
-      if (column.id === activeContainer) {
-        // Remove from active container
-        return {
-          ...column,
-          stickies: column.stickies.filter((_, index) => index !== activeIndex),
-        };
-      } else if (column.id === overContainer) {
-        // Add to over container
-        const activeItem = getItemsForContainer(activeContainer)[activeIndex];
-        const newStickies = [...column.stickies];
-        newStickies.splice(overIndex, 0, activeItem);
-        return {
-          ...column,
-          stickies: newStickies,
-        };
-      }
-      return column;
-    });
-  }
+  }, [findContainer, getItemsForContainer, initialColumns]);
 
   return (
     <DndContext
