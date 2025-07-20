@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { Card, CardContent } from "@/components/ui/card";
@@ -34,6 +35,7 @@ interface StickyNoteProps {
 }
 
 export function StickyNote({ sticky, userId }: StickyNoteProps) {
+  const router = useRouter();
   const [showEditDialog, setShowEditDialog] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
 
@@ -72,8 +74,7 @@ export function StickyNote({ sticky, userId }: StickyNoteProps) {
       }
 
       toast.success("Sticky note deleted");
-      // TODO: Remove from local state or refresh
-      window.location.reload();
+      router.refresh();
     } catch (error) {
       toast.error("Failed to delete sticky note");
     } finally {
@@ -160,8 +161,8 @@ export function StickyNote({ sticky, userId }: StickyNoteProps) {
         onOpenChange={setShowEditDialog}
         sticky={sticky}
         onStickyUpdated={() => {
-          // TODO: Update local state or refresh
-          window.location.reload();
+          setShowEditDialog(false);
+          router.refresh();
         }}
       />
     </>
