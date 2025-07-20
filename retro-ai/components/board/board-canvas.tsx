@@ -7,6 +7,7 @@ import {
   DragEndEvent,
   DragOverEvent,
   DragStartEvent,
+  DragOverlay,
   PointerSensor,
   useSensor,
   useSensors,
@@ -14,6 +15,7 @@ import {
 import { arrayMove, SortableContext } from "@dnd-kit/sortable";
 import { Column } from "./column";
 import { CreateStickyDialog } from "./create-sticky-dialog";
+import { StickyNote } from "./sticky-note";
 import { Button } from "@/components/ui/button";
 import { Plus } from "lucide-react";
 import { toast } from "sonner";
@@ -133,6 +135,20 @@ export function BoardCanvas({ board, columns: initialColumns, userId }: BoardCan
     });
   }, [getItemsForContainer]);
 
+  const findActiveSticky = useCallback(() => {
+    if (!activeId) return null;
+    
+    // Check columns first
+    for (const column of columns) {
+      const sticky = column.stickies.find(s => s.id === activeId);
+      if (sticky) return sticky;
+    }
+    
+    // Check board-level stickies
+    const sticky = board.stickies.find(s => s.id === activeId);
+    return sticky || null;
+  }, [activeId, columns, board.stickies]);
+
   const handleDragStart = useCallback((event: DragStartEvent) => {
     setActiveId(event.active.id as string);
   }, []);
@@ -211,7 +227,6 @@ export function BoardCanvas({ board, columns: initialColumns, userId }: BoardCan
       // Moving within the same container
       setColumns((columns) => {
         const columnIndex = columns.findIndex((col) => col.id === activeContainer);
-        const column = columns[columnIndex];
         
         return columns.map((col, index) => {
           if (index === columnIndex) {
@@ -238,6 +253,7 @@ export function BoardCanvas({ board, columns: initialColumns, userId }: BoardCan
         }),
       });
     } catch (error) {
+      console.error("Failed to move sticky note:", error);
       toast.error("Failed to move sticky note");
       // Revert the change
       setColumns(initialColumns);
@@ -245,6 +261,8 @@ export function BoardCanvas({ board, columns: initialColumns, userId }: BoardCan
 
     setActiveId(null);
   }, [findContainer, getItemsForContainer, initialColumns]);
+
+  const activeSticky = findActiveSticky();
 
   return (
     <DndContext
@@ -302,6 +320,15 @@ export function BoardCanvas({ board, columns: initialColumns, userId }: BoardCan
           }}
         />
       </div>
+
+      <DragOverlay>
+        {activeSticky && (
+          <StickyNote
+            sticky={activeSticky}
+            userId={userId}
+          />
+        )}
+      </DragOverlay>
     </DndContext>
   );
 }

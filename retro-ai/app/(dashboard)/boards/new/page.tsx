@@ -65,6 +65,7 @@ export default function NewBoardPage() {
           setTemplates(templatesData.templates);
         }
       } catch (error) {
+        console.error("Failed to load teams/templates:", error);
         toast.error("Failed to load data");
       } finally {
         setIsLoadingData(false);
