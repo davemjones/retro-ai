@@ -32,7 +32,7 @@ function NewBoardForm() {
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [selectedTeam, setSelectedTeam] = useState("");
-  const [selectedTemplate, setSelectedTemplate] = useState("");
+  const [selectedTemplate, setSelectedTemplate] = useState<string | undefined>(undefined);
   const [teams, setTeams] = useState<Team[]>([]);
   const [templates, setTemplates] = useState<Template[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -100,7 +100,7 @@ function NewBoardForm() {
           title: title.trim(),
           description: description.trim() || null,
           teamId: selectedTeam,
-          templateId: selectedTemplate || null,
+          templateId: selectedTemplate === "blank" ? null : selectedTemplate || null,
         }),
       });
 
@@ -119,7 +119,7 @@ function NewBoardForm() {
     }
   };
 
-  const selectedTemplateData = templates.find(t => t.id === selectedTemplate);
+  const selectedTemplateData = selectedTemplate === "blank" ? null : templates.find(t => t.id === selectedTemplate);
 
   if (isLoadingData) {
     return (
@@ -232,7 +232,7 @@ function NewBoardForm() {
                   <SelectValue placeholder="Select a template (optional)" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">Blank Board</SelectItem>
+                  <SelectItem value="blank">Blank Board</SelectItem>
                   {templates.map((template) => (
                     <SelectItem key={template.id} value={template.id}>
                       {template.name}
