@@ -20,7 +20,7 @@ export default async function DashboardPage() {
           Welcome back, {session.user?.name || "User"}!
         </h2>
         <p className="text-muted-foreground">
-          Here's what's happening with your retrospectives
+          Here&apos;s what&apos;s happening with your retrospectives
         </p>
       </div>
 
@@ -109,12 +109,12 @@ export default async function DashboardPage() {
           <CardHeader>
             <CardTitle>Your Teams</CardTitle>
             <CardDescription>
-              Teams you're a member of
+              Teams you&apos;re a member of
             </CardDescription>
           </CardHeader>
           <CardContent>
             <p className="text-sm text-muted-foreground text-center py-6">
-              You're not part of any teams yet.
+              You&apos;re not part of any teams yet.
             </p>
             <div className="flex justify-center gap-2">
               <Button asChild>

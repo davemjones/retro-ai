@@ -12,7 +12,6 @@ import {
 } from "@dnd-kit/core";
 import { arrayMove, SortableContext } from "@dnd-kit/sortable";
 import { Column } from "./column";
-import { StickyNote } from "./sticky-note";
 import { CreateStickyDialog } from "./create-sticky-dialog";
 import { Button } from "@/components/ui/button";
 import { Plus } from "lucide-react";
@@ -260,7 +259,6 @@ export function BoardCanvas({ board, columns: initialColumns, userId }: BoardCan
               <Column
                 key={column.id}
                 column={column}
-                boardId={board.id}
                 userId={userId}
               />
             ))}
@@ -269,7 +267,7 @@ export function BoardCanvas({ board, columns: initialColumns, userId }: BoardCan
           {/* Add Column Button */}
           <div className="min-w-[300px]">
             <Button
-              variant="dashed"
+              variant="outline"
               className="w-full h-12 border-2 border-dashed"
               onClick={() => {
                 // TODO: Implement add column
