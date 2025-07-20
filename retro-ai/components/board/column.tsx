@@ -11,7 +11,7 @@ interface ColumnProps {
     id: string;
     title: string;
     order: number;
-    color?: string;
+    color?: string | null;
     stickies: Array<{
       id: string;
       content: string;
@@ -22,8 +22,15 @@ interface ColumnProps {
         id: string;
         name: string | null;
         email: string;
+        password: string;
+        createdAt: Date;
+        updatedAt: Date;
       };
-      createdAt: string;
+      createdAt: Date;
+      updatedAt: Date;
+      boardId: string;
+      columnId: string | null;
+      authorId: string;
     }>;
   };
   userId: string;
@@ -45,7 +52,7 @@ export function Column({ column, userId }: ColumnProps) {
         <div className="flex items-center justify-between">
           <CardTitle
             className="text-lg"
-            style={{ color: column.color }}
+            style={{ color: column.color || undefined }}
           >
             {column.title}
           </CardTitle>
