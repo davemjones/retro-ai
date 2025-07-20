@@ -34,6 +34,7 @@ export default function LoginPage() {
         router.refresh();
       }
     } catch (error) {
+      console.error("Login error:", error);
       toast.error("An error occurred. Please try again.");
     } finally {
       setIsLoading(false);

@@ -76,6 +76,7 @@ export function StickyNote({ sticky, userId }: StickyNoteProps) {
       toast.success("Sticky note deleted");
       router.refresh();
     } catch (error) {
+      console.error("Failed to delete sticky note:", error);
       toast.error("Failed to delete sticky note");
     } finally {
       setIsDeleting(false);

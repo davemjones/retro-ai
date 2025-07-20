@@ -29,6 +29,7 @@ export function TeamInviteDialog({ teamCode }: TeamInviteDialogProps) {
       toast.success("Team code copied to clipboard!");
       setTimeout(() => setCopied(false), 2000);
     } catch (error) {
+      console.error("Failed to copy team code:", error);
       toast.error("Failed to copy team code");
     }
   };
