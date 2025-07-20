@@ -5,8 +5,9 @@ import { prisma } from "@/lib/prisma";
 
 export async function PATCH(
   req: Request,
-  { params }: { params: { stickyId: string } }
+  { params }: { params: Promise<{ stickyId: string }> }
 ) {
+  const { stickyId } = await params;
   try {
     const session = await getServerSession(authOptions);
 
@@ -21,7 +22,7 @@ export async function PATCH(
 
     // Find the sticky note
     const sticky = await prisma.sticky.findUnique({
-      where: { id: params.stickyId },
+      where: { id: stickyId },
       include: {
         board: {
           include: {
@@ -62,7 +63,7 @@ export async function PATCH(
 
     // Update sticky note
     const updatedSticky = await prisma.sticky.update({
-      where: { id: params.stickyId },
+      where: { id: stickyId },
       data: {
         ...(content !== undefined && { content: content.trim() }),
         ...(color !== undefined && { color }),
@@ -87,8 +88,9 @@ export async function PATCH(
 
 export async function DELETE(
   req: Request,
-  { params }: { params: { stickyId: string } }
+  { params }: { params: Promise<{ stickyId: string }> }
 ) {
+  const { stickyId } = await params;
   try {
     const session = await getServerSession(authOptions);
 
@@ -101,7 +103,7 @@ export async function DELETE(
 
     // Find the sticky note
     const sticky = await prisma.sticky.findUnique({
-      where: { id: params.stickyId },
+      where: { id: stickyId },
       include: {
         board: {
           include: {
@@ -146,7 +148,7 @@ export async function DELETE(
 
     // Delete sticky note
     await prisma.sticky.delete({
-      where: { id: params.stickyId },
+      where: { id: stickyId },
     });
 
     return NextResponse.json({ success: true });

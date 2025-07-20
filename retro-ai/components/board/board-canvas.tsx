@@ -39,8 +39,15 @@ interface BoardData {
         id: string;
         name: string | null;
         email: string;
+        password: string;
+        createdAt: Date;
+        updatedAt: Date;
       };
-      createdAt: string;
+      createdAt: Date;
+      updatedAt: Date;
+      boardId: string;
+      columnId: string | null;
+      authorId: string;
     }>;
   }>;
   stickies: Array<{
@@ -53,8 +60,15 @@ interface BoardData {
       id: string;
       name: string | null;
       email: string;
+      password: string;
+      createdAt: Date;
+      updatedAt: Date;
     };
-    createdAt: string;
+    createdAt: Date;
+    updatedAt: Date;
+    boardId: string;
+    columnId: string | null;
+    authorId: string;
   }>;
 }
 

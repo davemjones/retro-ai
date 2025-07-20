@@ -28,8 +28,15 @@ interface StickyNoteProps {
       id: string;
       name: string | null;
       email: string;
+      password: string;
+      createdAt: Date;
+      updatedAt: Date;
     };
-    createdAt: string;
+    createdAt: Date;
+    updatedAt: Date;
+    boardId: string;
+    columnId: string | null;
+    authorId: string;
   };
   userId: string;
 }
@@ -151,7 +158,7 @@ export function StickyNote({ sticky, userId }: StickyNoteProps) {
               </span>
             </div>
             <span className="text-xs text-muted-foreground">
-              {new Date(sticky.createdAt).toLocaleDateString()}
+              {sticky.createdAt.toLocaleDateString()}
             </span>
           </div>
         </CardContent>
