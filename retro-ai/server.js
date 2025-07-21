@@ -79,14 +79,10 @@ app.prepare().then(() => {
       // Create board isolation middleware
       boardAccess = createBoardIsolationMiddleware(session);
       
-    } catch (error) {
-      console.error('❌ Socket authentication error:', error);
-      console.warn('🚫 Failed to authenticate socket, disconnecting:', socket.id);
-      socket.disconnect();
-      return;
-    }
-
-    // Join board room with enhanced security
+      // IMPORTANT: All socket event handlers must be defined INSIDE this try block
+      // so they have access to validateSocketSession and boardAccess functions
+      
+      // Join board room with enhanced security
     socket.on('join-board', async (boardId) => {
       try {
         // Validate session for this operation
@@ -290,6 +286,13 @@ app.prepare().then(() => {
     socket.on('disconnect', () => {
       console.log('🔌 User disconnected:', socket.id);
     });
+
+    } catch (error) {
+      console.error('❌ Socket authentication error:', error);
+      console.warn('🚫 Failed to authenticate socket, disconnecting:', socket.id);
+      socket.disconnect();
+      return;
+    }
   });
 
   httpServer
