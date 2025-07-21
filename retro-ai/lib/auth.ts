@@ -2,6 +2,7 @@ import { NextAuthOptions } from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials";
 import { PrismaAdapter } from "@next-auth/prisma-adapter";
 import bcrypt from "bcryptjs";
+import { NextRequest } from "next/server";
 import { prisma } from "./prisma";
 import { generateSecureSessionId } from "./cookie-security";
 import { SessionManager } from "./session-manager";
