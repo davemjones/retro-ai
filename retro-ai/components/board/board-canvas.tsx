@@ -42,6 +42,13 @@ interface ColumnRenameEvent {
   timestamp: number;
 }
 
+interface ColumnDeleteEvent {
+  columnId: string;
+  boardId: string;
+  userId: string;
+  timestamp: number;
+}
+
 interface BoardData {
   id: string;
   title: string;
@@ -220,6 +227,26 @@ export function BoardCanvas({ board, columns: initialColumns, userId, isOwner }:
         )
       );
     }, [userId]),
+    onColumnDeleted: useCallback((data: ColumnDeleteEvent) => {
+      // Don't update if this deletion was initiated by us
+      if (data.userId === userId) {
+        return;
+      }
+
+      console.log("Received column delete event:", data);
+
+      // Find the column being deleted and move its stickies to unassigned
+      setColumns(prevColumns => {
+        const columnToDelete = prevColumns.find(col => col.id === data.columnId);
+        if (columnToDelete && columnToDelete.stickies.length > 0) {
+          // Move stickies to unassigned notes area
+          setUnassignedStickies(prev => [...prev, ...columnToDelete.stickies]);
+        }
+        
+        // Remove the column from the list
+        return prevColumns.filter(column => column.id !== data.columnId);
+      });
+    }, [userId]),
   });
 
   const handleColumnRenamed = useCallback((columnId: string, newTitle: string) => {
@@ -231,6 +258,19 @@ export function BoardCanvas({ board, columns: initialColumns, userId, isOwner }:
       )
     );
   }, []);
+
+  const handleColumnDeleted = useCallback((columnId: string, _migratedStickiesCount: number) => {
+    // For the user who initiated the deletion, we only need to remove the column
+    // from the local state. The database operation has already moved the stickies
+    // to unassigned, so we don't want to duplicate them.
+    setColumns(prevColumns => 
+      prevColumns.filter(column => column.id !== columnId)
+    );
+    
+    // Refresh the page to get the updated state from the database
+    // This ensures we see the migrated stickies in the unassigned area
+    setTimeout(() => router.refresh(), 0);
+  }, [router]);
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -519,6 +559,7 @@ export function BoardCanvas({ board, columns: initialColumns, userId, isOwner }:
                 isOwner={isOwner}
                 moveIndicators={moveIndicators}
                 onColumnRenamed={handleColumnRenamed}
+                onColumnDeleted={handleColumnDeleted}
               />
             ))}
           </SortableContext>
