@@ -14,7 +14,7 @@ export function EditingIndicator({ userName, className = "" }: EditingIndicatorP
   return (
     <div className={`absolute bottom-1 right-1 flex items-center gap-1 ${className}`}>
       {/* User avatar */}
-      <Avatar className="h-4 w-4 border border-white">
+      <Avatar className="h-6 w-6 border border-white">
         <AvatarFallback className="text-xs bg-gray-600 text-white">
           {initials}
         </AvatarFallback>
