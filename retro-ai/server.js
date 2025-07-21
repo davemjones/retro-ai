@@ -136,6 +136,29 @@ app.prepare().then(() => {
       socket.to(`board:${data.boardId || 'default'}`).emit('editing-stopped', editingData);
     });
 
+    // Handle session heartbeat
+    socket.on('session-heartbeat', () => {
+      console.log(`💓 Heartbeat from user ${socket.id} (${session.userName})`);
+      
+      // Respond with heartbeat confirmation
+      socket.emit('session-heartbeat-response', {
+        isValid: true,
+        sessionId: socket.id,
+        timestamp: Date.now()
+      });
+    });
+
+    // Handle force session refresh
+    socket.on('force-session-refresh', () => {
+      console.log(`🔄 Session refresh requested by user ${socket.id} (${session.userName})`);
+      
+      // Emit session refreshed event
+      socket.emit('session-refreshed', {
+        sessionId: socket.id,
+        timestamp: Date.now()
+      });
+    });
+
     // Handle disconnect
     socket.on('disconnect', () => {
       console.log('🔌 User disconnected:', socket.id);

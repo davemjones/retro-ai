@@ -54,6 +54,7 @@ interface SocketContextType {
   onAuthFailed: (callback: (data: { reason: string }) => void) => () => void;
   onOperationFailed: (callback: (data: { operation: string; reason: string }) => void) => () => void;
   onAccessDenied: (callback: (data: { resource: string; reason: string }) => void) => () => void;
+  onHeartbeatResponse: (callback: (data: { isValid: boolean; sessionId: string; timestamp: number }) => void) => () => void;
 }
 
 const SocketContext = createContext<SocketContextType | null>(null);
@@ -89,6 +90,8 @@ export function SocketProvider({ children }: SocketProviderProps) {
           console.log('🔌 Connected to Socket.io server');
           setIsConnected(true);
           setSocket(newSocket);
+          // Use socket.id as initial session ID until server provides a specific one
+          setSessionId(newSocket.id || null);
         });
 
         newSocket.on('disconnect', () => {
@@ -270,6 +273,13 @@ export function SocketProvider({ children }: SocketProviderProps) {
     return () => socket.off("access-denied", callback);
   };
 
+  const onHeartbeatResponse = (callback: (data: { isValid: boolean; sessionId: string; timestamp: number }) => void) => {
+    if (!socket) return () => {};
+    
+    socket.on("session-heartbeat-response", callback);
+    return () => socket.off("session-heartbeat-response", callback);
+  };
+
   const contextValue: SocketContextType = {
     socket,
     isConnected,
@@ -290,6 +300,7 @@ export function SocketProvider({ children }: SocketProviderProps) {
     onAuthFailed,
     onOperationFailed,
     onAccessDenied,
+    onHeartbeatResponse,
   };
 
   return (
