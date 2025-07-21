@@ -10,6 +10,14 @@ jest.mock('next/navigation', () => ({
   }),
 }));
 
+// Mock next-auth/react
+jest.mock('next-auth/react', () => ({
+  useSession: () => ({
+    data: { user: { id: 'test-user', name: 'Test User', email: 'test@example.com' } },
+    status: 'authenticated',
+  }),
+}));
+
 // Mock sonner
 jest.mock('sonner', () => ({
   toast: {
@@ -21,6 +29,11 @@ jest.mock('sonner', () => ({
 describe('Drag and Drop to Unassigned Area - Bug Investigation', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    global.fetch = jest.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ success: true }),
+      text: async () => "Socket.io placeholder - feature temporarily disabled during development",
+    });
   });
 
   describe('BoardCanvas Drag Logic', () => {
@@ -29,6 +42,7 @@ describe('Drag and Drop to Unassigned Area - Bug Investigation', () => {
       // It doesn't handle moves to/from the unassigned area
       
       const BoardCanvas = (await import('@/components/board/board-canvas')).BoardCanvas;
+      const { SocketProvider } = await import('@/lib/socket-context');
       
       const mockBoard = {
         id: 'board1',
@@ -66,17 +80,14 @@ describe('Drag and Drop to Unassigned Area - Bug Investigation', () => {
         stickies: [], // Empty unassigned area
       };
 
-      global.fetch = jest.fn().mockResolvedValueOnce({
-        ok: true,
-        json: async () => ({ success: true }),
-      });
-
       const { container } = render(
-        <BoardCanvas
-          board={mockBoard}
-          columns={mockBoard.columns}
-          userId="author1"
-        />
+        <SocketProvider>
+          <BoardCanvas
+            board={mockBoard}
+            columns={mockBoard.columns}
+            userId="author1"
+          />
+        </SocketProvider>
       );
 
       // The issue: When dragging from column to unassigned:

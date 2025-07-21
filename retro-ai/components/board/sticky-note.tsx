@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
@@ -15,7 +15,17 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { MoreHorizontal, Edit, Trash, GripVertical } from "lucide-react";
 import { EditStickyDialog } from "./edit-sticky-dialog";
+import { EditingIndicator } from "./editing-indicator";
 import { toast } from "sonner";
+import { useSocket } from "@/hooks/use-socket";
+
+interface EditingEvent {
+  stickyId: string;
+  userId: string;
+  userName: string;
+  action: 'start' | 'stop';
+  timestamp: number;
+}
 
 interface StickyNoteProps {
   sticky: {
@@ -45,6 +55,21 @@ export function StickyNote({ sticky, userId }: StickyNoteProps) {
   const router = useRouter();
   const [showEditDialog, setShowEditDialog] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [editingUser, setEditingUser] = useState<{ userId: string; userName: string } | null>(null);
+
+  // Socket integration for editing indicators
+  const { emitEditingStart, emitEditingStop } = useSocket({
+    onEditingStarted: useCallback((data: EditingEvent) => {
+      if (data.stickyId === sticky.id && data.userId !== userId) {
+        setEditingUser({ userId: data.userId, userName: data.userName });
+      }
+    }, [sticky.id, userId]),
+    onEditingStopped: useCallback((data: EditingEvent) => {
+      if (data.stickyId === sticky.id && data.userId !== userId) {
+        setEditingUser(null);
+      }
+    }, [sticky.id, userId]),
+  });
 
   const {
     attributes,
@@ -95,11 +120,19 @@ export function StickyNote({ sticky, userId }: StickyNoteProps) {
       <Card
         ref={setNodeRef}
         style={{ ...style, backgroundColor: sticky.color }}
-        className={`group cursor-grab active:cursor-grabbing transition-shadow hover:shadow-md ${
+        className={`group cursor-grab active:cursor-grabbing transition-shadow hover:shadow-md relative ${
           isDragging ? "shadow-lg" : ""
         }`}
         {...attributes}
       >
+        {/* Editing indicator */}
+        {editingUser && (
+          <EditingIndicator 
+            userName={editingUser.userName}
+            className="z-10"
+          />
+        )}
+        
         <CardContent className="p-3">
           <div className="flex items-start justify-between gap-2 mb-2">
             <div
@@ -126,7 +159,10 @@ export function StickyNote({ sticky, userId }: StickyNoteProps) {
                   {isOwner && (
                     <>
                       <DropdownMenuItem
-                        onClick={() => setShowEditDialog(true)}
+                        onClick={() => {
+                          setShowEditDialog(true);
+                          emitEditingStart(sticky.id, sticky.boardId);
+                        }}
                       >
                         <Edit className="mr-2 h-3 w-3" />
                         Edit
@@ -166,10 +202,16 @@ export function StickyNote({ sticky, userId }: StickyNoteProps) {
 
       <EditStickyDialog
         open={showEditDialog}
-        onOpenChange={setShowEditDialog}
+        onOpenChange={(open) => {
+          setShowEditDialog(open);
+          if (!open) {
+            emitEditingStop(sticky.id, sticky.boardId);
+          }
+        }}
         sticky={sticky}
         onStickyUpdated={() => {
           setShowEditDialog(false);
+          emitEditingStop(sticky.id, sticky.boardId);
           router.refresh();
         }}
       />

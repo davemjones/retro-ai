@@ -9,6 +9,14 @@ jest.mock('next/navigation', () => ({
   }),
 }));
 
+// Mock next-auth/react
+jest.mock('next-auth/react', () => ({
+  useSession: () => ({
+    data: { user: { id: 'test-user', name: 'Test User', email: 'test@example.com' } },
+    status: 'authenticated',
+  }),
+}));
+
 // Mock sonner
 jest.mock('sonner', () => ({
   toast: {
@@ -20,10 +28,16 @@ jest.mock('sonner', () => ({
 describe('Drag and Drop Integration Tests', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    global.fetch = jest.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ message: "Socket.io server running", status: "active" }),
+      text: async () => "Socket.io server running",
+    });
   });
 
   it('should maintain proper state when dragging sticky from column to unassigned', async () => {
     const BoardCanvas = (await import('@/components/board/board-canvas')).BoardCanvas;
+    const { SocketProvider } = await import('@/lib/socket-context');
     
     const mockBoard = {
       id: 'board1',
@@ -61,17 +75,14 @@ describe('Drag and Drop Integration Tests', () => {
       stickies: [], // Start with empty unassigned area
     };
 
-    global.fetch = jest.fn().mockResolvedValueOnce({
-      ok: true,
-      json: async () => ({ success: true }),
-    });
-
     const { container } = render(
-      <BoardCanvas
-        board={mockBoard}
-        columns={mockBoard.columns}
-        userId="author1"
-      />
+      <SocketProvider>
+        <BoardCanvas
+          board={mockBoard}
+          columns={mockBoard.columns}
+          userId="author1"
+        />
+      </SocketProvider>
     );
 
     // Verify initial state
@@ -83,6 +94,7 @@ describe('Drag and Drop Integration Tests', () => {
 
   it('should maintain proper state when dragging sticky from unassigned to column', async () => {
     const BoardCanvas = (await import('@/components/board/board-canvas')).BoardCanvas;
+    const { SocketProvider } = await import('@/lib/socket-context');
     
     const mockBoard = {
       id: 'board1',
@@ -120,17 +132,14 @@ describe('Drag and Drop Integration Tests', () => {
       ],
     };
 
-    global.fetch = jest.fn().mockResolvedValueOnce({
-      ok: true,
-      json: async () => ({ success: true }),
-    });
-
     const { container } = render(
-      <BoardCanvas
-        board={mockBoard}
-        columns={mockBoard.columns}
-        userId="author1"
-      />
+      <SocketProvider>
+        <BoardCanvas
+          board={mockBoard}
+          columns={mockBoard.columns}
+          userId="author1"
+        />
+      </SocketProvider>
     );
 
     // Verify initial state
@@ -142,6 +151,7 @@ describe('Drag and Drop Integration Tests', () => {
 
   it('should handle multiple stickies in unassigned area', async () => {
     const BoardCanvas = (await import('@/components/board/board-canvas')).BoardCanvas;
+    const { SocketProvider } = await import('@/lib/socket-context');
     
     const mockBoard = {
       id: 'board1',
@@ -192,11 +202,13 @@ describe('Drag and Drop Integration Tests', () => {
     };
 
     const { container } = render(
-      <BoardCanvas
-        board={mockBoard}
-        columns={mockBoard.columns}
-        userId="author1"
-      />
+      <SocketProvider>
+        <BoardCanvas
+          board={mockBoard}
+          columns={mockBoard.columns}
+          userId="author1"
+        />
+      </SocketProvider>
     );
 
     // Verify all unassigned stickies are displayed

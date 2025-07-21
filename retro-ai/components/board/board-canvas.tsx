@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useRef } from "react";
 import { useRouter } from "next/navigation";
 import {
   DndContext,
@@ -21,6 +21,16 @@ import { UnassignedArea } from "./unassigned-area";
 import { Button } from "@/components/ui/button";
 import { Plus } from "lucide-react";
 import { toast } from "sonner";
+import { useSocket } from "@/hooks/use-socket";
+
+interface MovementEvent {
+  stickyId: string;
+  columnId: string | null;
+  positionX?: number;
+  positionY?: number;
+  userId: string;
+  timestamp: number;
+}
 
 interface BoardData {
   id: string;
@@ -86,6 +96,61 @@ export function BoardCanvas({ board, columns: initialColumns, userId }: BoardCan
   const [activeId, setActiveId] = useState<string | null>(null);
   const [showCreateDialog, setShowCreateDialog] = useState(false);
   const [showCreateColumnDialog, setShowCreateColumnDialog] = useState(false);
+  
+  // Track if we initiated the movement to prevent echo
+  const isLocalMovement = useRef(false);
+
+  // Socket integration for real-time collaboration
+  const { isConnected, emitStickyMoved } = useSocket({
+    boardId: board.id,
+    onStickyMoved: useCallback((data: MovementEvent) => {
+      // Only update if this movement wasn't initiated by us
+      if (isLocalMovement.current || data.userId === userId) {
+        return;
+      }
+
+      console.log("Received movement event:", data);
+
+      // Update local state based on the movement
+      if (data.columnId === null) {
+        // Moving to unassigned area
+        setColumns(prevColumns => 
+          prevColumns.map(column => ({
+            ...column,
+            stickies: column.stickies.filter(sticky => sticky.id !== data.stickyId),
+          }))
+        );
+        
+        // Add to unassigned (we'll need to get the sticky data from somewhere)
+        // For now, we'll rely on the refresh mechanism
+        router.refresh();
+      } else {
+        // Moving to a column
+        setUnassignedStickies(prev => 
+          prev.filter(sticky => sticky.id !== data.stickyId)
+        );
+        
+        setColumns(prevColumns => 
+          prevColumns.map(column => {
+            if (column.id === data.columnId) {
+              // Don't add if already exists (prevent duplicates)
+              if (column.stickies.some(s => s.id === data.stickyId)) {
+                return column;
+              }
+              // For now, trigger a refresh to get updated data
+              router.refresh();
+              return column;
+            }
+            // Remove from other columns
+            return {
+              ...column,
+              stickies: column.stickies.filter(sticky => sticky.id !== data.stickyId),
+            };
+          })
+        );
+      }
+    }, [userId, router]),
+  });
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -299,8 +364,11 @@ export function BoardCanvas({ board, columns: initialColumns, userId }: BoardCan
 
     // Update backend
     try {
+      // Mark this as a local movement to prevent echo
+      isLocalMovement.current = true;
+      
       const targetColumnId = overContainer === "unassigned" ? null : overContainer;
-      await fetch(`/api/stickies/${activeId}`, {
+      const response = await fetch(`/api/stickies/${activeId}`, {
         method: "PATCH",
         headers: {
           "Content-Type": "application/json",
@@ -309,6 +377,20 @@ export function BoardCanvas({ board, columns: initialColumns, userId }: BoardCan
           columnId: targetColumnId,
         }),
       });
+
+      if (!response.ok) {
+        throw new Error("Failed to update sticky note");
+      }
+
+      // Emit socket event after successful API call
+      if (isConnected) {
+        emitStickyMoved({
+          stickyId: activeId,
+          columnId: targetColumnId,
+          boardId: board.id,
+        });
+        console.log("Emitted movement event:", { stickyId: activeId, columnId: targetColumnId, boardId: board.id });
+      }
       
       // Refresh to update the UI
       router.refresh();
@@ -317,10 +399,16 @@ export function BoardCanvas({ board, columns: initialColumns, userId }: BoardCan
       toast.error("Failed to move sticky note");
       // Revert the change
       setColumns(initialColumns);
+      setUnassignedStickies(board.stickies);
+    } finally {
+      // Reset the local movement flag after a short delay
+      setTimeout(() => {
+        isLocalMovement.current = false;
+      }, 100);
     }
 
     setActiveId(null);
-  }, [findContainer, getItemsForContainer, initialColumns, router]);
+  }, [findContainer, getItemsForContainer, initialColumns, router, isConnected, emitStickyMoved, board.stickies]);
 
   const activeSticky = findActiveSticky();
 
