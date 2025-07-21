@@ -235,16 +235,24 @@ export function BoardCanvas({ board, columns: initialColumns, userId, isOwner }:
 
       console.log("Received column delete event:", data);
 
-      // For remote users, remove the column from their view
-      // The database operation has already moved the stickies to unassigned,
-      // so we'll see them when the component re-renders from the server state
-      setColumns(prevColumns => 
-        prevColumns.filter(column => column.id !== data.columnId)
-      );
-      
-      // Refresh the component data to get the updated unassigned stickies
-      setTimeout(() => router.refresh(), 100);
-    }, [userId, router]),
+      // For remote users, we need to move the stickies to unassigned and remove the column
+      setColumns(prevColumns => {
+        const columnToDelete = prevColumns.find(col => col.id === data.columnId);
+        if (columnToDelete && columnToDelete.stickies.length > 0) {
+          // Move stickies to unassigned notes area, checking for duplicates
+          setUnassignedStickies(prev => {
+            const existingIds = new Set(prev.map(sticky => sticky.id));
+            const newStickies = columnToDelete.stickies.filter(
+              sticky => !existingIds.has(sticky.id)
+            );
+            return [...prev, ...newStickies];
+          });
+        }
+        
+        // Remove the column from the list
+        return prevColumns.filter(column => column.id !== data.columnId);
+      });
+    }, [userId]),
   });
 
   const handleColumnRenamed = useCallback((columnId: string, newTitle: string) => {
