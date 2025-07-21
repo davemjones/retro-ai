@@ -4,7 +4,7 @@ import { SessionManager } from '@/components/session/session-manager';
 import { SocketSessionMonitor } from '@/components/session/socket-session-monitor';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Shield, Users, Activity, Settings as SettingsIcon, Wifi } from 'lucide-react';
+import { Shield, Users, Settings as SettingsIcon, Wifi } from 'lucide-react';
 
 export default function SettingsPage() {
   return (
@@ -23,10 +23,6 @@ export default function SettingsPage() {
           <TabsTrigger value="security" className="flex items-center space-x-2">
             <Shield className="h-4 w-4" />
             <span>Security</span>
-          </TabsTrigger>
-          <TabsTrigger value="activity" className="flex items-center space-x-2">
-            <Activity className="h-4 w-4" />
-            <span>Activity</span>
           </TabsTrigger>
           <TabsTrigger value="realtime" className="flex items-center space-x-2">
             <Wifi className="h-4 w-4" />
@@ -102,21 +98,6 @@ export default function SettingsPage() {
           </div>
         </TabsContent>
 
-        <TabsContent value="activity">
-          <div className="space-y-6">
-            <Card>
-              <CardHeader>
-                <CardTitle>Account Activity</CardTitle>
-                <CardDescription>
-                  View your recent account activity and session history.
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <SessionManager showAnalytics={true} />
-              </CardContent>
-            </Card>
-          </div>
-        </TabsContent>
 
         <TabsContent value="realtime">
           <div className="space-y-6">
