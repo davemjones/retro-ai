@@ -2,6 +2,7 @@ const { createServer } = require('http');
 const { parse } = require('url');
 const next = require('next');
 const { Server } = require('socket.io');
+// Authentication will be loaded dynamically
 
 const dev = process.env.NODE_ENV !== 'production';
 const hostname = 'localhost';
@@ -46,8 +47,8 @@ app.prepare().then(() => {
     
     let session = null;
     try {
-      // Dynamic import for TypeScript socket-auth module
-      const { authenticateSocket } = await import('./lib/socket-auth.js');
+      // Dynamic import for ES6 module
+      const { authenticateSocket } = await import('./lib/socket-auth-simple.mjs');
       
       // Authenticate the socket connection
       session = await authenticateSocket(socket);
