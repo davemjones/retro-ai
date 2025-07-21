@@ -1,0 +1,119 @@
+"use client";
+
+import { useSocket as useSocketContext } from "@/lib/socket-context";
+import { useEffect, useRef } from "react";
+
+interface MovementEvent {
+  stickyId: string;
+  columnId: string | null;
+  positionX?: number;
+  positionY?: number;
+  userId: string;
+  timestamp: number;
+}
+
+interface EditingEvent {
+  stickyId: string;
+  userId: string;
+  userName: string;
+  action: 'start' | 'stop';
+  timestamp: number;
+}
+
+interface UserEvent {
+  userId: string;
+  userName: string;
+}
+
+interface UseSocketOptions {
+  boardId?: string;
+  onStickyMoved?: (data: MovementEvent) => void;
+  onEditingStarted?: (data: EditingEvent) => void;
+  onEditingStopped?: (data: EditingEvent) => void;
+  onUserConnected?: (data: UserEvent) => void;
+  onUserDisconnected?: (data: UserEvent) => void;
+}
+
+export function useSocket(options: UseSocketOptions = {}) {
+  const socketContext = useSocketContext();
+  const {
+    boardId,
+    onStickyMoved,
+    onEditingStarted,
+    onEditingStopped,
+    onUserConnected,
+    onUserDisconnected,
+  } = options;
+
+  const currentBoardRef = useRef<string | null>(null);
+
+  // Join/leave board when boardId changes
+  useEffect(() => {
+    if (!socketContext.isConnected || !boardId) return;
+
+    // Leave current board if switching
+    if (currentBoardRef.current && currentBoardRef.current !== boardId) {
+      socketContext.leaveBoard(currentBoardRef.current);
+    }
+
+    // Join new board
+    socketContext.joinBoard(boardId);
+    currentBoardRef.current = boardId;
+
+    // Cleanup: leave board when component unmounts or boardId changes
+    return () => {
+      if (currentBoardRef.current) {
+        socketContext.leaveBoard(currentBoardRef.current);
+        currentBoardRef.current = null;
+      }
+    };
+  }, [socketContext, boardId]);
+
+  // Set up event listeners
+  useEffect(() => {
+    const unsubscribers: (() => void)[] = [];
+
+    if (onStickyMoved) {
+      const unsubscribe = socketContext.onStickyMoved(onStickyMoved);
+      unsubscribers.push(unsubscribe);
+    }
+
+    if (onEditingStarted) {
+      const unsubscribe = socketContext.onEditingStarted(onEditingStarted);
+      unsubscribers.push(unsubscribe);
+    }
+
+    if (onEditingStopped) {
+      const unsubscribe = socketContext.onEditingStopped(onEditingStopped);
+      unsubscribers.push(unsubscribe);
+    }
+
+    if (onUserConnected) {
+      const unsubscribe = socketContext.onUserConnected(onUserConnected);
+      unsubscribers.push(unsubscribe);
+    }
+
+    if (onUserDisconnected) {
+      const unsubscribe = socketContext.onUserDisconnected(onUserDisconnected);
+      unsubscribers.push(unsubscribe);
+    }
+
+    return () => {
+      unsubscribers.forEach((unsubscribe) => unsubscribe());
+    };
+  }, [
+    socketContext,
+    onStickyMoved,
+    onEditingStarted,
+    onEditingStopped,
+    onUserConnected,
+    onUserDisconnected,
+  ]);
+
+  return {
+    isConnected: socketContext.isConnected,
+    emitStickyMoved: socketContext.emitStickyMoved,
+    emitEditingStart: socketContext.emitEditingStart,
+    emitEditingStop: socketContext.emitEditingStop,
+  };
+}
