@@ -41,8 +41,29 @@ app.prepare().then(() => {
   global.io = io;
 
   // Socket.io connection handling
-  io.on('connection', (socket) => {
+  io.on('connection', async (socket) => {
     console.log('🔌 User connected:', socket.id);
+    
+    let session = null;
+    try {
+      // Dynamic import for TypeScript socket-auth module
+      const { authenticateSocket } = await import('./lib/socket-auth.js');
+      
+      // Authenticate the socket connection
+      session = await authenticateSocket(socket);
+      if (!session) {
+        console.warn('🚫 Unauthenticated socket connection, disconnecting:', socket.id);
+        socket.disconnect();
+        return;
+      }
+      
+      console.log('✅ Socket authenticated for user:', session.userName);
+    } catch (error) {
+      console.error('❌ Socket authentication error:', error);
+      console.warn('🚫 Failed to authenticate socket, disconnecting:', socket.id);
+      socket.disconnect();
+      return;
+    }
 
     // Join board room
     socket.on('join-board', (boardId) => {
@@ -52,7 +73,7 @@ app.prepare().then(() => {
       // Notify other users in the board
       socket.to(`board:${boardId}`).emit('user-connected', {
         userId: socket.id,
-        userName: 'User',
+        userName: session.userName,
         timestamp: Date.now()
       });
     });
@@ -65,7 +86,7 @@ app.prepare().then(() => {
       // Notify other users in the board
       socket.to(`board:${boardId}`).emit('user-disconnected', {
         userId: socket.id,
-        userName: 'User',
+        userName: session.userName,
         timestamp: Date.now()
       });
     });
@@ -91,7 +112,7 @@ app.prepare().then(() => {
       const editingData = {
         stickyId: data.stickyId,
         userId: socket.id,
-        userName: 'User',
+        userName: session.userName,
         action: 'start',
         timestamp: Date.now()
       };
@@ -106,7 +127,7 @@ app.prepare().then(() => {
       const editingData = {
         stickyId: data.stickyId,
         userId: socket.id,
-        userName: 'User',
+        userName: session.userName,
         action: 'stop',
         timestamp: Date.now()
       };
