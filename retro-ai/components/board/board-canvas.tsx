@@ -34,6 +34,14 @@ interface MovementEvent {
   timestamp: number;
 }
 
+interface ColumnRenameEvent {
+  columnId: string;
+  title: string;
+  boardId: string;
+  userId: string;
+  timestamp: number;
+}
+
 interface BoardData {
   id: string;
   title: string;
@@ -89,9 +97,10 @@ interface BoardCanvasProps {
   board: BoardData;
   columns: BoardData["columns"];
   userId: string;
+  isOwner: boolean;
 }
 
-export function BoardCanvas({ board, columns: initialColumns, userId }: BoardCanvasProps) {
+export function BoardCanvas({ board, columns: initialColumns, userId, isOwner }: BoardCanvasProps) {
   const router = useRouter();
   const [columns, setColumns] = useState(initialColumns);
   const [unassignedStickies, setUnassignedStickies] = useState(board.stickies);
@@ -143,7 +152,7 @@ export function BoardCanvas({ board, columns: initialColumns, userId }: BoardCan
         setMoveIndicators(prev => ({
           ...prev,
           [data.stickyId]: {
-            movedBy: data.userName,
+            movedBy: data.userName!,
             timestamp: Date.now()
           }
         }));
@@ -194,7 +203,34 @@ export function BoardCanvas({ board, columns: initialColumns, userId }: BoardCan
         );
       }
     }, [userId, router, columns, unassignedStickies]),
+    onColumnRenamed: useCallback((data: ColumnRenameEvent) => {
+      // Don't update if this rename was initiated by us
+      if (data.userId === userId) {
+        return;
+      }
+
+      console.log("Received column rename event:", data);
+
+      // Update the column title in local state
+      setColumns(prevColumns =>
+        prevColumns.map(column =>
+          column.id === data.columnId
+            ? { ...column, title: data.title }
+            : column
+        )
+      );
+    }, [userId]),
   });
+
+  const handleColumnRenamed = useCallback((columnId: string, newTitle: string) => {
+    setColumns(prevColumns =>
+      prevColumns.map(column =>
+        column.id === columnId
+          ? { ...column, title: newTitle }
+          : column
+      )
+    );
+  }, []);
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -479,7 +515,10 @@ export function BoardCanvas({ board, columns: initialColumns, userId }: BoardCan
                 key={column.id}
                 column={column}
                 userId={userId}
+                boardId={board.id}
+                isOwner={isOwner}
                 moveIndicators={moveIndicators}
+                onColumnRenamed={handleColumnRenamed}
               />
             ))}
           </SortableContext>
