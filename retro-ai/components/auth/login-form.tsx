@@ -16,12 +16,16 @@ interface LoginFormProps {
   className?: string;
   showTitle?: boolean;
   showSignUpLink?: boolean;
+  title?: string;
+  description?: string;
 }
 
 export function LoginForm({ 
   className = "", 
   showTitle = true, 
-  showSignUpLink = true 
+  showSignUpLink = true,
+  title = "Login",
+  description = "Enter your email below to login to your account"
 }: LoginFormProps) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -99,9 +103,9 @@ export function LoginForm({
     <Card className={`w-full max-w-sm ${className}`}>
       {showTitle && (
         <CardHeader>
-          <CardTitle className="text-2xl">Login</CardTitle>
+          <CardTitle className="text-2xl">{title}</CardTitle>
           <CardDescription>
-            Enter your email below to login to your account
+            {description}
           </CardDescription>
         </CardHeader>
       )}
