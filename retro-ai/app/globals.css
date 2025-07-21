@@ -120,3 +120,19 @@
     @apply bg-background text-foreground;
   }
 }
+
+/* Pulsating animation for move indicator */
+@keyframes pulse-move {
+  0%, 100% { 
+    opacity: 1; 
+    transform: scale(1); 
+  }
+  50% { 
+    opacity: 0.7; 
+    transform: scale(1.02); 
+  }
+}
+
+.animate-pulse-move {
+  animation: pulse-move 1.5s ease-in-out infinite;
+}

@@ -30,6 +30,7 @@ interface MovementEvent {
   positionY?: number;
   boardId?: string;
   userId: string;
+  userName?: string;
   timestamp: number;
 }
 
@@ -97,6 +98,7 @@ export function BoardCanvas({ board, columns: initialColumns, userId }: BoardCan
   const [activeId, setActiveId] = useState<string | null>(null);
   const [showCreateDialog, setShowCreateDialog] = useState(false);
   const [showCreateColumnDialog, setShowCreateColumnDialog] = useState(false);
+  const [moveIndicators, setMoveIndicators] = useState<Record<string, { movedBy: string; timestamp: number }>>({});
   
   // Track if we initiated the movement to prevent echo
   const isLocalMovement = useRef(false);
@@ -134,6 +136,17 @@ export function BoardCanvas({ board, columns: initialColumns, userId }: BoardCan
         console.log("Sticky not found locally, refreshing...");
         setTimeout(() => router.refresh(), 0);
         return;
+      }
+
+      // Set move indicator for this sticky
+      if (data.userName) {
+        setMoveIndicators(prev => ({
+          ...prev,
+          [data.stickyId]: {
+            movedBy: data.userName,
+            timestamp: Date.now()
+          }
+        }));
       }
 
       // Update local state based on the movement
@@ -456,6 +469,7 @@ export function BoardCanvas({ board, columns: initialColumns, userId }: BoardCan
           <UnassignedArea
             stickies={unassignedStickies}
             userId={userId}
+            moveIndicators={moveIndicators}
           />
 
           {/* Columns */}
@@ -465,6 +479,7 @@ export function BoardCanvas({ board, columns: initialColumns, userId }: BoardCan
                 key={column.id}
                 column={column}
                 userId={userId}
+                moveIndicators={moveIndicators}
               />
             ))}
           </SortableContext>

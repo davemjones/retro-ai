@@ -34,9 +34,10 @@ interface ColumnProps {
     }>;
   };
   userId: string;
+  moveIndicators?: Record<string, { movedBy: string; timestamp: number }>;
 }
 
-export function Column({ column, userId }: ColumnProps) {
+export function Column({ column, userId, moveIndicators }: ColumnProps) {
   const { setNodeRef, isOver } = useDroppable({
     id: column.id,
   });
@@ -69,6 +70,7 @@ export function Column({ column, userId }: ColumnProps) {
               key={sticky.id}
               sticky={sticky}
               userId={userId}
+              moveIndicator={moveIndicators?.[sticky.id] || null}
             />
           ))}
         </SortableContext>

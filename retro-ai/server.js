@@ -172,6 +172,7 @@ app.prepare().then(() => {
         const movementData = {
           ...data,
           userId: session.userId,
+          userName: session.userName,
           sessionId: session.sessionId,
           timestamp: Date.now()
         };
