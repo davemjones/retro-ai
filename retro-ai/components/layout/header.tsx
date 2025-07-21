@@ -13,6 +13,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { LogOut, Settings, User } from "lucide-react";
+import { getInitials } from "@/lib/utils";
 
 export function Header() {
   const { data: session, status } = useSession();
@@ -36,8 +37,8 @@ export function Header() {
                   <Button variant="ghost" className="relative h-9 w-9 rounded-full">
                     <Avatar className="h-9 w-9">
                       <AvatarFallback>
-                        {session.user.name?.charAt(0).toUpperCase() || 
-                         session.user.email?.charAt(0).toUpperCase() || "U"}
+                        {getInitials(session.user.name || '') || 
+                         getInitials(session.user.email || '') || "U"}
                       </AvatarFallback>
                     </Avatar>
                   </Button>

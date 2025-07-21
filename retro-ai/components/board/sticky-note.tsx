@@ -7,6 +7,7 @@ import { CSS } from "@dnd-kit/utilities";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { getInitials } from "@/lib/utils";
 import { 
   DropdownMenu, 
   DropdownMenuContent, 
@@ -185,8 +186,8 @@ export function StickyNote({ sticky, userId }: StickyNoteProps) {
             <div className="flex items-center gap-2">
               <Avatar className="h-5 w-5">
                 <AvatarFallback className="text-xs">
-                  {sticky.author.name?.charAt(0).toUpperCase() || 
-                   sticky.author.email.charAt(0).toUpperCase()}
+                  {getInitials(sticky.author.name || '') || 
+                   getInitials(sticky.author.email) || "U"}
                 </AvatarFallback>
               </Avatar>
               <span className="text-xs text-muted-foreground">

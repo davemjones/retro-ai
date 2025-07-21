@@ -1,6 +1,7 @@
 "use client";
 
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { getInitials } from "@/lib/utils";
 
 interface EditingIndicatorProps {
   userName: string;
@@ -8,9 +9,7 @@ interface EditingIndicatorProps {
 }
 
 export function EditingIndicator({ userName, className = "" }: EditingIndicatorProps) {
-  const initials = userName
-    ? userName.charAt(0).toUpperCase()
-    : "?";
+  const initials = getInitials(userName) || "?";
 
   return (
     <div className={`absolute bottom-1 right-1 flex items-center gap-1 ${className}`}>
