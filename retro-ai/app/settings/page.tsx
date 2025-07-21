@@ -1,9 +1,10 @@
 "use client";
 
 import { SessionManager } from '@/components/session/session-manager';
+import { SocketSessionMonitor } from '@/components/session/socket-session-monitor';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Shield, Users, Activity, Settings as SettingsIcon } from 'lucide-react';
+import { Shield, Users, Activity, Settings as SettingsIcon, Wifi } from 'lucide-react';
 
 export default function SettingsPage() {
   return (
@@ -26,6 +27,10 @@ export default function SettingsPage() {
           <TabsTrigger value="activity" className="flex items-center space-x-2">
             <Activity className="h-4 w-4" />
             <span>Activity</span>
+          </TabsTrigger>
+          <TabsTrigger value="realtime" className="flex items-center space-x-2">
+            <Wifi className="h-4 w-4" />
+            <span>Real-time</span>
           </TabsTrigger>
         </TabsList>
 
@@ -110,6 +115,21 @@ export default function SettingsPage() {
                 <SessionManager showAnalytics={true} />
               </CardContent>
             </Card>
+          </div>
+        </TabsContent>
+
+        <TabsContent value="realtime">
+          <div className="space-y-6">
+            <Card>
+              <CardHeader>
+                <CardTitle>Real-time Session Monitoring</CardTitle>
+                <CardDescription>
+                  Monitor your active socket connections and real-time session security.
+                </CardDescription>
+              </CardHeader>
+            </Card>
+            
+            <SocketSessionMonitor />
           </div>
         </TabsContent>
       </Tabs>
