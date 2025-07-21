@@ -17,6 +17,7 @@ import { Column } from "./column";
 import { CreateStickyDialog } from "./create-sticky-dialog";
 import { CreateColumnDialog } from "./create-column-dialog";
 import { StickyNote } from "./sticky-note";
+import { UnassignedArea } from "./unassigned-area";
 import { Button } from "@/components/ui/button";
 import { Plus } from "lucide-react";
 import { toast } from "sonner";
@@ -96,6 +97,12 @@ export function BoardCanvas({ board, columns: initialColumns, userId }: BoardCan
   const columnsMap = Object.fromEntries(columns.map((col) => [col.id, col]));
 
   const findContainer = useCallback((id: string): string | undefined => {
+    // Check if it's the unassigned container
+    if (id === "unassigned") {
+      return "unassigned";
+    }
+
+    // Check if it's a column
     if (id in columnsMap) {
       return id;
     }
@@ -107,16 +114,16 @@ export function BoardCanvas({ board, columns: initialColumns, userId }: BoardCan
       }
     }
 
-    // Check if it's a sticky note on the board
+    // Check if it's an unassigned sticky note
     if (board.stickies.some((sticky) => sticky.id === id)) {
-      return "board";
+      return "unassigned";
     }
 
     return undefined;
   }, [columnsMap, columns, board.stickies]);
 
   const getItemsForContainer = useCallback((containerId: string) => {
-    if (containerId === "board") {
+    if (containerId === "unassigned") {
       return board.stickies;
     }
     return columnsMap[containerId]?.stickies || [];
@@ -258,7 +265,7 @@ export function BoardCanvas({ board, columns: initialColumns, userId }: BoardCan
 
     // Update backend
     try {
-      const targetColumnId = overContainer === "board" ? null : overContainer;
+      const targetColumnId = overContainer === "unassigned" ? null : overContainer;
       await fetch(`/api/stickies/${activeId}`, {
         method: "PATCH",
         headers: {
@@ -268,6 +275,9 @@ export function BoardCanvas({ board, columns: initialColumns, userId }: BoardCan
           columnId: targetColumnId,
         }),
       });
+      
+      // Refresh to update the UI
+      router.refresh();
     } catch (error) {
       console.error("Failed to move sticky note:", error);
       toast.error("Failed to move sticky note");
@@ -276,7 +286,7 @@ export function BoardCanvas({ board, columns: initialColumns, userId }: BoardCan
     }
 
     setActiveId(null);
-  }, [findContainer, getItemsForContainer, initialColumns]);
+  }, [findContainer, getItemsForContainer, initialColumns, router]);
 
   const activeSticky = findActiveSticky();
 
@@ -289,6 +299,12 @@ export function BoardCanvas({ board, columns: initialColumns, userId }: BoardCan
     >
       <div className="h-full p-6 bg-gradient-to-br from-background to-muted/20">
         <div className="h-full flex gap-6 overflow-x-auto">
+          {/* Unassigned Area */}
+          <UnassignedArea
+            stickies={board.stickies}
+            userId={userId}
+          />
+
           {/* Columns */}
           <SortableContext items={columns.map((col) => col.id)}>
             {columns.map((column) => (
