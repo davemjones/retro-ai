@@ -28,18 +28,23 @@ export async function POST(req: NextRequest) {
 
     // Log activity if resource is provided
     if (resource) {
-      await SessionManager.logActivity(
-        session.sessionId as string,
-        {
-          action,
-          resource,
-          metadata: {
-            userAgent: req.headers.get('user-agent'),
-            timestamp: Date.now(),
+      try {
+        await SessionManager.logActivity(
+          session.sessionId as string,
+          {
+            action,
+            resource,
+            metadata: {
+              userAgent: req.headers.get('user-agent'),
+              timestamp: Date.now(),
+            },
           },
-        },
-        req
-      );
+          req
+        );
+      } catch (logError) {
+        console.warn('Failed to log detailed activity:', logError);
+        // Don't fail the request if logging fails
+      }
     }
 
     return NextResponse.json({ success: true });

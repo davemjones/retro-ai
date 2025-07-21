@@ -49,8 +49,17 @@ export class SessionManager {
       const ipAddress = this.getClientIP(req);
       const fingerprint = await generateServerFingerprint(req.headers);
 
-      await prisma.userSession.create({
-        data: {
+      await prisma.userSession.upsert({
+        where: { sessionId },
+        update: {
+          // Update existing session with new activity
+          lastActivity: new Date(),
+          expiresAt,
+          isActive: true,
+          ipAddress,
+          userAgent: req.headers.get('user-agent') || 'Unknown',
+        },
+        create: {
           sessionId,
           userId,
           ipAddress,

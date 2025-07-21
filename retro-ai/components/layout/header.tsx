@@ -1,7 +1,6 @@
 "use client";
 
 import { useSession, signOut } from "next-auth/react";
-import { useEffect, useState } from "react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import {
@@ -17,35 +16,9 @@ import { LogOut, Settings, User } from "lucide-react";
 
 export function Header() {
   const { data: session, status } = useSession();
-  const [sessionConflict, setSessionConflict] = useState(false);
-
-  // Monitor for session conflicts or unexpected changes
-  useEffect(() => {
-    if (status === "authenticated" && session?.user) {
-      // Check if session has changed unexpectedly
-      const storedUserId = sessionStorage.getItem('current-user-id');
-      
-      if (storedUserId && storedUserId !== session.user.id) {
-        console.warn('Session conflict detected: User ID changed unexpectedly');
-        setSessionConflict(true);
-      } else {
-        // Store current user ID for conflict detection
-        sessionStorage.setItem('current-user-id', session.user.id);
-        setSessionConflict(false);
-      }
-    }
-  }, [session, status]);
 
   const handleSignOut = async () => {
-    // Clear session storage on explicit sign out
-    sessionStorage.removeItem('current-user-id');
     await signOut({ callbackUrl: "/" });
-  };
-
-  const handleSessionConflictResolve = async () => {
-    console.log('Resolving session conflict by signing out');
-    sessionStorage.removeItem('current-user-id');
-    await signOut({ callbackUrl: "/login" });
   };
 
   return (
@@ -57,18 +30,6 @@ export function Header() {
           </Link>
 
           <nav className="flex items-center gap-6">
-            {sessionConflict && (
-              <div className="flex items-center gap-2 text-sm text-destructive">
-                <span>Session conflict detected</span>
-                <Button 
-                  variant="outline" 
-                  size="sm" 
-                  onClick={handleSessionConflictResolve}
-                >
-                  Resolve
-                </Button>
-              </div>
-            )}
             {status === "authenticated" && session?.user ? (
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>

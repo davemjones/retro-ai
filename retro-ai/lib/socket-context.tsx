@@ -75,30 +75,14 @@ export function SocketProvider({ children }: SocketProviderProps) {
 
     const initSocket = async () => {
       try {
-        // Check if socket server is available
-        const response = await fetch("/api/socket");
-        
-        if (!response.ok) {
-          console.log("Socket.io server not available");
-          setIsConnected(false);
-          return;
-        }
-
-        const data = await response.json();
-        
-        if (data.status === "pending") {
-          console.log("Socket.io server initialization pending");
-          setIsConnected(false);
-          return;
-        }
-        
-        // Create socket connection
+        // Create socket connection directly
         const newSocket = io({
           path: "/api/socket",
           autoConnect: true,
           reconnection: true,
           reconnectionDelay: 1000,
           reconnectionAttempts: 5,
+          transports: ['websocket', 'polling'],
         });
 
         newSocket.on('connect', () => {
@@ -176,7 +160,7 @@ export function SocketProvider({ children }: SocketProviderProps) {
         setIsConnected(false);
       }
     };
-  }, [session, status, socket]);
+  }, [session, status]);
 
   const joinBoard = (boardId: string) => {
     if (socket && isConnected) {

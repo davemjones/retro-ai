@@ -8,7 +8,7 @@ export function Providers({ children }: { children: React.ReactNode }) {
   return (
     <SessionProvider>
       <SocketProvider>
-        <ActivityTracker />
+        {/* <ActivityTracker /> Temporarily disabled to debug logout issue */}
         {children}
       </SocketProvider>
     </SessionProvider>

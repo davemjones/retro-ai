@@ -135,7 +135,7 @@ model UserSession {
 model SessionActivity {
   id            String      @id @default(cuid())
   sessionId     String
-  session       UserSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  session       UserSession @relation(fields: [sessionId], references: [sessionId], onDelete: Cascade)
   action        String      // login, logout, page_view, api_call, etc.
   resource      String?     // board_id, team_id, etc.
   ipAddress     String
