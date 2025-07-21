@@ -2,11 +2,13 @@
 
 import { SessionProvider } from "next-auth/react";
 import { SocketProvider } from "@/lib/socket-context";
+import { ActivityTracker } from "./activity-tracker";
 
 export function Providers({ children }: { children: React.ReactNode }) {
   return (
     <SessionProvider>
       <SocketProvider>
+        <ActivityTracker />
         {children}
       </SocketProvider>
     </SessionProvider>
