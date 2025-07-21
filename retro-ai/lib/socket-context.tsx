@@ -153,12 +153,15 @@ export function SocketProvider({ children }: SocketProviderProps) {
     initSocket();
 
     return () => {
-      if (socket) {
-        console.log("Cleaning up socket connection");
-        socket.disconnect();
-        setSocket(null);
-        setIsConnected(false);
-      }
+      // Clean up function uses the socket from state
+      setSocket((currentSocket) => {
+        if (currentSocket) {
+          console.log("Cleaning up socket connection");
+          currentSocket.disconnect();
+        }
+        return null;
+      });
+      setIsConnected(false);
     };
   }, [session, status]);
 

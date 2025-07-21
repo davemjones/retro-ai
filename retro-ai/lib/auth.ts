@@ -139,13 +139,15 @@ export const authOptions: NextAuthOptions = {
           // Create UserSession record for this login
           try {
             const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours from now
+            // Create a mock NextRequest for server-side session creation
+            const mockHeaders = new Headers({ 'user-agent': 'NextAuth' });
+            const mockRequest = new Request('http://localhost', {
+              headers: mockHeaders,
+            });
             await SessionManager.createSession(
               dbUser.id,
               token.sessionId as string,
-              { 
-                ip: '127.0.0.1', // Default for server-side creation
-                headers: new Headers({ 'user-agent': 'NextAuth' })
-              } as any,
+              mockRequest as NextRequest,
               expiresAt
             );
             console.log(`UserSession record created for user ${dbUser.id} with session ID ${token.sessionId}`);
