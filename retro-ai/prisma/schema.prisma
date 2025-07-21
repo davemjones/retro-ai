@@ -18,6 +18,7 @@ model User {
   teams         TeamMember[]
   stickies      Sticky[]
   createdBoards Board[]
+  sessions      UserSession[]
   createdAt     DateTime       @default(now())
   updatedAt     DateTime       @updatedAt
 }
@@ -103,4 +104,54 @@ enum Role {
   OWNER
   ADMIN
   MEMBER
+}
+
+model UserSession {
+  id                String             @id @default(cuid())
+  sessionId         String             @unique // JWT session ID
+  userId            String
+  user              User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  ipAddress         String
+  userAgent         String
+  deviceType        String?            // mobile, desktop, tablet
+  browserName       String?
+  osName            String?
+  location          String?            // city, country
+  isActive          Boolean            @default(true)
+  lastActivity      DateTime           @default(now())
+  expiresAt         DateTime
+  fingerprint       Json?              // session fingerprint data
+  securityFlags     Json?              // security-related flags
+  activities        SessionActivity[]
+  createdAt         DateTime           @default(now())
+  updatedAt         DateTime           @updatedAt
+
+  @@index([userId])
+  @@index([sessionId])
+  @@index([isActive])
+  @@index([expiresAt])
+}
+
+model SessionActivity {
+  id            String      @id @default(cuid())
+  sessionId     String
+  session       UserSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  action        String      // login, logout, page_view, api_call, etc.
+  resource      String?     // board_id, team_id, etc.
+  ipAddress     String
+  userAgent     String
+  duration      Int?        // in milliseconds
+  metadata      Json?       // additional activity data
+  timestamp     DateTime    @default(now())
+
+  @@index([sessionId])
+  @@index([action])
+  @@index([timestamp])
+}
+
+enum SessionStatus {
+  ACTIVE
+  EXPIRED
+  TERMINATED
+  SUSPICIOUS
 }

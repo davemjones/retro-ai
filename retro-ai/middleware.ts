@@ -5,6 +5,7 @@ import {
   detectSessionHijacking, 
   clearAuthCookies 
 } from "./lib/cookie-security";
+import { SessionManager } from "./lib/session-manager";
 
 export default withAuth(
   async function middleware(req) {
@@ -65,6 +66,20 @@ export default withAuth(
         // Log recommendations
         if (securityResult.recommendations && securityResult.recommendations.length > 0) {
           console.info('Security recommendations:', securityResult.recommendations);
+        }
+
+        // Track session activity for valid sessions
+        if (req.nextauth.token?.sessionId) {
+          try {
+            const action = req.method === 'GET' ? 'page_view' : 'api_call';
+            await SessionManager.updateSessionActivity(
+              req.nextauth.token.sessionId as string,
+              req,
+              action
+            );
+          } catch (error) {
+            console.error('Failed to track session activity:', error);
+          }
         }
 
       } catch (error) {
