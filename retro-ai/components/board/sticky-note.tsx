@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
@@ -50,13 +50,21 @@ interface StickyNoteProps {
     authorId: string;
   };
   userId: string;
+  moveIndicator?: {
+    movedBy: string;
+    timestamp: number;
+  } | null;
 }
 
-export function StickyNote({ sticky, userId }: StickyNoteProps) {
+export function StickyNote({ sticky, userId, moveIndicator: propMoveIndicator }: StickyNoteProps) {
   const router = useRouter();
   const [showEditDialog, setShowEditDialog] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [editingUser, setEditingUser] = useState<{ userId: string; userName: string } | null>(null);
+  const [moveIndicator, setMoveIndicator] = useState<{
+    movedBy: string;
+    timestamp: number;
+  } | null>(propMoveIndicator || null);
 
   // Socket integration for editing indicators
   const { emitEditingStart, emitEditingStop } = useSocket({
@@ -71,6 +79,24 @@ export function StickyNote({ sticky, userId }: StickyNoteProps) {
       }
     }, [sticky.id, userId]),
   });
+
+  // Update move indicator when prop changes
+  useEffect(() => {
+    if (propMoveIndicator) {
+      setMoveIndicator(propMoveIndicator);
+    }
+  }, [propMoveIndicator]);
+
+  // Timer to clear move indicator after 10 seconds
+  useEffect(() => {
+    if (moveIndicator) {
+      const timer = setTimeout(() => {
+        setMoveIndicator(null);
+      }, 10000); // 10 seconds
+
+      return () => clearTimeout(timer);
+    }
+  }, [moveIndicator]);
 
   const {
     attributes,
@@ -183,17 +209,23 @@ export function StickyNote({ sticky, userId }: StickyNoteProps) {
             </div>
           </div>
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <Avatar className="h-5 w-5">
-                <AvatarFallback className="text-xs">
-                  {getInitials(sticky.author.name || '') || 
-                   getInitials(sticky.author.email) || "U"}
-                </AvatarFallback>
-              </Avatar>
-              <span className="text-xs text-muted-foreground">
-                {sticky.author.name || sticky.author.email}
+            {moveIndicator ? (
+              <span className="text-xs font-medium text-primary animate-pulse-move">
+                Moved by: {moveIndicator.movedBy}
               </span>
-            </div>
+            ) : (
+              <div className="flex items-center gap-2">
+                <Avatar className="h-5 w-5">
+                  <AvatarFallback className="text-xs">
+                    {getInitials(sticky.author.name || '') || 
+                     getInitials(sticky.author.email) || "U"}
+                  </AvatarFallback>
+                </Avatar>
+                <span className="text-xs text-muted-foreground">
+                  {sticky.author.name || sticky.author.email}
+                </span>
+              </div>
+            )}
           </div>
         </CardContent>
       </Card>

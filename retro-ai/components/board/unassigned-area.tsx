@@ -28,9 +28,10 @@ interface UnassignedAreaProps {
     authorId: string;
   }>;
   userId: string;
+  moveIndicators?: Record<string, { movedBy: string; timestamp: number }>;
 }
 
-export function UnassignedArea({ stickies, userId }: UnassignedAreaProps) {
+export function UnassignedArea({ stickies, userId, moveIndicators }: UnassignedAreaProps) {
   const { setNodeRef, isOver } = useDroppable({
     id: "unassigned",
   });
@@ -72,6 +73,7 @@ export function UnassignedArea({ stickies, userId }: UnassignedAreaProps) {
                   key={sticky.id}
                   sticky={sticky}
                   userId={userId}
+                  moveIndicator={moveIndicators?.[sticky.id] || null}
                 />
               ))}
             </SortableContext>
