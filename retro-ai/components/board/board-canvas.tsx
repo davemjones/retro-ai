@@ -235,18 +235,11 @@ export function BoardCanvas({ board, columns: initialColumns, userId, isOwner }:
 
       console.log("Received column delete event:", data);
 
-      // Find the column being deleted and move its stickies to unassigned
-      setColumns(prevColumns => {
-        const columnToDelete = prevColumns.find(col => col.id === data.columnId);
-        if (columnToDelete && columnToDelete.stickies.length > 0) {
-          // Move stickies to unassigned notes area
-          setUnassignedStickies(prev => [...prev, ...columnToDelete.stickies]);
-        }
-        
-        // Remove the column from the list
-        return prevColumns.filter(column => column.id !== data.columnId);
-      });
-    }, [userId]),
+      // For remote users, refresh the page to get the correct state from the database
+      // The database has already moved the stickies to unassigned, so we don't want
+      // to duplicate them by moving them in local state
+      setTimeout(() => router.refresh(), 0);
+    }, [userId, router]),
   });
 
   const handleColumnRenamed = useCallback((columnId: string, newTitle: string) => {
@@ -260,17 +253,19 @@ export function BoardCanvas({ board, columns: initialColumns, userId, isOwner }:
   }, []);
 
   const handleColumnDeleted = useCallback((columnId: string, _migratedStickiesCount: number) => {
-    // For the user who initiated the deletion, we only need to remove the column
-    // from the local state. The database operation has already moved the stickies
-    // to unassigned, so we don't want to duplicate them.
-    setColumns(prevColumns => 
-      prevColumns.filter(column => column.id !== columnId)
-    );
-    
-    // Refresh the page to get the updated state from the database
-    // This ensures we see the migrated stickies in the unassigned area
-    setTimeout(() => router.refresh(), 0);
-  }, [router]);
+    // For the user who initiated the deletion, we need to move the stickies
+    // to unassigned in the local state immediately so they don't disappear
+    setColumns(prevColumns => {
+      const columnToDelete = prevColumns.find(col => col.id === columnId);
+      if (columnToDelete && columnToDelete.stickies.length > 0) {
+        // Move stickies to unassigned notes area in local state
+        setUnassignedStickies(prev => [...prev, ...columnToDelete.stickies]);
+      }
+      
+      // Remove the column from the list
+      return prevColumns.filter(column => column.id !== columnId);
+    });
+  }, []);
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
