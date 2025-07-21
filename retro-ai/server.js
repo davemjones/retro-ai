@@ -53,7 +53,7 @@ app.prepare().then(() => {
         authenticateSocket, 
         validateSocketSession, 
         createBoardIsolationMiddleware
-      } = await import('./lib/socket-auth.js');
+      } = await import('./lib/socket-auth-secure.mjs');
       
       // Authenticate the socket connection with enhanced security
       session = await authenticateSocket(socket, {
