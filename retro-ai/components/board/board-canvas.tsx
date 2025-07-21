@@ -17,6 +17,7 @@ import { Column } from "./column";
 import { CreateStickyDialog } from "./create-sticky-dialog";
 import { CreateColumnDialog } from "./create-column-dialog";
 import { StickyNote } from "./sticky-note";
+import { UnassignedArea } from "./unassigned-area";
 import { Button } from "@/components/ui/button";
 import { Plus } from "lucide-react";
 import { toast } from "sonner";
@@ -81,6 +82,7 @@ interface BoardCanvasProps {
 export function BoardCanvas({ board, columns: initialColumns, userId }: BoardCanvasProps) {
   const router = useRouter();
   const [columns, setColumns] = useState(initialColumns);
+  const [unassignedStickies, setUnassignedStickies] = useState(board.stickies);
   const [activeId, setActiveId] = useState<string | null>(null);
   const [showCreateDialog, setShowCreateDialog] = useState(false);
   const [showCreateColumnDialog, setShowCreateColumnDialog] = useState(false);
@@ -96,6 +98,12 @@ export function BoardCanvas({ board, columns: initialColumns, userId }: BoardCan
   const columnsMap = Object.fromEntries(columns.map((col) => [col.id, col]));
 
   const findContainer = useCallback((id: string): string | undefined => {
+    // Check if it's the unassigned container
+    if (id === "unassigned") {
+      return "unassigned";
+    }
+
+    // Check if it's a column
     if (id in columnsMap) {
       return id;
     }
@@ -107,49 +115,21 @@ export function BoardCanvas({ board, columns: initialColumns, userId }: BoardCan
       }
     }
 
-    // Check if it's a sticky note on the board
-    if (board.stickies.some((sticky) => sticky.id === id)) {
-      return "board";
+    // Check if it's an unassigned sticky note
+    if (unassignedStickies.some((sticky) => sticky.id === id)) {
+      return "unassigned";
     }
 
     return undefined;
-  }, [columnsMap, columns, board.stickies]);
+  }, [columnsMap, columns, unassignedStickies]);
 
   const getItemsForContainer = useCallback((containerId: string) => {
-    if (containerId === "board") {
-      return board.stickies;
+    if (containerId === "unassigned") {
+      return unassignedStickies;
     }
     return columnsMap[containerId]?.stickies || [];
-  }, [board.stickies, columnsMap]);
+  }, [unassignedStickies, columnsMap]);
 
-  const moveBetweenContainers = useCallback((
-    columns: BoardData["columns"],
-    activeContainer: string,
-    overContainer: string,
-    activeIndex: number,
-    overIndex: number
-  ) => {
-    // This is a simplified version - you'd need to handle board-level stickies too
-    return columns.map((column) => {
-      if (column.id === activeContainer) {
-        // Remove from active container
-        return {
-          ...column,
-          stickies: column.stickies.filter((_, index) => index !== activeIndex),
-        };
-      } else if (column.id === overContainer) {
-        // Add to over container
-        const activeItem = getItemsForContainer(activeContainer)[activeIndex];
-        const newStickies = [...column.stickies];
-        newStickies.splice(overIndex, 0, activeItem);
-        return {
-          ...column,
-          stickies: newStickies,
-        };
-      }
-      return column;
-    });
-  }, [getItemsForContainer]);
 
   const findActiveSticky = useCallback(() => {
     if (!activeId) return null;
@@ -160,10 +140,10 @@ export function BoardCanvas({ board, columns: initialColumns, userId }: BoardCan
       if (sticky) return sticky;
     }
     
-    // Check board-level stickies
-    const sticky = board.stickies.find(s => s.id === activeId);
+    // Check unassigned stickies
+    const sticky = unassignedStickies.find(s => s.id === activeId);
     return sticky || null;
-  }, [activeId, columns, board.stickies]);
+  }, [activeId, columns, unassignedStickies]);
 
   const handleDragStart = useCallback((event: DragStartEvent) => {
     setActiveId(event.active.id as string);
@@ -184,34 +164,95 @@ export function BoardCanvas({ board, columns: initialColumns, userId }: BoardCan
     if (!activeContainer || !overContainer) return;
     if (activeContainer === overContainer) return;
 
-    setColumns((columns) => {
-      const activeItems = getItemsForContainer(activeContainer);
-      const overItems = getItemsForContainer(overContainer);
+    // Find the active item
+    const activeItems = getItemsForContainer(activeContainer);
+    const activeIndex = activeItems.findIndex((item) => item.id === activeId);
+    const activeItem = activeItems[activeIndex];
 
-      // Find the indexes for the items
-      const activeIndex = activeItems.findIndex((item) => item.id === activeId);
-      const overIndex = overItems.findIndex((item) => item.id === overId);
+    if (!activeItem) return;
 
-      let newIndex: number;
-      if (overId in columnsMap) {
-        // Dropping into a column
-        newIndex = overItems.length + 1;
-      } else {
-        // Dropping over an item
-        const isBelowLastItem = over && overIndex === overItems.length - 1;
-        const modifier = isBelowLastItem ? 1 : 0;
-        newIndex = overIndex >= 0 ? overIndex + modifier : overItems.length + 1;
-      }
-
-      return moveBetweenContainers(
-        columns,
-        activeContainer,
-        overContainer,
-        activeIndex,
-        newIndex
+    // Handle moves involving unassigned area
+    if (activeContainer === "unassigned" && overContainer !== "unassigned") {
+      // Moving from unassigned to a column
+      setUnassignedStickies((stickies) => 
+        stickies.filter((sticky) => sticky.id !== activeId)
       );
-    });
-  }, [columnsMap, findContainer, getItemsForContainer, moveBetweenContainers]);
+      
+      setColumns((columns) => 
+        columns.map((column) => {
+          if (column.id === overContainer) {
+            const newStickies = [...column.stickies];
+            const overItems = getItemsForContainer(overContainer);
+            const overIndex = overItems.findIndex((item) => item.id === overId);
+            
+            let newIndex: number;
+            if (overId === overContainer) {
+              newIndex = overItems.length;
+            } else {
+              const isBelowLastItem = over && overIndex === overItems.length - 1;
+              const modifier = isBelowLastItem ? 1 : 0;
+              newIndex = overIndex >= 0 ? overIndex + modifier : overItems.length;
+            }
+            
+            newStickies.splice(newIndex, 0, activeItem);
+            return { ...column, stickies: newStickies };
+          }
+          return column;
+        })
+      );
+    } else if (activeContainer !== "unassigned" && overContainer === "unassigned") {
+      // Moving from a column to unassigned
+      setColumns((columns) =>
+        columns.map((column) => {
+          if (column.id === activeContainer) {
+            return {
+              ...column,
+              stickies: column.stickies.filter((sticky) => sticky.id !== activeId),
+            };
+          }
+          return column;
+        })
+      );
+      
+      setUnassignedStickies((stickies) => [...stickies, activeItem]);
+    } else {
+      // Moving between columns (existing logic)
+      setColumns((columns) => {
+        const activeColumn = columns.find((col) => col.id === activeContainer);
+        const overColumn = columns.find((col) => col.id === overContainer);
+        
+        if (!activeColumn || !overColumn) return columns;
+        
+        return columns.map((column) => {
+          if (column.id === activeContainer) {
+            // Remove from active container
+            return {
+              ...column,
+              stickies: column.stickies.filter((_, index) => index !== activeIndex),
+            };
+          } else if (column.id === overContainer) {
+            // Add to over container
+            const newStickies = [...column.stickies];
+            const overItems = getItemsForContainer(overContainer);
+            const overIndex = overItems.findIndex((item) => item.id === overId);
+            
+            let newIndex: number;
+            if (overId === overContainer) {
+              newIndex = overItems.length;
+            } else {
+              const isBelowLastItem = over && overIndex === overItems.length - 1;
+              const modifier = isBelowLastItem ? 1 : 0;
+              newIndex = overIndex >= 0 ? overIndex + modifier : overItems.length;
+            }
+            
+            newStickies.splice(newIndex, 0, activeItem);
+            return { ...column, stickies: newStickies };
+          }
+          return column;
+        });
+      });
+    }
+  }, [findContainer, getItemsForContainer]);
 
   const handleDragEnd = useCallback(async (event: DragEndEvent) => {
     const { active, over } = event;
@@ -258,7 +299,7 @@ export function BoardCanvas({ board, columns: initialColumns, userId }: BoardCan
 
     // Update backend
     try {
-      const targetColumnId = overContainer === "board" ? null : overContainer;
+      const targetColumnId = overContainer === "unassigned" ? null : overContainer;
       await fetch(`/api/stickies/${activeId}`, {
         method: "PATCH",
         headers: {
@@ -268,6 +309,9 @@ export function BoardCanvas({ board, columns: initialColumns, userId }: BoardCan
           columnId: targetColumnId,
         }),
       });
+      
+      // Refresh to update the UI
+      router.refresh();
     } catch (error) {
       console.error("Failed to move sticky note:", error);
       toast.error("Failed to move sticky note");
@@ -276,7 +320,7 @@ export function BoardCanvas({ board, columns: initialColumns, userId }: BoardCan
     }
 
     setActiveId(null);
-  }, [findContainer, getItemsForContainer, initialColumns]);
+  }, [findContainer, getItemsForContainer, initialColumns, router]);
 
   const activeSticky = findActiveSticky();
 
@@ -289,6 +333,12 @@ export function BoardCanvas({ board, columns: initialColumns, userId }: BoardCan
     >
       <div className="h-full p-6 bg-gradient-to-br from-background to-muted/20">
         <div className="h-full flex gap-6 overflow-x-auto">
+          {/* Unassigned Area */}
+          <UnassignedArea
+            stickies={unassignedStickies}
+            userId={userId}
+          />
+
           {/* Columns */}
           <SortableContext items={columns.map((col) => col.id)}>
             {columns.map((column) => (
