@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useSocket } from '@/lib/socket-context';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -42,6 +42,7 @@ export function SocketSessionMonitor() {
   const [heartbeatStatus, setHeartbeatStatus] = useState<'idle' | 'pending' | 'success' | 'failed'>('idle');
   const [lastHeartbeat, setLastHeartbeat] = useState<number | null>(null);
   const [sessionHealth, setSessionHealth] = useState<'healthy' | 'warning' | 'critical'>('healthy');
+  const heartbeatTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   // Add alerts - wrapped in useCallback to prevent dependency changes
   const addAlert = useCallback((type: SessionAlert['type'], message: string) => {
@@ -130,18 +131,33 @@ export function SocketSessionMonitor() {
       setHeartbeatStatus('pending');
       sendHeartbeat();
       
-      // Set a timeout for heartbeat response
-      setTimeout(() => {
-        if (heartbeatStatus === 'pending') {
-          setHeartbeatStatus('failed');
-          addAlert('warning', 'Heartbeat timeout - session may be unstable');
-          setSessionHealth('warning');
-        }
+      // Clear any existing timeout
+      if (heartbeatTimeoutRef.current) {
+        clearTimeout(heartbeatTimeoutRef.current);
+      }
+      
+      // Set a new timeout for heartbeat response
+      heartbeatTimeoutRef.current = setTimeout(() => {
+        setHeartbeatStatus((currentStatus) => {
+          if (currentStatus === 'pending') {
+            addAlert('warning', 'Heartbeat timeout - session may be unstable');
+            setSessionHealth('warning');
+            return 'failed';
+          }
+          return currentStatus;
+        });
+        heartbeatTimeoutRef.current = null;
       }, 5000);
     }, 30000); // Send heartbeat every 30 seconds
 
-    return () => clearInterval(heartbeatInterval);
-  }, [isConnected, sendHeartbeat, heartbeatStatus, addAlert]);
+    return () => {
+      clearInterval(heartbeatInterval);
+      if (heartbeatTimeoutRef.current) {
+        clearTimeout(heartbeatTimeoutRef.current);
+        heartbeatTimeoutRef.current = null;
+      }
+    };
+  }, [isConnected, sendHeartbeat, addAlert]);
 
   // Handle heartbeat responses
   useEffect(() => {
@@ -150,6 +166,12 @@ export function SocketSessionMonitor() {
     // Listen for heartbeat response from server
     const unsubscribeHeartbeat = onHeartbeatResponse((data) => {
       console.log('Heartbeat response received:', data);
+      
+      // Clear the heartbeat timeout since we got a response
+      if (heartbeatTimeoutRef.current) {
+        clearTimeout(heartbeatTimeoutRef.current);
+        heartbeatTimeoutRef.current = null;
+      }
       
       if (data.isValid) {
         setHeartbeatStatus('success');
@@ -173,6 +195,24 @@ export function SocketSessionMonitor() {
     setHeartbeatStatus('pending');
     sendHeartbeat();
     addAlert('info', 'Manual heartbeat sent');
+    
+    // Clear any existing timeout
+    if (heartbeatTimeoutRef.current) {
+      clearTimeout(heartbeatTimeoutRef.current);
+    }
+    
+    // Set timeout for manual heartbeat
+    heartbeatTimeoutRef.current = setTimeout(() => {
+      setHeartbeatStatus((currentStatus) => {
+        if (currentStatus === 'pending') {
+          addAlert('warning', 'Manual heartbeat timeout - session may be unstable');
+          setSessionHealth('warning');
+          return 'failed';
+        }
+        return currentStatus;
+      });
+      heartbeatTimeoutRef.current = null;
+    }, 5000);
   };
 
   const handleForceRefresh = () => {
