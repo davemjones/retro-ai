@@ -302,37 +302,74 @@ export function createBoardIsolationMiddleware(session: SocketSession) {
   return async (boardId: string): Promise<{ canAccess: boolean; reason?: string }> => {
     try {
       // Validate user has access to this board
-      // This would integrate with your existing board permission system
-      
-      // For now, basic validation that user is authenticated
       if (!session.isAuthenticated) {
         return { canAccess: false, reason: 'Not authenticated' };
       }
 
-      // Update session with current board context
-      session.boardId = boardId;
-      session.lastActivity = Date.now();
+      // Import Prisma client for database queries
+      const { PrismaClient } = await import('@prisma/client');
+      const prisma = new PrismaClient();
 
-      // Log board access for security monitoring
-      if (session.sessionId) {
-        try {
-          await SessionManager.updateSessionActivity(
-            session.sessionId,
-            {
-              headers: new Headers({
-                'user-agent': 'socket',
-                'x-forwarded-for': 'socket',
-              }),
-              method: 'GET',
-            } as NextRequest,
-            'board_access'
-          );
-        } catch (error) {
-          console.error('Failed to log board access:', error);
+      try {
+        // Query to check if user is a member of the board's team
+        const boardWithTeam = await prisma.board.findUnique({
+          where: { id: boardId },
+          include: {
+            team: {
+              include: {
+                members: {
+                  where: { userId: session.userId }
+                }
+              }
+            }
+          }
+        });
+
+        // Board doesn't exist
+        if (!boardWithTeam) {
+          return { canAccess: false, reason: 'Board not found' };
         }
-      }
 
-      return { canAccess: true };
+        // User is not a member of the board's team
+        if (boardWithTeam.team.members.length === 0) {
+          console.warn(`Access denied: User ${session.userId} attempted to access board ${boardId} but is not a member of team ${boardWithTeam.team.id}`);
+          return { 
+            canAccess: false, 
+            reason: `Not a member of this board's team: ${boardWithTeam.team.name}` 
+          };
+        }
+
+        // User has access - log successful authorization
+        console.log(`Access granted: User ${session.userId} authorized for board ${boardId} (team: ${boardWithTeam.team.name})`);
+
+        // Update session with current board context
+        session.boardId = boardId;
+        session.lastActivity = Date.now();
+
+        // Log board access for security monitoring
+        if (session.sessionId) {
+          try {
+            await SessionManager.updateSessionActivity(
+              session.sessionId,
+              {
+                headers: new Headers({
+                  'user-agent': 'socket',
+                  'x-forwarded-for': 'socket',
+                }),
+                method: 'GET',
+              } as NextRequest,
+              'board_access'
+            );
+          } catch (error) {
+            console.error('Failed to log board access:', error);
+          }
+        }
+
+        return { canAccess: true };
+
+      } finally {
+        await prisma.$disconnect();
+      }
 
     } catch (error) {
       console.error('Board isolation middleware error:', error);
