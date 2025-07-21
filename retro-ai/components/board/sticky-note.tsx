@@ -161,7 +161,7 @@ export function StickyNote({ sticky, userId }: StickyNoteProps) {
                       <DropdownMenuItem
                         onClick={() => {
                           setShowEditDialog(true);
-                          emitEditingStart(sticky.id);
+                          emitEditingStart(sticky.id, sticky.boardId);
                         }}
                       >
                         <Edit className="mr-2 h-3 w-3" />
@@ -205,13 +205,13 @@ export function StickyNote({ sticky, userId }: StickyNoteProps) {
         onOpenChange={(open) => {
           setShowEditDialog(open);
           if (!open) {
-            emitEditingStop(sticky.id);
+            emitEditingStop(sticky.id, sticky.boardId);
           }
         }}
         sticky={sticky}
         onStickyUpdated={() => {
           setShowEditDialog(false);
-          emitEditingStop(sticky.id);
+          emitEditingStop(sticky.id, sticky.boardId);
           router.refresh();
         }}
       />

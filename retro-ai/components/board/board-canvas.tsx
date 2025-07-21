@@ -387,8 +387,9 @@ export function BoardCanvas({ board, columns: initialColumns, userId }: BoardCan
         emitStickyMoved({
           stickyId: activeId,
           columnId: targetColumnId,
+          boardId: board.id,
         });
-        console.log("Emitted movement event:", { stickyId: activeId, columnId: targetColumnId });
+        console.log("Emitted movement event:", { stickyId: activeId, columnId: targetColumnId, boardId: board.id });
       }
       
       // Refresh to update the UI

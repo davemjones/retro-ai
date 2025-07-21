@@ -1,11 +1,8 @@
 "use client";
 
 import React, { createContext, useContext, useEffect, useState, ReactNode } from "react";
-// import { io, Socket } from "socket.io-client"; // Temporarily disabled
+import { io, Socket } from "socket.io-client";
 import { useSession } from "next-auth/react";
-
-// Temporary type for when Socket.io is disabled
-type Socket = any;
 
 interface MovementEvent {
   stickyId: string;
@@ -64,24 +61,49 @@ export function SocketProvider({ children }: SocketProviderProps) {
       try {
         // Check if socket server is available
         const response = await fetch("/api/socket");
-        const text = await response.text();
         
-        if (text.includes("placeholder")) {
-          console.log("Socket.io is temporarily disabled during development");
+        if (!response.ok) {
+          console.log("Socket.io server not available");
+          setIsConnected(false);
+          return;
+        }
+
+        const data = await response.json();
+        
+        if (data.status === "pending") {
+          console.log("Socket.io server initialization pending");
           setIsConnected(false);
           return;
         }
         
-        // Create socket connection (this will be enabled later)
-        // const newSocket = io({
-        //   path: "/api/socket",
-        //   autoConnect: true,
-        // });
+        // Create socket connection
+        const newSocket = io({
+          path: "/api/socket",
+          autoConnect: true,
+          reconnection: true,
+          reconnectionDelay: 1000,
+          reconnectionAttempts: 5,
+        });
 
-        // For now, just log that sockets are disabled
-        console.log("Socket.io real-time features are temporarily disabled");
-        setIsConnected(false);
-        setSocket(null);
+        newSocket.on('connect', () => {
+          console.log('🔌 Connected to Socket.io server');
+          setIsConnected(true);
+          setSocket(newSocket);
+        });
+
+        newSocket.on('disconnect', () => {
+          console.log('🔌 Disconnected from Socket.io server');
+          setIsConnected(false);
+        });
+
+        newSocket.on('connect_error', (error) => {
+          console.error('Socket connection error:', error);
+          setIsConnected(false);
+        });
+
+        // Set initial socket state
+        setSocket(newSocket);
+        
       } catch (error) {
         console.error("Failed to initialize socket:", error);
         setIsConnected(false);
@@ -98,7 +120,7 @@ export function SocketProvider({ children }: SocketProviderProps) {
         setIsConnected(false);
       }
     };
-  }, [session, status, socket]);
+  }, [session, status]);
 
   const joinBoard = (boardId: string) => {
     if (socket && isConnected) {
@@ -112,21 +134,21 @@ export function SocketProvider({ children }: SocketProviderProps) {
     }
   };
 
-  const emitStickyMoved = (data: Omit<MovementEvent, 'userId' | 'timestamp'>) => {
+  const emitStickyMoved = (data: Omit<MovementEvent, 'userId' | 'timestamp'> & { boardId?: string }) => {
     if (socket && isConnected) {
       socket.emit("sticky-moved", data);
     }
   };
 
-  const emitEditingStart = (stickyId: string) => {
+  const emitEditingStart = (stickyId: string, boardId?: string) => {
     if (socket && isConnected) {
-      socket.emit("editing-start", { stickyId });
+      socket.emit("editing-start", { stickyId, boardId });
     }
   };
 
-  const emitEditingStop = (stickyId: string) => {
+  const emitEditingStop = (stickyId: string, boardId?: string) => {
     if (socket && isConnected) {
-      socket.emit("editing-stop", { stickyId });
+      socket.emit("editing-stop", { stickyId, boardId });
     }
   };
 

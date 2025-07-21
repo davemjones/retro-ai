@@ -11,6 +11,14 @@ jest.mock('next/navigation', () => ({
   }),
 }));
 
+// Mock next-auth/react
+jest.mock('next-auth/react', () => ({
+  useSession: () => ({
+    data: { user: { id: 'test-user', name: 'Test User', email: 'test@example.com' } },
+    status: 'authenticated',
+  }),
+}));
+
 // Mock other dependencies
 jest.mock('@dnd-kit/core');
 jest.mock('@dnd-kit/sortable', () => ({
@@ -54,7 +62,11 @@ const mockBoard = {
 describe('Window Reload Replacement', () => {
   beforeEach(() => {
     mockRefresh.mockClear();
-    global.fetch = jest.fn();
+    global.fetch = jest.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ success: true }),
+      text: async () => "Socket.io placeholder - feature temporarily disabled during development",
+    });
     global.confirm = jest.fn(() => true);
   });
 
@@ -70,7 +82,12 @@ describe('Window Reload Replacement', () => {
 
     // This test verifies that StickyNote component can be rendered
     // without calling window.location.reload() during initialization
-    render(<StickyNote sticky={mockSticky} userId="user-1" />);
+    const { SocketProvider } = require('@/lib/socket-context');
+    render(
+      <SocketProvider>
+        <StickyNote sticky={mockSticky} userId="user-1" />
+      </SocketProvider>
+    );
     
     // The component renders successfully, which means useRouter() is working
     // and window.location.reload() is not being called during render
@@ -79,12 +96,15 @@ describe('Window Reload Replacement', () => {
   });
 
   it('should use router.refresh() in BoardCanvas onStickyCreated', () => {
+    const { SocketProvider } = require('@/lib/socket-context');
     render(
-      <BoardCanvas 
-        board={mockBoard} 
-        columns={[]} 
-        userId="user-1" 
-      />
+      <SocketProvider>
+        <BoardCanvas 
+          board={mockBoard} 
+          columns={[]} 
+          userId="user-1" 
+        />
+      </SocketProvider>
     );
 
     // Verify the component renders without using window.location.reload
