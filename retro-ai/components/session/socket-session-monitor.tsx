@@ -42,6 +42,7 @@ export function SocketSessionMonitor() {
   const [heartbeatStatus, setHeartbeatStatus] = useState<'idle' | 'pending' | 'success' | 'failed'>('idle');
   const [lastHeartbeat, setLastHeartbeat] = useState<number | null>(null);
   const [sessionHealth, setSessionHealth] = useState<'healthy' | 'warning' | 'critical'>('healthy');
+  const [displayTime, setDisplayTime] = useState(Date.now());
   const heartbeatTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   // Add alerts - wrapped in useCallback to prevent dependency changes
@@ -191,6 +192,15 @@ export function SocketSessionMonitor() {
     return unsubscribeHeartbeat;
   }, [isConnected, onHeartbeatResponse, sessionHealth, addAlert]);
 
+  // Real-time display update - refresh every second to show live countdown
+  useEffect(() => {
+    const displayInterval = setInterval(() => {
+      setDisplayTime(Date.now());
+    }, 1000);
+
+    return () => clearInterval(displayInterval);
+  }, []);
+
   const handleManualHeartbeat = () => {
     setHeartbeatStatus('pending');
     sendHeartbeat();
@@ -299,7 +309,7 @@ export function SocketSessionMonitor() {
             <span className="text-sm font-medium">Heartbeat:</span>
             <span className="text-sm text-muted-foreground">
               {lastHeartbeat 
-                ? `${Math.round((Date.now() - lastHeartbeat) / 1000)}s ago`
+                ? `${Math.round((displayTime - lastHeartbeat) / 1000)}s ago`
                 : 'Never'
               }
             </span>
