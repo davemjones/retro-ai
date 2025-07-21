@@ -52,7 +52,7 @@ export default function RegisterPage() {
       }
 
       toast.success("Account created successfully! Please sign in.");
-      router.push("/login");
+      router.push("/");
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "An error occurred");
     } finally {
@@ -124,7 +124,7 @@ export default function RegisterPage() {
             </Button>
             <p className="text-sm text-center text-muted-foreground">
               Already have an account?{" "}
-              <Link href="/login" className="text-primary hover:underline">
+              <Link href="/" className="text-primary hover:underline">
                 Sign in
               </Link>
             </p>
