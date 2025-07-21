@@ -112,6 +112,30 @@ export function BoardCanvas({ board, columns: initialColumns, userId }: BoardCan
 
       console.log("Received movement event:", data);
 
+      // Find the sticky note that's being moved
+      let movedSticky = null;
+      
+      // Check columns first
+      for (const column of columns) {
+        const sticky = column.stickies.find(s => s.id === data.stickyId);
+        if (sticky) {
+          movedSticky = sticky;
+          break;
+        }
+      }
+      
+      // Check unassigned if not found in columns
+      if (!movedSticky) {
+        movedSticky = unassignedStickies.find(s => s.id === data.stickyId);
+      }
+      
+      // If we can't find the sticky, we need to refresh to get the latest data
+      if (!movedSticky) {
+        console.log("Sticky not found locally, refreshing...");
+        setTimeout(() => router.refresh(), 0);
+        return;
+      }
+
       // Update local state based on the movement
       if (data.columnId === null) {
         // Moving to unassigned area
@@ -122,9 +146,14 @@ export function BoardCanvas({ board, columns: initialColumns, userId }: BoardCan
           }))
         );
         
-        // Add to unassigned (we'll need to get the sticky data from somewhere)
-        // For now, we'll rely on the refresh mechanism
-        router.refresh();
+        // Add to unassigned
+        setUnassignedStickies(prev => {
+          // Don't add if already exists
+          if (prev.some(s => s.id === data.stickyId)) {
+            return prev;
+          }
+          return [...prev, movedSticky];
+        });
       } else {
         // Moving to a column
         setUnassignedStickies(prev => 
@@ -134,13 +163,14 @@ export function BoardCanvas({ board, columns: initialColumns, userId }: BoardCan
         setColumns(prevColumns => 
           prevColumns.map(column => {
             if (column.id === data.columnId) {
-              // Don't add if already exists (prevent duplicates)
+              // Add to target column if not already there
               if (column.stickies.some(s => s.id === data.stickyId)) {
                 return column;
               }
-              // For now, trigger a refresh to get updated data
-              router.refresh();
-              return column;
+              return {
+                ...column,
+                stickies: [...column.stickies, movedSticky],
+              };
             }
             // Remove from other columns
             return {
@@ -150,7 +180,7 @@ export function BoardCanvas({ board, columns: initialColumns, userId }: BoardCan
           })
         );
       }
-    }, [userId, router]),
+    }, [userId, router, columns, unassignedStickies]),
   });
 
   const sensors = useSensors(
