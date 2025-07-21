@@ -8,7 +8,9 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { toast } from "sonner";
+import { AlertTriangle, Shield } from "lucide-react";
 
 export default function LoginPage() {
   const [email, setEmail] = useState("");
@@ -17,6 +19,47 @@ export default function LoginPage() {
   const [isSigningOut, setIsSigningOut] = useState(false);
   const router = useRouter();
   const { data: session, status } = useSession();
+
+  // Get error from URL params (from middleware redirects) using window.location
+  const [error, setError] = useState<string | null>(null);
+  
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const urlParams = new URLSearchParams(window.location.search);
+      setError(urlParams.get('error'));
+    }
+  }, []);
+
+  // Get security error message
+  const getSecurityErrorMessage = (errorType: string | null) => {
+    switch (errorType) {
+      case 'SecurityThreat':
+        return {
+          title: 'Security Alert',
+          message: 'Your session was terminated due to suspicious activity. Please log in again.',
+          icon: <Shield className="h-4 w-4" />,
+          variant: 'destructive' as const
+        };
+      case 'SessionExpired':
+        return {
+          title: 'Session Expired',
+          message: 'Your session has expired for security reasons. Please log in again.',
+          icon: <AlertTriangle className="h-4 w-4" />,
+          variant: 'default' as const
+        };
+      case 'SessionValidationError':
+        return {
+          title: 'Session Error',
+          message: 'There was an issue validating your session. Please log in again.',
+          icon: <AlertTriangle className="h-4 w-4" />,
+          variant: 'default' as const
+        };
+      default:
+        return null;
+    }
+  };
+
+  const securityError = getSecurityErrorMessage(error);
 
   // Automatically sign out existing session when component mounts
   // This prevents session bleeding between different user logins
@@ -73,6 +116,17 @@ export default function LoginPage() {
         </CardHeader>
         <form onSubmit={handleSubmit}>
           <CardContent className="space-y-4">
+            {securityError && (
+              <Alert variant={securityError.variant}>
+                <div className="flex items-center gap-2">
+                  {securityError.icon}
+                  <div>
+                    <p className="font-medium">{securityError.title}</p>
+                    <AlertDescription>{securityError.message}</AlertDescription>
+                  </div>
+                </div>
+              </Alert>
+            )}
             <div className="space-y-2">
               <Label htmlFor="email">Email</Label>
               <Input
