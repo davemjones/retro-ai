@@ -44,6 +44,18 @@ const sidebarItems = [
 export function Sidebar() {
   const pathname = usePathname();
 
+  // Helper function to determine if a navigation item is active
+  const isActiveRoute = (href: string) => {
+    // Exact match for dashboard and settings
+    if (href === "/dashboard" || href === "/settings") {
+      return pathname === href;
+    }
+    
+    // For other routes, check if pathname starts with the href
+    // This handles sub-routes like /teams/new, /boards/123, etc.
+    return pathname.startsWith(href);
+  };
+
   return (
     <div className="flex h-full w-64 flex-col border-r bg-background">
       <div className="flex-1 space-y-4 py-4">
@@ -57,22 +69,25 @@ export function Sidebar() {
             </Button>
           </div>
           <div className="space-y-1">
-            {sidebarItems.map((item) => (
-              <Button
-                key={item.href}
-                variant={pathname === item.href ? "secondary" : "ghost"}
-                className={cn(
-                  "w-full justify-start",
-                  pathname === item.href && "bg-muted"
-                )}
-                asChild
-              >
+            {sidebarItems.map((item) => {
+              const isActive = isActiveRoute(item.href);
+              return (
+                <Button
+                  key={item.href}
+                  variant={isActive ? "secondary" : "ghost"}
+                  className={cn(
+                    "w-full justify-start",
+                    isActive && "bg-muted"
+                  )}
+                  asChild
+                >
                 <Link href={item.href}>
                   <item.icon className="mr-2 h-4 w-4" />
                   {item.title}
                 </Link>
-              </Button>
-            ))}
+                </Button>
+              );
+            })}
           </div>
         </div>
       </div>
