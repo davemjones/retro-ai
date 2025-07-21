@@ -1,7 +1,7 @@
 "use client";
 
-import { useState } from "react";
-import { signIn } from "next-auth/react";
+import { useState, useEffect } from "react";
+import { signIn, signOut, useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
@@ -14,13 +14,35 @@ export default function LoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [isSigningOut, setIsSigningOut] = useState(false);
   const router = useRouter();
+  const { data: session, status } = useSession();
+
+  // Automatically sign out existing session when component mounts
+  // This prevents session bleeding between different user logins
+  useEffect(() => {
+    if (status === "authenticated" && session) {
+      console.log("Existing session detected, signing out to prevent session bleeding");
+      setIsSigningOut(true);
+      signOut({ redirect: false }).then(() => {
+        setIsSigningOut(false);
+        console.log("Previous session cleared");
+      });
+    }
+  }, [status, session]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
 
     try {
+      // Explicit sign out before sign in to prevent session bleeding
+      console.log("Ensuring clean session before login");
+      await signOut({ redirect: false });
+      
+      // Short delay to ensure signOut completes
+      await new Promise(resolve => setTimeout(resolve, 100));
+
       const result = await signIn("credentials", {
         email,
         password,
@@ -29,7 +51,8 @@ export default function LoginPage() {
 
       if (result?.error) {
         toast.error("Invalid email or password");
-      } else {
+      } else if (result?.ok) {
+        console.log("Login successful, redirecting to dashboard");
         router.push("/dashboard");
         router.refresh();
       }
@@ -76,8 +99,8 @@ export default function LoginPage() {
             </div>
           </CardContent>
           <CardFooter className="flex flex-col space-y-4">
-            <Button type="submit" className="w-full" disabled={isLoading}>
-              {isLoading ? "Signing in..." : "Sign in"}
+            <Button type="submit" className="w-full" disabled={isLoading || isSigningOut}>
+              {isSigningOut ? "Clearing previous session..." : isLoading ? "Signing in..." : "Sign in"}
             </Button>
             <p className="text-sm text-center text-muted-foreground">
               Don&apos;t have an account?{" "}

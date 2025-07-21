@@ -9,6 +9,7 @@ interface MovementEvent {
   columnId: string | null;
   positionX?: number;
   positionY?: number;
+  boardId?: string;
   userId: string;
   timestamp: number;
 }
@@ -32,8 +33,8 @@ interface SocketContextType {
   joinBoard: (boardId: string) => void;
   leaveBoard: (boardId: string) => void;
   emitStickyMoved: (data: Omit<MovementEvent, 'userId' | 'timestamp'>) => void;
-  emitEditingStart: (stickyId: string) => void;
-  emitEditingStop: (stickyId: string) => void;
+  emitEditingStart: (stickyId: string, boardId?: string) => void;
+  emitEditingStop: (stickyId: string, boardId?: string) => void;
   onStickyMoved: (callback: (data: MovementEvent) => void) => () => void;
   onEditingStarted: (callback: (data: EditingEvent) => void) => () => void;
   onEditingStopped: (callback: (data: EditingEvent) => void) => () => void;
@@ -120,7 +121,7 @@ export function SocketProvider({ children }: SocketProviderProps) {
         setIsConnected(false);
       }
     };
-  }, [session, status]);
+  }, [session, status, socket]);
 
   const joinBoard = (boardId: string) => {
     if (socket && isConnected) {
@@ -134,7 +135,7 @@ export function SocketProvider({ children }: SocketProviderProps) {
     }
   };
 
-  const emitStickyMoved = (data: Omit<MovementEvent, 'userId' | 'timestamp'> & { boardId?: string }) => {
+  const emitStickyMoved = (data: Omit<MovementEvent, 'userId' | 'timestamp'>) => {
     if (socket && isConnected) {
       socket.emit("sticky-moved", data);
     }

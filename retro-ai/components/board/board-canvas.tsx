@@ -28,6 +28,7 @@ interface MovementEvent {
   columnId: string | null;
   positionX?: number;
   positionY?: number;
+  boardId?: string;
   userId: string;
   timestamp: number;
 }
@@ -408,7 +409,7 @@ export function BoardCanvas({ board, columns: initialColumns, userId }: BoardCan
     }
 
     setActiveId(null);
-  }, [findContainer, getItemsForContainer, initialColumns, router, isConnected, emitStickyMoved, board.stickies]);
+  }, [findContainer, getItemsForContainer, initialColumns, router, isConnected, emitStickyMoved, board.stickies, board.id]);
 
   const activeSticky = findActiveSticky();
 
