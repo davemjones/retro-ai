@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useSocket } from '@/lib/socket-context';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -34,7 +34,8 @@ export function SocketSessionMonitor() {
     onSessionEvent,
     onAuthFailed,
     onOperationFailed,
-    onAccessDenied 
+    onAccessDenied,
+    onHeartbeatResponse
   } = useSocket();
 
   const [alerts, setAlerts] = useState<SessionAlert[]>([]);
@@ -42,8 +43,8 @@ export function SocketSessionMonitor() {
   const [lastHeartbeat, setLastHeartbeat] = useState<number | null>(null);
   const [sessionHealth, setSessionHealth] = useState<'healthy' | 'warning' | 'critical'>('healthy');
 
-  // Add alerts
-  const addAlert = (type: SessionAlert['type'], message: string) => {
+  // Add alerts - wrapped in useCallback to prevent dependency changes
+  const addAlert = useCallback((type: SessionAlert['type'], message: string) => {
     const alert: SessionAlert = {
       id: Date.now().toString(),
       type,
@@ -51,7 +52,7 @@ export function SocketSessionMonitor() {
       timestamp: Date.now(),
     };
     setAlerts(prev => [alert, ...prev].slice(0, 10)); // Keep only 10 most recent
-  };
+  }, []);
 
   // Set up socket event listeners
   useEffect(() => {
@@ -119,7 +120,7 @@ export function SocketSessionMonitor() {
     return () => {
       unsubscribers.forEach(unsubscribe => unsubscribe());
     };
-  }, [onSessionEvent, onAuthFailed, onOperationFailed, onAccessDenied]);
+  }, [onSessionEvent, onAuthFailed, onOperationFailed, onAccessDenied, addAlert]);
 
   // Periodic heartbeat
   useEffect(() => {
@@ -140,20 +141,33 @@ export function SocketSessionMonitor() {
     }, 30000); // Send heartbeat every 30 seconds
 
     return () => clearInterval(heartbeatInterval);
-  }, [isConnected, sendHeartbeat, heartbeatStatus]);
+  }, [isConnected, sendHeartbeat, heartbeatStatus, addAlert]);
 
   // Handle heartbeat responses
   useEffect(() => {
-    if (sessionId && heartbeatStatus === 'pending') {
-      setHeartbeatStatus('success');
-      setLastHeartbeat(Date.now());
+    if (!isConnected) return;
+
+    // Listen for heartbeat response from server
+    const unsubscribeHeartbeat = onHeartbeatResponse((data) => {
+      console.log('Heartbeat response received:', data);
       
-      // Reset session health if it was warning due to heartbeat
-      if (sessionHealth === 'warning') {
-        setSessionHealth('healthy');
+      if (data.isValid) {
+        setHeartbeatStatus('success');
+        setLastHeartbeat(Date.now());
+        
+        // Reset session health if it was warning due to heartbeat
+        if (sessionHealth === 'warning') {
+          setSessionHealth('healthy');
+        }
+      } else {
+        setHeartbeatStatus('failed');
+        addAlert('error', 'Heartbeat response indicates invalid session');
+        setSessionHealth('critical');
       }
-    }
-  }, [sessionId, heartbeatStatus, sessionHealth]);
+    });
+
+    return unsubscribeHeartbeat;
+  }, [isConnected, onHeartbeatResponse, sessionHealth, addAlert]);
 
   const handleManualHeartbeat = () => {
     setHeartbeatStatus('pending');
