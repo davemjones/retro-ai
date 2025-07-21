@@ -112,6 +112,7 @@ export default async function BoardPage({
           board={board}
           columns={board.columns}
           userId={session.user.id}
+          isOwner={board.createdById === session.user.id}
         />
       </div>
     </div>
