@@ -300,7 +300,7 @@ export function SocketSessionMonitor() {
                 sessionHealth === 'warning' ? 'secondary' : 'destructive'
               }
             >
-              {sessionHealth}
+              {sessionHealth.charAt(0).toUpperCase() + sessionHealth.slice(1)}
             </Badge>
           </div>
 
