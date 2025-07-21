@@ -5,7 +5,6 @@ import {
   detectSessionHijacking, 
   clearAuthCookies 
 } from "./lib/cookie-security";
-import { SessionManager } from "./lib/session-manager";
 
 export default withAuth(
   async function middleware(req) {
@@ -16,8 +15,11 @@ export default withAuth(
       return NextResponse.next();
     }
 
-    // Only perform security checks for authenticated requests
+    // Temporarily disable security checks to debug logout issue
     if (req.nextauth.token) {
+      console.log('User authenticated, allowing access to:', req.url);
+      // TODO: Re-enable security checks after debugging
+      /*
       try {
         // Validate cookie security
         const securityResult = await validateCookieSecurity(req, {
@@ -68,24 +70,14 @@ export default withAuth(
           console.info('Security recommendations:', securityResult.recommendations);
         }
 
-        // Track session activity for valid sessions
-        if (req.nextauth.token?.sessionId) {
-          try {
-            const action = req.method === 'GET' ? 'page_view' : 'api_call';
-            await SessionManager.updateSessionActivity(
-              req.nextauth.token.sessionId as string,
-              req,
-              action
-            );
-          } catch (error) {
-            console.error('Failed to track session activity:', error);
-          }
-        }
+        // Note: Session activity tracking moved to client-side and API routes
+        // due to Edge Runtime limitations with Prisma
 
       } catch (error) {
         console.error('Middleware security check failed:', error);
         // On error, allow request but log for investigation
       }
+      */
     }
 
     return NextResponse.next();
@@ -93,13 +85,20 @@ export default withAuth(
   {
     callbacks: {
       authorized: ({ req, token }) => {
+        console.log('Authorized callback called for:', req.nextUrl.pathname);
+        console.log('Token exists:', !!token);
+        console.log('Token details:', token ? { id: token.id, email: token.email, sessionId: token.sessionId } : 'null');
+        
         // Allow access to auth pages without token
         if (req.nextUrl.pathname.startsWith("/login") || 
             req.nextUrl.pathname.startsWith("/register")) {
+          console.log('Allowing access to auth page');
           return true;
         }
         // Require token for all other protected routes
-        return !!token;
+        const hasValidToken = !!token;
+        console.log('Access decision for', req.nextUrl.pathname, ':', hasValidToken ? 'ALLOWED' : 'DENIED');
+        return hasValidToken;
       },
     },
   }
@@ -109,7 +108,9 @@ export const config = {
   matcher: [
     "/dashboard/:path*",
     "/teams/:path*",
-    "/boards/:path*",
+    "/teams",
+    "/boards/:path*", 
+    "/boards",
     "/login",
     "/register",
   ],

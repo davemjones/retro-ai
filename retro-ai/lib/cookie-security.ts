@@ -220,6 +220,7 @@ export function detectSessionHijacking(req: NextRequest): {
 } {
   const indicators: string[] = [];
   let riskLevel: 'low' | 'medium' | 'high' = 'low';
+  const isDevelopment = process.env.NODE_ENV === 'development';
 
   // Check for multiple session tokens
   const sessionCookies = req.cookies.getAll().filter(cookie => 
@@ -240,13 +241,22 @@ export function detectSessionHijacking(req: NextRequest): {
 
   // Check for rapid IP changes (would need session storage for full implementation)
   const forwardedFor = req.headers.get('x-forwarded-for');
-  if (forwardedFor && forwardedFor.split(',').length > 3) {
+  
+  // Be more lenient with IP checks in development (localhost often has proxy chains)
+  const maxIPCount = isDevelopment ? 5 : 3;
+  if (forwardedFor && forwardedFor.split(',').length > maxIPCount) {
     indicators.push('Multiple forwarded IP addresses');
     riskLevel = 'high';
   }
 
-  // Check for suspicious headers
-  const suspiciousHeaders = ['x-original-url', 'x-rewrite-url', 'x-forwarded-host'];
+  // Check for suspicious headers (with environment-aware detection)
+  const suspiciousHeaders = ['x-original-url', 'x-rewrite-url'];
+  
+  // Only treat x-forwarded-host as suspicious in production environments
+  if (!isDevelopment) {
+    suspiciousHeaders.push('x-forwarded-host');
+  }
+  
   for (const header of suspiciousHeaders) {
     if (req.headers.get(header)) {
       indicators.push(`Suspicious header detected: ${header}`);

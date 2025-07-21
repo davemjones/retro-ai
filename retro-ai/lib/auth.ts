@@ -4,6 +4,7 @@ import { PrismaAdapter } from "@next-auth/prisma-adapter";
 import bcrypt from "bcryptjs";
 import { prisma } from "./prisma";
 import { generateSecureSessionId } from "./cookie-security";
+import { SessionManager } from "./session-manager";
 
 export const authOptions: NextAuthOptions = {
   adapter: PrismaAdapter(prisma),
@@ -109,7 +110,16 @@ export const authOptions: NextAuthOptions = {
 
       return session;
     },
-    async jwt({ token, user }) {
+    async jwt({ token, user, trigger }) {
+      console.log('JWT callback called with:', { 
+        hasUser: !!user, 
+        hasToken: !!token, 
+        trigger,
+        tokenId: token?.id,
+        tokenEmail: token?.email,
+        tokenSessionId: token?.sessionId
+      });
+      
       // Handle new login
       if (user) {
         const dbUser = await prisma.user.findFirst({
@@ -126,12 +136,33 @@ export const authOptions: NextAuthOptions = {
           // Generate unique session ID for tracking
           token.sessionId = generateSecureSessionId();
           
+          // Create UserSession record for this login
+          try {
+            const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours from now
+            await SessionManager.createSession(
+              dbUser.id,
+              token.sessionId as string,
+              { 
+                ip: '127.0.0.1', // Default for server-side creation
+                headers: new Headers({ 'user-agent': 'NextAuth' })
+              } as any,
+              expiresAt
+            );
+            console.log(`UserSession record created for user ${dbUser.id} with session ID ${token.sessionId}`);
+          } catch (error) {
+            console.error('Failed to create UserSession record:', error);
+            // Don't fail the login if UserSession creation fails
+            console.error('Error details:', error);
+          }
+          
           console.log(`New session created for user ${dbUser.id} with session ID ${token.sessionId}`);
         }
         return token;
       }
 
       // Handle existing session
+      console.log('Handling existing session for email:', token.email);
+      
       const dbUser = await prisma.user.findFirst({
         where: {
           email: token.email as string,
@@ -139,9 +170,11 @@ export const authOptions: NextAuthOptions = {
       });
 
       if (!dbUser) {
+        console.log('No database user found for email:', token.email);
         return token;
       }
 
+      console.log('Database user found, returning token with preserved sessionId');
       return {
         id: dbUser.id,
         name: dbUser.name,

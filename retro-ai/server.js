@@ -29,6 +29,7 @@ app.prepare().then(() => {
   const io = new Server(httpServer, {
     path: '/api/socket',
     addTrailingSlash: false,
+    transports: ['websocket', 'polling'],
     cors: {
       origin: process.env.NEXTAUTH_URL || `http://localhost:${port}`,
       methods: ["GET", "POST"]

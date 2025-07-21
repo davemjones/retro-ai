@@ -25,21 +25,35 @@ interface EditingEvent {
 interface UserEvent {
   userId: string;
   userName: string;
+  sessionId?: string;
+}
+
+interface SessionEvent {
+  type: 'session-warning' | 'session-update' | 'session-security-alert';
+  data: Record<string, unknown>;
+  timestamp: number;
 }
 
 interface SocketContextType {
   socket: Socket | null;
   isConnected: boolean;
+  sessionId: string | null;
   joinBoard: (boardId: string) => void;
   leaveBoard: (boardId: string) => void;
   emitStickyMoved: (data: Omit<MovementEvent, 'userId' | 'timestamp'>) => void;
   emitEditingStart: (stickyId: string, boardId?: string) => void;
   emitEditingStop: (stickyId: string, boardId?: string) => void;
+  sendHeartbeat: () => void;
+  forceSessionRefresh: () => void;
   onStickyMoved: (callback: (data: MovementEvent) => void) => () => void;
   onEditingStarted: (callback: (data: EditingEvent) => void) => () => void;
   onEditingStopped: (callback: (data: EditingEvent) => void) => () => void;
   onUserConnected: (callback: (data: UserEvent) => void) => () => void;
   onUserDisconnected: (callback: (data: UserEvent) => void) => () => void;
+  onSessionEvent: (callback: (data: SessionEvent) => void) => () => void;
+  onAuthFailed: (callback: (data: { reason: string }) => void) => () => void;
+  onOperationFailed: (callback: (data: { operation: string; reason: string }) => void) => () => void;
+  onAccessDenied: (callback: (data: { resource: string; reason: string }) => void) => () => void;
 }
 
 const SocketContext = createContext<SocketContextType | null>(null);
@@ -51,6 +65,7 @@ interface SocketProviderProps {
 export function SocketProvider({ children }: SocketProviderProps) {
   const [socket, setSocket] = useState<Socket | null>(null);
   const [isConnected, setIsConnected] = useState(false);
+  const [sessionId, setSessionId] = useState<string | null>(null);
   const { data: session, status } = useSession();
 
   useEffect(() => {
@@ -60,30 +75,14 @@ export function SocketProvider({ children }: SocketProviderProps) {
 
     const initSocket = async () => {
       try {
-        // Check if socket server is available
-        const response = await fetch("/api/socket");
-        
-        if (!response.ok) {
-          console.log("Socket.io server not available");
-          setIsConnected(false);
-          return;
-        }
-
-        const data = await response.json();
-        
-        if (data.status === "pending") {
-          console.log("Socket.io server initialization pending");
-          setIsConnected(false);
-          return;
-        }
-        
-        // Create socket connection
+        // Create socket connection directly
         const newSocket = io({
           path: "/api/socket",
           autoConnect: true,
           reconnection: true,
           reconnectionDelay: 1000,
           reconnectionAttempts: 5,
+          transports: ['websocket', 'polling'],
         });
 
         newSocket.on('connect', () => {
@@ -95,11 +94,51 @@ export function SocketProvider({ children }: SocketProviderProps) {
         newSocket.on('disconnect', () => {
           console.log('🔌 Disconnected from Socket.io server');
           setIsConnected(false);
+          setSessionId(null);
         });
 
         newSocket.on('connect_error', (error) => {
           console.error('Socket connection error:', error);
           setIsConnected(false);
+          setSessionId(null);
+        });
+
+        // Enhanced session event handlers
+        newSocket.on('board-joined', (data: { boardId: string; sessionId: string; timestamp: number }) => {
+          console.log(`Board joined: ${data.boardId} with session ${data.sessionId}`);
+          setSessionId(data.sessionId);
+        });
+
+        newSocket.on('auth-failed', (data: { reason: string }) => {
+          console.error('Socket authentication failed:', data.reason);
+          setIsConnected(false);
+          setSessionId(null);
+        });
+
+        newSocket.on('session-expired', (data: { reason: string }) => {
+          console.warn('Session expired:', data.reason);
+          setIsConnected(false);
+          setSessionId(null);
+          // Optionally trigger a re-authentication or redirect to login
+        });
+
+        newSocket.on('session-heartbeat-response', (data: { isValid: boolean; sessionId: string; timestamp: number }) => {
+          if (data.isValid) {
+            setSessionId(data.sessionId);
+          } else {
+            console.warn('Session heartbeat failed - session may be invalid');
+          }
+        });
+
+        newSocket.on('session-refreshed', (data: { sessionId: string; timestamp: number }) => {
+          console.log('Session refreshed:', data.sessionId);
+          setSessionId(data.sessionId);
+        });
+
+        newSocket.on('session-refresh-failed', (data: { reason: string }) => {
+          console.error('Session refresh failed:', data.reason);
+          setIsConnected(false);
+          setSessionId(null);
         });
 
         // Set initial socket state
@@ -121,7 +160,7 @@ export function SocketProvider({ children }: SocketProviderProps) {
         setIsConnected(false);
       }
     };
-  }, [session, status, socket]);
+  }, [session, status]);
 
   const joinBoard = (boardId: string) => {
     if (socket && isConnected) {
@@ -150,6 +189,18 @@ export function SocketProvider({ children }: SocketProviderProps) {
   const emitEditingStop = (stickyId: string, boardId?: string) => {
     if (socket && isConnected) {
       socket.emit("editing-stop", { stickyId, boardId });
+    }
+  };
+
+  const sendHeartbeat = () => {
+    if (socket && isConnected) {
+      socket.emit("session-heartbeat");
+    }
+  };
+
+  const forceSessionRefresh = () => {
+    if (socket && isConnected) {
+      socket.emit("force-session-refresh");
     }
   };
 
@@ -188,19 +239,54 @@ export function SocketProvider({ children }: SocketProviderProps) {
     return () => socket.off("user-disconnected", callback);
   };
 
+  const onSessionEvent = (callback: (data: SessionEvent) => void) => {
+    if (!socket) return () => {};
+    
+    socket.on("session-event", callback);
+    return () => socket.off("session-event", callback);
+  };
+
+  const onAuthFailed = (callback: (data: { reason: string }) => void) => {
+    if (!socket) return () => {};
+    
+    socket.on("auth-failed", callback);
+    return () => socket.off("auth-failed", callback);
+  };
+
+  const onOperationFailed = (callback: (data: { operation: string; reason: string }) => void) => {
+    if (!socket) return () => {};
+    
+    socket.on("operation-failed", callback);
+    return () => socket.off("operation-failed", callback);
+  };
+
+  const onAccessDenied = (callback: (data: { resource: string; reason: string }) => void) => {
+    if (!socket) return () => {};
+    
+    socket.on("access-denied", callback);
+    return () => socket.off("access-denied", callback);
+  };
+
   const contextValue: SocketContextType = {
     socket,
     isConnected,
+    sessionId,
     joinBoard,
     leaveBoard,
     emitStickyMoved,
     emitEditingStart,
     emitEditingStop,
+    sendHeartbeat,
+    forceSessionRefresh,
     onStickyMoved,
     onEditingStarted,
     onEditingStopped,
     onUserConnected,
     onUserDisconnected,
+    onSessionEvent,
+    onAuthFailed,
+    onOperationFailed,
+    onAccessDenied,
   };
 
   return (
