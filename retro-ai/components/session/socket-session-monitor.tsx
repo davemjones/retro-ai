@@ -310,7 +310,7 @@ export function SocketSessionMonitor() {
             <span className="text-sm text-muted-foreground">
               {lastHeartbeat 
                 ? `${Math.round((displayTime - lastHeartbeat) / 1000)}s ago`
-                : 'Never'
+                : 'Waiting'
               }
             </span>
           </div>
