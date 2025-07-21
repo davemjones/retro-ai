@@ -8,6 +8,18 @@ export const authOptions: NextAuthOptions = {
   adapter: PrismaAdapter(prisma),
   session: {
     strategy: "jwt",
+    maxAge: 24 * 60 * 60, // 24 hours
+  },
+  cookies: {
+    sessionToken: {
+      name: "next-auth.session-token",
+      options: {
+        httpOnly: true,
+        sameSite: "lax",
+        path: "/",
+        secure: process.env.NODE_ENV === "production",
+      },
+    },
   },
   pages: {
     signIn: "/login",
@@ -62,6 +74,23 @@ export const authOptions: NextAuthOptions = {
       return session;
     },
     async jwt({ token, user }) {
+      // Handle new login
+      if (user) {
+        const dbUser = await prisma.user.findFirst({
+          where: {
+            email: user.email as string,
+          },
+        });
+
+        if (dbUser) {
+          token.id = dbUser.id;
+          token.name = dbUser.name;
+          token.email = dbUser.email;
+        }
+        return token;
+      }
+
+      // Handle existing session
       const dbUser = await prisma.user.findFirst({
         where: {
           email: token.email as string,
@@ -69,9 +98,6 @@ export const authOptions: NextAuthOptions = {
       });
 
       if (!dbUser) {
-        if (user) {
-          token.id = user?.id;
-        }
         return token;
       }
 

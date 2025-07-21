@@ -1,16 +1,14 @@
-import { Server as NetServer } from 'http';
 import { Server as SocketIOServer } from 'socket.io';
-import { NextRequest } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 
 // Global variable to store the Socket.io server instance
 let io: SocketIOServer | undefined;
 
-export async function GET(req: NextRequest) {
+export async function GET() {
   if (!io) {
     // Initialize Socket.io server
-    const httpServer = (global as any).httpServer;
+    const httpServer = (global as Record<string, unknown>).httpServer;
     
     if (!httpServer) {
       // For development, we'll create a basic server setup indicator
@@ -124,7 +122,7 @@ export async function GET(req: NextRequest) {
     });
 
     // Store the server instance globally
-    (global as any).io = io;
+    (global as Record<string, unknown>).io = io;
   }
 
   return new Response(JSON.stringify({ 
@@ -140,5 +138,5 @@ export async function GET(req: NextRequest) {
 
 export async function POST() {
   // Handle POST requests if needed
-  return GET({} as NextRequest);
+  return GET();
 }
