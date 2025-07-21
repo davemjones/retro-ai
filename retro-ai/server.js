@@ -46,37 +46,90 @@ app.prepare().then(() => {
     console.log('🔌 User connected:', socket.id);
     
     let session = null;
+    let boardAccess = null;
     try {
-      // Dynamic import for ES6 module
-      const { authenticateSocket } = await import('./lib/socket-auth-simple.mjs');
+      // Enhanced authentication with session validation
+      const { 
+        authenticateSocket, 
+        validateSocketSession, 
+        createBoardIsolationMiddleware
+      } = await import('./lib/socket-auth-secure.mjs');
       
-      // Authenticate the socket connection
-      session = await authenticateSocket(socket);
+      // Authenticate the socket connection with enhanced security
+      session = await authenticateSocket(socket, {
+        enableFingerprinting: true,
+        enableSessionValidation: true,
+        enableRealTimeMonitoring: true,
+        sessionTimeoutMs: 24 * 60 * 60 * 1000, // 24 hours
+        maxIdleTimeMs: 30 * 60 * 1000, // 30 minutes
+      });
+      
       if (!session) {
-        console.warn('🚫 Unauthenticated socket connection, disconnecting:', socket.id);
+        console.warn('🚫 Enhanced authentication failed, disconnecting:', socket.id);
+        socket.emit('auth-failed', { reason: 'Authentication required' });
         socket.disconnect();
         return;
       }
       
       console.log('✅ Socket authenticated for user:', session.userName);
-    } catch (error) {
-      console.error('❌ Socket authentication error:', error);
-      console.warn('🚫 Failed to authenticate socket, disconnecting:', socket.id);
-      socket.disconnect();
-      return;
-    }
-
-    // Join board room
-    socket.on('join-board', (boardId) => {
-      socket.join(`board:${boardId}`);
-      console.log(`👥 User ${socket.id} joined board ${boardId}`);
       
-      // Notify other users in the board
-      socket.to(`board:${boardId}`).emit('user-connected', {
-        userId: socket.id,
-        userName: session.userName,
-        timestamp: Date.now()
-      });
+      // Store session data on socket for later use
+      socket.session = session;
+      
+      // Create board isolation middleware
+      boardAccess = createBoardIsolationMiddleware(session);
+      
+      // IMPORTANT: All socket event handlers must be defined INSIDE this try block
+      // so they have access to validateSocketSession and boardAccess functions
+      
+      // Join board room with enhanced security
+    socket.on('join-board', async (boardId) => {
+      try {
+        // Validate session for this operation
+        const sessionValidation = await validateSocketSession(socket, session, 'join_board');
+        if (!sessionValidation.isValid) {
+          socket.emit('operation-failed', { 
+            operation: 'join-board', 
+            reason: sessionValidation.reason 
+          });
+          return;
+        }
+
+        // Validate board access
+        const accessValidation = await boardAccess(boardId);
+        if (!accessValidation.canAccess) {
+          socket.emit('access-denied', { 
+            resource: 'board', 
+            boardId, 
+            reason: accessValidation.reason 
+          });
+          console.warn(`🚫 Access denied: User ${session.userId} cannot access board ${boardId}: ${accessValidation.reason}`);
+          return;
+        }
+
+        socket.join(`board:${boardId}`);
+        socket.to(`board:${boardId}`).emit('user-connected', {
+          userId: session.userId,
+          userName: session.userName,
+          sessionId: session.sessionId,
+          timestamp: Date.now()
+        });
+        
+        // Send session confirmation to user
+        socket.emit('board-joined', {
+          boardId,
+          sessionId: session.sessionId,
+          timestamp: Date.now()
+        });
+        
+        console.log(`✅ User ${session.userId} joined board ${boardId} (session: ${session.sessionId})`);
+      } catch (error) {
+        console.error('❌ Error in join-board:', error);
+        socket.emit('operation-failed', { 
+          operation: 'join-board', 
+          reason: 'Internal server error' 
+        });
+      }
     });
 
     // Leave board room
@@ -92,48 +145,118 @@ app.prepare().then(() => {
       });
     });
 
-    // Handle sticky note movement
-    socket.on('sticky-moved', (data) => {
-      console.log(`📝 Sticky ${data.stickyId} moved by ${socket.id}`);
-      
-      const movementData = {
-        ...data,
-        userId: socket.id,
-        timestamp: Date.now()
-      };
-      
-      // Broadcast to all other users in the board
-      socket.to(`board:${data.boardId || 'default'}`).emit('sticky-moved', movementData);
+    // Handle sticky note movement with authorization
+    socket.on('sticky-moved', async (data) => {
+      try {
+        // Validate session for this operation
+        const sessionValidation = await validateSocketSession(socket, session, 'sticky_move');
+        if (!sessionValidation.isValid) {
+          socket.emit('operation-failed', { 
+            operation: 'sticky-moved', 
+            reason: sessionValidation.reason 
+          });
+          return;
+        }
+
+        // Validate board access
+        const accessValidation = await boardAccess(data.boardId);
+        if (!accessValidation.canAccess) {
+          socket.emit('access-denied', { 
+            resource: 'board', 
+            boardId: data.boardId, 
+            reason: accessValidation.reason 
+          });
+          return;
+        }
+
+        const movementData = {
+          ...data,
+          userId: session.userId,
+          sessionId: session.sessionId,
+          timestamp: Date.now()
+        };
+        
+        // Broadcast to all other users in the board
+        socket.to(`board:${data.boardId}`).emit('sticky-moved', movementData);
+        console.log(`📝 Sticky ${data.stickyId} moved by ${session.userId} (session: ${session.sessionId})`);
+      } catch (error) {
+        console.error('❌ Error in sticky-moved:', error);
+        socket.emit('operation-failed', { 
+          operation: 'sticky-moved', 
+          reason: 'Internal server error' 
+        });
+      }
     });
 
-    // Handle editing start
-    socket.on('editing-start', (data) => {
-      console.log(`✏️ User ${socket.id} started editing sticky ${data.stickyId}`);
-      
-      const editingData = {
-        stickyId: data.stickyId,
-        userId: socket.id,
-        userName: session.userName,
-        action: 'start',
-        timestamp: Date.now()
-      };
-      
-      socket.to(`board:${data.boardId || 'default'}`).emit('editing-started', editingData);
+    // Handle editing start with authorization
+    socket.on('editing-start', async (data) => {
+      try {
+        const sessionValidation = await validateSocketSession(socket, session, 'editing_start');
+        if (!sessionValidation.isValid) {
+          socket.emit('operation-failed', { 
+            operation: 'editing-start', 
+            reason: sessionValidation.reason 
+          });
+          return;
+        }
+
+        const accessValidation = await boardAccess(data.boardId);
+        if (!accessValidation.canAccess) {
+          socket.emit('access-denied', { 
+            resource: 'board', 
+            boardId: data.boardId, 
+            reason: accessValidation.reason 
+          });
+          return;
+        }
+
+        const editingData = {
+          stickyId: data.stickyId,
+          userId: session.userId,
+          userName: session.userName,
+          sessionId: session.sessionId,
+          action: 'start',
+          timestamp: Date.now()
+        };
+        
+        socket.to(`board:${data.boardId}`).emit('editing-started', editingData);
+        console.log(`✏️ User ${session.userId} started editing sticky ${data.stickyId} (session: ${session.sessionId})`);
+      } catch (error) {
+        console.error('❌ Error in editing-start:', error);
+        socket.emit('operation-failed', { 
+          operation: 'editing-start', 
+          reason: 'Internal server error' 
+        });
+      }
     });
 
-    // Handle editing stop
-    socket.on('editing-stop', (data) => {
-      console.log(`✅ User ${socket.id} stopped editing sticky ${data.stickyId}`);
-      
-      const editingData = {
-        stickyId: data.stickyId,
-        userId: socket.id,
-        userName: session.userName,
-        action: 'stop',
-        timestamp: Date.now()
-      };
-      
-      socket.to(`board:${data.boardId || 'default'}`).emit('editing-stopped', editingData);
+    // Handle editing stop with authorization
+    socket.on('editing-stop', async (data) => {
+      try {
+        const sessionValidation = await validateSocketSession(socket, session, 'editing_stop');
+        if (!sessionValidation.isValid) {
+          // Allow stopping editing even if session is questionable
+          console.warn(`Session validation failed but allowing editing stop: ${sessionValidation.reason}`);
+        }
+
+        const editingData = {
+          stickyId: data.stickyId,
+          userId: session.userId,
+          userName: session.userName,
+          sessionId: session.sessionId,
+          action: 'stop',
+          timestamp: Date.now()
+        };
+        
+        socket.to(`board:${data.boardId}`).emit('editing-stopped', editingData);
+        console.log(`✅ User ${session.userId} stopped editing sticky ${data.stickyId} (session: ${session.sessionId})`);
+      } catch (error) {
+        console.error('❌ Error in editing-stop:', error);
+        socket.emit('operation-failed', { 
+          operation: 'editing-stop', 
+          reason: 'Internal server error' 
+        });
+      }
     });
 
     // Handle session heartbeat
@@ -163,6 +286,13 @@ app.prepare().then(() => {
     socket.on('disconnect', () => {
       console.log('🔌 User disconnected:', socket.id);
     });
+
+    } catch (error) {
+      console.error('❌ Socket authentication error:', error);
+      console.warn('🚫 Failed to authenticate socket, disconnecting:', socket.id);
+      socket.disconnect();
+      return;
+    }
   });
 
   httpServer

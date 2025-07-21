@@ -2,12 +2,16 @@
 
 ## Git Workflow
 
+**CRITICAL: BEFORE starting ANY issue work, ALWAYS follow this workflow first:**
+
 When working on a new issue:
 1. **ALWAYS** checkout the main branch first (unless explicitly told not to)
 2. Pull the latest changes: `git pull origin main`
 3. Create a new branch for the issue: `git checkout -b fix/issue-XX-description`
 4. Work on the issue in the new branch
 5. Commit changes and create a pull request
+
+⚠️ **MANDATORY**: Add Git workflow as the FIRST todo item for every new issue before any technical work.
 
 Example workflow:
 ```bash
@@ -44,6 +48,25 @@ cd retro-ai && npm run lint
 - Use ESLint disable comments sparingly and only when absolutely necessary
 - If a dependency causes infinite loops, refactor the code structure
 - Example: socket-context.tsx useEffect uses 'socket' but doesn't include it in dependencies
+
+### 4. Socket.io TypeScript Import Errors ⚠️ CRITICAL
+- **NEVER** import TypeScript files in `server.js` - Node.js cannot handle `.ts` imports
+- **ALWAYS** use `.mjs` files for server-side Socket.io authentication
+- ❌ `await import('./lib/socket-auth.ts')` - WILL FAIL with ERR_MODULE_NOT_FOUND
+- ✅ `await import('./lib/socket-auth-secure.mjs')` - CORRECT
+- **Reference SOCKET-SERVER.md** for all real-time communication work
+
+### 5. Socket.io Scope Management ⚠️ CRITICAL
+- **ALL socket event handlers MUST be inside the authentication try block**
+- ❌ Defining `socket.on()` outside try block - WILL CAUSE "ReferenceError: validateSocketSession is not defined"
+- ✅ All socket handlers must be inside the try block where authentication imports are defined
+- **ALWAYS** end the try block AFTER all socket event handlers
+
+## Pre-issue Work Checklist
+- [ ] **Git workflow completed** (checkout main, pull latest, create feature branch)
+- [ ] Issue analysis and todo list created
+- [ ] Technical approach planned
+- [ ] **If working on real-time/Socket.io code**: Read SOCKET-SERVER.md first
 
 ## Pre-commit Checklist
 - [ ] Run `npm run lint` and fix ALL errors before committing
