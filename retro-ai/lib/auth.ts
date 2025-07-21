@@ -141,7 +141,7 @@ export const authOptions: NextAuthOptions = {
             const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours from now
             // Create a mock NextRequest for server-side session creation
             const mockHeaders = new Headers({ 'user-agent': 'NextAuth' });
-            const mockRequest = new Request('http://localhost', {
+            const mockRequest = new Request(process.env.NEXTAUTH_URL || 'http://localhost:3000', {
               headers: mockHeaders,
             });
             await SessionManager.createSession(
