@@ -42,6 +42,13 @@ interface ColumnRenameEvent {
   timestamp: number;
 }
 
+interface ColumnDeleteEvent {
+  columnId: string;
+  boardId: string;
+  userId: string;
+  timestamp: number;
+}
+
 interface BoardData {
   id: string;
   title: string;
@@ -220,6 +227,32 @@ export function BoardCanvas({ board, columns: initialColumns, userId, isOwner }:
         )
       );
     }, [userId]),
+    onColumnDeleted: useCallback((data: ColumnDeleteEvent) => {
+      // Don't update if this deletion was initiated by us
+      if (data.userId === userId) {
+        return;
+      }
+
+      console.log("Received column delete event:", data);
+
+      // For remote users, we need to move the stickies to unassigned and remove the column
+      setColumns(prevColumns => {
+        const columnToDelete = prevColumns.find(col => col.id === data.columnId);
+        if (columnToDelete && columnToDelete.stickies.length > 0) {
+          // Move stickies to unassigned notes area, checking for duplicates
+          setUnassignedStickies(prev => {
+            const existingIds = new Set(prev.map(sticky => sticky.id));
+            const newStickies = columnToDelete.stickies.filter(
+              sticky => !existingIds.has(sticky.id)
+            );
+            return [...prev, ...newStickies];
+          });
+        }
+        
+        // Remove the column from the list
+        return prevColumns.filter(column => column.id !== data.columnId);
+      });
+    }, [userId]),
   });
 
   const handleColumnRenamed = useCallback((columnId: string, newTitle: string) => {
@@ -230,6 +263,27 @@ export function BoardCanvas({ board, columns: initialColumns, userId, isOwner }:
           : column
       )
     );
+  }, []);
+
+  const handleColumnDeleted = useCallback((columnId: string, _migratedStickiesCount: number) => {
+    // For the user who initiated the deletion, we need to move the stickies
+    // to unassigned in the local state immediately so they don't disappear
+    setColumns(prevColumns => {
+      const columnToDelete = prevColumns.find(col => col.id === columnId);
+      if (columnToDelete && columnToDelete.stickies.length > 0) {
+        // Move stickies to unassigned notes area, but check for duplicates
+        setUnassignedStickies(prev => {
+          const existingIds = new Set(prev.map(sticky => sticky.id));
+          const newStickies = columnToDelete.stickies.filter(
+            sticky => !existingIds.has(sticky.id)
+          );
+          return [...prev, ...newStickies];
+        });
+      }
+      
+      // Remove the column from the list
+      return prevColumns.filter(column => column.id !== columnId);
+    });
   }, []);
 
   const sensors = useSensors(
@@ -519,6 +573,7 @@ export function BoardCanvas({ board, columns: initialColumns, userId, isOwner }:
                 isOwner={isOwner}
                 moveIndicators={moveIndicators}
                 onColumnRenamed={handleColumnRenamed}
+                onColumnDeleted={handleColumnDeleted}
               />
             ))}
           </SortableContext>

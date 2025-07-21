@@ -191,12 +191,93 @@ socket.on('sticky-moved', async (data) => {
 });
 ```
 
+#### 4. Column Management Operations (Board Owner Only)
+```javascript
+socket.on('column-renamed', async (data) => {
+  try {
+    // 1. Validate session
+    const sessionValidation = await validateSocketSession(socket, session, 'column_rename');
+    if (!sessionValidation.isValid) {
+      socket.emit('operation-failed', { operation: 'column-renamed', reason: sessionValidation.reason });
+      return;
+    }
+
+    // 2. CRITICAL: Validate board access
+    const accessValidation = await boardAccess(data.boardId);
+    if (!accessValidation.canAccess) {
+      socket.emit('access-denied', { resource: 'board', boardId: data.boardId, reason: accessValidation.reason });
+      return;
+    }
+
+    // 3. CRITICAL: Validate board ownership (column operations require ownership)
+    if (!accessValidation.isOwner) {
+      socket.emit('access-denied', { 
+        resource: 'column', 
+        boardId: data.boardId, 
+        reason: 'Column operations require board ownership' 
+      });
+      return;
+    }
+
+    // 4. Process column rename
+    const renameData = {
+      ...data,
+      userId: session.userId,
+      timestamp: Date.now()
+    };
+    socket.to(`board:${data.boardId}`).emit('column-renamed', renameData);
+  } catch (error) {
+    console.error('❌ Error in column-renamed:', error);
+    socket.emit('operation-failed', { operation: 'column-renamed', reason: 'Internal server error' });
+  }
+});
+
+socket.on('column-deleted', async (data) => {
+  try {
+    // 1. Validate session
+    const sessionValidation = await validateSocketSession(socket, session, 'column_delete');
+    if (!sessionValidation.isValid) {
+      socket.emit('operation-failed', { operation: 'column-deleted', reason: sessionValidation.reason });
+      return;
+    }
+
+    // 2. CRITICAL: Validate board access
+    const accessValidation = await boardAccess(data.boardId);
+    if (!accessValidation.canAccess) {
+      socket.emit('access-denied', { resource: 'board', boardId: data.boardId, reason: accessValidation.reason });
+      return;
+    }
+
+    // 3. CRITICAL: Validate board ownership (column deletion requires ownership)
+    if (!accessValidation.isOwner) {
+      socket.emit('access-denied', { 
+        resource: 'column', 
+        boardId: data.boardId, 
+        reason: 'Column deletion requires board ownership' 
+      });
+      return;
+    }
+
+    // 4. Process column deletion (sticky notes are migrated via API call)
+    const deleteData = {
+      ...data,
+      userId: session.userId,
+      timestamp: Date.now()
+    };
+    socket.to(`board:${data.boardId}`).emit('column-deleted', deleteData);
+  } catch (error) {
+    console.error('❌ Error in column-deleted:', error);
+    socket.emit('operation-failed', { operation: 'column-deleted', reason: 'Internal server error' });
+  }
+});
+```
+
 ### `lib/socket-auth-secure.mjs` - Authentication Module
 
 #### Key Functions
 1. **`authenticateSocket(socket, options)`** - Authenticates user via JWT token
 2. **`validateSocketSession(socket, session, operation)`** - Validates session for operations
-3. **`createBoardIsolationMiddleware(session)`** - Returns board access validator
+3. **`createBoardIsolationMiddleware(session)`** - Returns board access validator with ownership info
 
 #### Team Membership Validation
 ```javascript
@@ -218,6 +299,14 @@ const boardWithTeam = await prisma.board.findUnique({
 if (boardWithTeam.team.members.length === 0) {
   return { canAccess: false, reason: `Not a member of this board's team` };
 }
+
+// CRITICAL: Check board ownership (required for column operations)
+const isOwner = boardWithTeam.ownerId === session.userId;
+return { 
+  canAccess: true, 
+  isOwner: isOwner,
+  reason: 'Access granted'
+};
 ```
 
 ### `lib/socket-context.tsx` - Client-Side Context
@@ -292,12 +381,19 @@ try {
 - [ ] Proper error messages for access denied
 - [ ] Authentication required for all operations
 - [ ] Board operations validate team membership
+- [ ] Column operations restricted to board owners only
+- [ ] Non-owners cannot rename or delete columns
+- [ ] Cross-team column access properly blocked
 
 ### Functional Testing  
 - [ ] Server starts without errors
 - [ ] Socket connections authenticate successfully
 - [ ] Real-time events work within authorized boards
 - [ ] Error handling works for all edge cases
+- [ ] Column renaming broadcasts to all board users
+- [ ] Column deletion migrates sticky notes correctly
+- [ ] Real-time column updates maintain state consistency
+- [ ] Board owner authorization works for column operations
 
 ### Performance Testing
 - [ ] Database queries are efficient

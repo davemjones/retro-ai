@@ -322,6 +322,45 @@ app.prepare().then(() => {
       }
     });
 
+    // Handle column deletion with authorization
+    socket.on('column-deleted', async (data) => {
+      try {
+        const sessionValidation = await validateSocketSession(socket, session, 'column_delete');
+        if (!sessionValidation.isValid) {
+          socket.emit('operation-failed', { 
+            operation: 'column-deleted', 
+            reason: sessionValidation.reason 
+          });
+          return;
+        }
+
+        const accessValidation = await boardAccess(data.boardId);
+        if (!accessValidation.canAccess) {
+          socket.emit('access-denied', { 
+            resource: 'board', 
+            boardId: data.boardId, 
+            reason: accessValidation.reason 
+          });
+          return;
+        }
+
+        const deleteData = {
+          ...data,
+          userId: session.userId,
+          timestamp: Date.now()
+        };
+        
+        socket.to(`board:${data.boardId}`).emit('column-deleted', deleteData);
+        console.log(`🗑️ Column ${data.columnId} deleted by ${session.userId} (session: ${session.sessionId})`);
+      } catch (error) {
+        console.error('❌ Error in column-deleted:', error);
+        socket.emit('operation-failed', { 
+          operation: 'column-deleted', 
+          reason: 'Internal server error' 
+        });
+      }
+    });
+
     // Handle disconnect
     socket.on('disconnect', () => {
       console.log('🔌 User disconnected:', socket.id);

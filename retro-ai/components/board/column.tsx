@@ -7,9 +7,10 @@ import { StickyNote } from "./sticky-note";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
-import { Pencil } from "lucide-react";
+import { Pencil, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { useSocket } from "@/hooks/use-socket";
+import { DeleteColumnDialog } from "./delete-column-dialog";
 
 interface ColumnProps {
   column: {
@@ -43,9 +44,10 @@ interface ColumnProps {
   isOwner: boolean;
   moveIndicators?: Record<string, { movedBy: string; timestamp: number }>;
   onColumnRenamed?: (columnId: string, newTitle: string) => void;
+  onColumnDeleted?: (columnId: string, migratedStickiesCount: number) => void;
 }
 
-export function Column({ column, userId, boardId, isOwner, moveIndicators, onColumnRenamed }: ColumnProps) {
+export function Column({ column, userId, boardId, isOwner, moveIndicators, onColumnRenamed, onColumnDeleted }: ColumnProps) {
   const { setNodeRef, isOver } = useDroppable({
     id: column.id,
   });
@@ -54,9 +56,10 @@ export function Column({ column, userId, boardId, isOwner, moveIndicators, onCol
   const [editTitle, setEditTitle] = useState(column.title);
   const [isSaving, setIsSaving] = useState(false);
   const [showPencil, setShowPencil] = useState(false);
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  const { emitColumnRenamed } = useSocket({
+  const { emitColumnRenamed, emitColumnDeleted } = useSocket({
     boardId,
   });
 
@@ -164,10 +167,16 @@ export function Column({ column, userId, boardId, isOwner, moveIndicators, onCol
                 {column.title}
               </CardTitle>
               {isOwner && showPencil && (
-                <Pencil 
-                  className="h-4 w-4 text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
-                  onClick={() => setIsEditing(true)}
-                />
+                <>
+                  <Pencil 
+                    className="h-4 w-4 text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
+                    onClick={() => setIsEditing(true)}
+                  />
+                  <Trash2
+                    className="h-4 w-4 text-muted-foreground hover:text-destructive transition-colors cursor-pointer"
+                    onClick={() => setShowDeleteDialog(true)}
+                  />
+                </>
               )}
             </div>
           )}
@@ -194,6 +203,15 @@ export function Column({ column, userId, boardId, isOwner, moveIndicators, onCol
           </div>
         )}
       </CardContent>
+      
+      <DeleteColumnDialog
+        isOpen={showDeleteDialog}
+        onClose={() => setShowDeleteDialog(false)}
+        column={column}
+        boardId={boardId}
+        onColumnDeleted={onColumnDeleted || (() => {})}
+        emitColumnDeleted={emitColumnDeleted}
+      />
     </Card>
   );
 }

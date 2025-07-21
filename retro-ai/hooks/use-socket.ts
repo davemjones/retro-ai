@@ -34,6 +34,13 @@ interface ColumnRenameEvent {
   timestamp: number;
 }
 
+interface ColumnDeleteEvent {
+  columnId: string;
+  boardId: string;
+  userId: string;
+  timestamp: number;
+}
+
 interface UseSocketOptions {
   boardId?: string;
   onStickyMoved?: (data: MovementEvent) => void;
@@ -42,6 +49,7 @@ interface UseSocketOptions {
   onUserConnected?: (data: UserEvent) => void;
   onUserDisconnected?: (data: UserEvent) => void;
   onColumnRenamed?: (data: ColumnRenameEvent) => void;
+  onColumnDeleted?: (data: ColumnDeleteEvent) => void;
 }
 
 export function useSocket(options: UseSocketOptions = {}) {
@@ -54,6 +62,7 @@ export function useSocket(options: UseSocketOptions = {}) {
     onUserConnected,
     onUserDisconnected,
     onColumnRenamed,
+    onColumnDeleted,
   } = options;
 
   const currentBoardRef = useRef<string | null>(null);
@@ -114,6 +123,11 @@ export function useSocket(options: UseSocketOptions = {}) {
       unsubscribers.push(unsubscribe);
     }
 
+    if (onColumnDeleted) {
+      const unsubscribe = socketContext.onColumnDeleted(onColumnDeleted);
+      unsubscribers.push(unsubscribe);
+    }
+
     return () => {
       unsubscribers.forEach((unsubscribe) => unsubscribe());
     };
@@ -125,6 +139,7 @@ export function useSocket(options: UseSocketOptions = {}) {
     onUserConnected,
     onUserDisconnected,
     onColumnRenamed,
+    onColumnDeleted,
   ]);
 
   return {
@@ -133,5 +148,6 @@ export function useSocket(options: UseSocketOptions = {}) {
     emitEditingStart: socketContext.emitEditingStart,
     emitEditingStop: socketContext.emitEditingStop,
     emitColumnRenamed: socketContext.emitColumnRenamed,
+    emitColumnDeleted: socketContext.emitColumnDeleted,
   };
 }

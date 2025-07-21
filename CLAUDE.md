@@ -62,11 +62,42 @@ cd retro-ai && npm run lint
 - ✅ All socket handlers must be inside the try block where authentication imports are defined
 - **ALWAYS** end the try block AFTER all socket event handlers
 
+## Real-Time Communication Documentation ⚠️ MANDATORY
+
+### Socket.io and WebSocket Development Rules
+- **CRITICAL**: Any changes to real-time communication code MUST be documented in `SOCKET-SERVER.md`
+- **ALWAYS** update `SOCKET-SERVER.md` when:
+  - Adding new socket events (client→server or server→client)
+  - Modifying existing socket event handlers
+  - Changing authentication or authorization logic
+  - Adding new real-time features (sticky notes, columns, editing indicators, etc.)
+  - Updating security requirements or board isolation logic
+
+### Required Documentation Updates
+When working on real-time features, you MUST update these sections in `SOCKET-SERVER.md`:
+1. **Socket event handlers** - Add/update code examples with proper authentication flow
+2. **Authorization requirements** - Document ownership/permission requirements (e.g., board owner only)
+3. **Testing checklist** - Add security and functional tests for new features
+4. **Error handling** - Document new error scenarios and proper socket event responses
+
+### Files That Require SOCKET-SERVER.md Updates
+- `server.js` - Main socket server with event handlers
+- `lib/socket-auth-*.mjs` - Authentication and authorization logic
+- `lib/socket-context.tsx` - Client-side socket integration
+- Any component emitting socket events (board-canvas.tsx, column.tsx, etc.)
+- Any API route that triggers real-time updates
+
 ## Pre-issue Work Checklist
 - [ ] **Git workflow completed** (checkout main, pull latest, create feature branch)
 - [ ] Issue analysis and todo list created
 - [ ] Technical approach planned
 - [ ] **If working on real-time/Socket.io code**: Read SOCKET-SERVER.md first
+
+## Post-Implementation Checklist
+- [ ] **If real-time communication was modified**: Update SOCKET-SERVER.md documentation
+- [ ] All socket events documented with proper authentication flow
+- [ ] Authorization requirements clearly documented (ownership, team membership)
+- [ ] Testing scenarios added to SOCKET-SERVER.md checklist
 
 ## Pre-commit Checklist
 - [ ] Run `npm run lint` and fix ALL errors before committing
