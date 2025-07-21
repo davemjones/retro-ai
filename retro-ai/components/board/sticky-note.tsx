@@ -193,9 +193,6 @@ export function StickyNote({ sticky, userId }: StickyNoteProps) {
                 {sticky.author.name || sticky.author.email}
               </span>
             </div>
-            <span className="text-xs text-muted-foreground">
-              {sticky.createdAt.toLocaleDateString()}
-            </span>
           </div>
         </CardContent>
       </Card>
