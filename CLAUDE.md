@@ -10,6 +10,7 @@ When working on a new issue:
 3. Create a new branch for the issue: `git checkout -b fix/issue-XX-description`
 4. Work on the issue in the new branch
 5. Commit changes and create a pull request
+6. **Ensure the PR automatically closes the issue ticket**
 
 ⚠️ **MANDATORY**: Add Git workflow as the FIRST todo item for every new issue before any technical work.
 
@@ -63,6 +64,11 @@ cd retro-ai && npm run lint
 - **ALWAYS** end the try block AFTER all socket event handlers
 
 ## Real-Time Communication Documentation ⚠️ MANDATORY
+
+### ⚠️ BEFORE Touching ANY Real-Time Code: READ SOCKET-SERVER.md FIRST
+- **MANDATORY**: Read `/workspaces/retro-ai/SOCKET-SERVER.md` BEFORE making ANY changes to real-time communication code
+- This includes: `server.js`, socket event handlers, WebSocket code, Socket.io integration, real-time features
+- **FAILURE to read SOCKET-SERVER.md first will result in critical bugs and security issues**
 
 ### Socket.io and WebSocket Development Rules
 - **CRITICAL**: Any changes to real-time communication code MUST be documented in `SOCKET-SERVER.md`
