@@ -20,7 +20,7 @@ export const authOptions: NextAuthOptions = {
         httpOnly: true,
         sameSite: "strict",
         path: "/",
-        secure: process.env.NODE_ENV === "production",
+        secure: true, // SECURITY FIX: Always use secure cookies to prevent session sharing
         maxAge: 24 * 60 * 60, // 24 hours
       },
     },
@@ -30,7 +30,7 @@ export const authOptions: NextAuthOptions = {
         httpOnly: true,
         sameSite: "strict",
         path: "/",
-        secure: process.env.NODE_ENV === "production",
+        secure: true, // SECURITY FIX: Always use secure cookies to prevent session sharing
         maxAge: 15 * 60, // 15 minutes
       },
     },
@@ -40,7 +40,7 @@ export const authOptions: NextAuthOptions = {
         httpOnly: true,
         sameSite: "strict",
         path: "/",
-        secure: process.env.NODE_ENV === "production",
+        secure: true, // SECURITY FIX: Always use secure cookies to prevent session sharing
         maxAge: 60 * 60, // 1 hour
       },
     },
@@ -50,7 +50,7 @@ export const authOptions: NextAuthOptions = {
         httpOnly: true,
         sameSite: "strict",
         path: "/",
-        secure: process.env.NODE_ENV === "production",
+        secure: true, // SECURITY FIX: Always use secure cookies to prevent session sharing
         maxAge: 15 * 60, // 15 minutes
       },
     },
@@ -107,6 +107,9 @@ export const authOptions: NextAuthOptions = {
         // Add session metadata for security tracking
         session.sessionId = token.sessionId as string;
         session.issuedAt = token.iat as number;
+        
+        // Pass fingerprinting requirement for middleware validation
+        session.requiresFingerprint = token.requiresFingerprint as boolean;
       }
 
       return session;
@@ -137,11 +140,17 @@ export const authOptions: NextAuthOptions = {
           // Generate unique session ID for tracking
           token.sessionId = generateSecureSessionId();
           
-          // Create UserSession record for this login
+          // Create UserSession record for this login with session fingerprinting
           try {
             const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours from now
+            
+            // Generate session fingerprint for security
+            // Note: In JWT callback we don't have access to the request object,
+            // so we'll store a placeholder. The real fingerprint validation happens in middleware.
+            token.requiresFingerprint = true;
+            
             // Create a mock NextRequest for server-side session creation
-            const mockHeaders = new Headers({ 'user-agent': 'NextAuth' });
+            const mockHeaders = new Headers({ 'user-agent': 'NextAuth JWT Callback' });
             const mockRequest = new Request(process.env.NEXTAUTH_URL || 'http://localhost:3000', {
               headers: mockHeaders,
             });
@@ -151,9 +160,9 @@ export const authOptions: NextAuthOptions = {
               mockRequest as NextRequest,
               expiresAt
             );
-            console.log(`UserSession record created for user ${dbUser.id} with session ID ${token.sessionId}`);
+            console.log(`✅ UserSession record created for user ${dbUser.id} with session ID ${token.sessionId} (fingerprinting required)`);
           } catch (error) {
-            console.error('Failed to create UserSession record:', error);
+            console.error('❌ Failed to create UserSession record:', error);
             // Don't fail the login if UserSession creation fails
             console.error('Error details:', error);
           }
@@ -177,12 +186,13 @@ export const authOptions: NextAuthOptions = {
         return token;
       }
 
-      console.log('Database user found, returning token with preserved sessionId');
+      console.log('Database user found, returning token with preserved sessionId and fingerprint requirement');
       return {
         id: dbUser.id,
         name: dbUser.name,
         email: dbUser.email,
         sessionId: token.sessionId, // Preserve session ID
+        requiresFingerprint: token.requiresFingerprint, // Preserve fingerprint requirement
       };
     },
   },

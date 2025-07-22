@@ -8,6 +8,7 @@ declare module "next-auth" {
     } & DefaultSession["user"];
     sessionId?: string;
     issuedAt?: number;
+    requiresFingerprint?: boolean; // SECURITY: Session fingerprinting requirement
   }
 }
 
@@ -15,5 +16,11 @@ declare module "next-auth/jwt" {
   interface JWT {
     id: string;
     sessionId?: string;
+    requiresFingerprint?: boolean; // SECURITY: Fingerprinting flag
+    fingerprint?: { // SECURITY: Stored session fingerprint
+      ipHash: string;
+      userAgentHash: string;
+      timestamp: number;
+    };
   }
 }

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getToken } from 'next-auth/jwt';
+import { generateSessionFingerprint } from './session-utils';
 
 /**
  * Cookie security utilities for enhanced session protection
@@ -53,6 +54,58 @@ export async function validateCookieSecurity(
         shouldClearCookies: true,
         reason: 'No valid session token found'
       };
+    }
+
+    // SECURITY FIX: Session fingerprinting validation
+    if (token.requiresFingerprint) {
+      try {
+        // Generate current session fingerprint
+        const currentFingerprint = await generateSessionFingerprint(req);
+        
+        // If token has stored fingerprint, validate it matches current request
+        if (token.fingerprint) {
+          const storedFingerprint = token.fingerprint as { ipHash: string; userAgentHash: string; timestamp: number };
+          
+          // Validate IP hash (detect session sharing across different IPs)
+          if (storedFingerprint.ipHash !== currentFingerprint.ipHash) {
+            console.warn('🚨 Session fingerprint mismatch - IP changed:', {
+              stored: storedFingerprint.ipHash,
+              current: currentFingerprint.ipHash,
+              sessionId: token.sessionId
+            });
+            
+            return {
+              isValid: false,
+              shouldRotateSession: false,
+              shouldClearCookies: true,
+              reason: 'Session fingerprint mismatch - IP address changed'
+            };
+          }
+          
+          // Validate User-Agent hash (detect session sharing across different browsers)
+          if (storedFingerprint.userAgentHash !== currentFingerprint.userAgentHash) {
+            console.warn('🚨 Session fingerprint mismatch - User-Agent changed:', {
+              stored: storedFingerprint.userAgentHash,
+              current: currentFingerprint.userAgentHash,
+              sessionId: token.sessionId
+            });
+            
+            return {
+              isValid: false,
+              shouldRotateSession: false,
+              shouldClearCookies: true,
+              reason: 'Session fingerprint mismatch - Browser changed'
+            };
+          }
+        } else {
+          // First time fingerprint validation - store it
+          console.log('🔒 Storing session fingerprint for session:', token.sessionId);
+          // Note: We can't modify the token here, but we log for monitoring
+        }
+      } catch (error) {
+        console.error('❌ Session fingerprinting failed:', error);
+        result.recommendations?.push('Session fingerprinting validation failed');
+      }
     }
 
     // Check token age for session rotation

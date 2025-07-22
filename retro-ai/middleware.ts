@@ -15,11 +15,10 @@ export default withAuth(
       return NextResponse.next();
     }
 
-    // Temporarily disable security checks to debug logout issue
+    // SECURITY CHECKS RE-ENABLED - Critical for preventing session sharing vulnerability
     if (req.nextauth.token) {
-      console.log('User authenticated, allowing access to:', req.url);
-      // TODO: Re-enable security checks after debugging
-      /*
+      console.log('User authenticated, performing security validation for:', req.url);
+      
       try {
         // Validate cookie security
         const securityResult = await validateCookieSecurity(req, {
@@ -34,7 +33,7 @@ export default withAuth(
 
         // Handle high-risk scenarios
         if (!securityResult.isValid || hijackingCheck.riskLevel === 'high') {
-          console.warn('Security threat detected:', {
+          console.warn('🚨 SECURITY THREAT DETECTED:', {
             securityResult,
             hijackingCheck,
             url: req.url,
@@ -49,7 +48,7 @@ export default withAuth(
 
         // Handle session rotation
         if (securityResult.shouldRotateSession) {
-          console.log('Session rotation required for security');
+          console.log('🔄 Session rotation required for security');
           // Set flag for session rotation (handled by NextAuth)
           const response = NextResponse.next();
           response.headers.set('X-Session-Rotation-Required', 'true');
@@ -58,7 +57,7 @@ export default withAuth(
 
         // Log medium-risk scenarios for monitoring
         if (hijackingCheck.riskLevel === 'medium') {
-          console.warn('Medium security risk detected:', {
+          console.warn('⚠️  Medium security risk detected:', {
             indicators: hijackingCheck.indicators,
             url: req.url,
             userAgent: req.headers.get('user-agent')
@@ -67,17 +66,21 @@ export default withAuth(
 
         // Log recommendations
         if (securityResult.recommendations && securityResult.recommendations.length > 0) {
-          console.info('Security recommendations:', securityResult.recommendations);
+          console.info('💡 Security recommendations:', securityResult.recommendations);
         }
 
         // Note: Session activity tracking moved to client-side and API routes
         // due to Edge Runtime limitations with Prisma
 
       } catch (error) {
-        console.error('Middleware security check failed:', error);
+        console.error('❌ Middleware security check failed:', error);
         // On error, allow request but log for investigation
+        console.error('Error details:', {
+          message: error instanceof Error ? error.message : 'Unknown error',
+          stack: error instanceof Error ? error.stack : 'No stack trace',
+          url: req.url
+        });
       }
-      */
     }
 
     return NextResponse.next();
