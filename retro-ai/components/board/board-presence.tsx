@@ -6,10 +6,8 @@ import { useSocket as useSocketContext } from '@/lib/socket-context';
 import { 
   ActiveUser, 
   getUserInitials, 
-  formatPresenceCount,
   sortUsersByActivity,
-  deduplicateUsers,
-  getUserPresenceStatus
+  deduplicateUsers
 } from '@/lib/presence-utils';
 
 interface BoardPresenceProps {
@@ -38,7 +36,7 @@ export function BoardPresence({ boardId, currentUserId }: BoardPresenceProps) {
         const filtered = prev.filter(u => u.userId !== data.userId);
         return [...filtered, {
           ...data,
-          status: 'active'
+          status: 'active' as const
         }];
       });
     };
@@ -55,7 +53,12 @@ export function BoardPresence({ boardId, currentUserId }: BoardPresenceProps) {
     // Handle room users event (when joining a board)
     const handleRoomUsers = (users: ActiveUser[]) => {
       console.log('Room users:', users);
-      setActiveUsers(users);
+      // Set all room users as active since they're currently connected
+      const activeRoomUsers = users.map(user => ({
+        ...user,
+        status: 'active' as const
+      }));
+      setActiveUsers(activeRoomUsers);
     };
 
     // Subscribe to events
@@ -74,19 +77,8 @@ export function BoardPresence({ boardId, currentUserId }: BoardPresenceProps) {
     };
   }, [socket, boardId]);
 
-  // Update user statuses periodically
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setActiveUsers(prev => 
-        prev.map(user => ({
-          ...user,
-          status: getUserPresenceStatus(user.timestamp)
-        }))
-      );
-    }, 10000); // Check every 10 seconds
-
-    return () => clearInterval(interval);
-  }, []);
+  // Note: Removed periodic status updates - users in presence list are considered active
+  // Real activity tracking would require heartbeat/interaction monitoring
 
   // Process and sort users
   const processedUsers = sortUsersByActivity(deduplicateUsers(activeUsers));
