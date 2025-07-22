@@ -146,6 +146,7 @@ io.on('connection', async (socket) => {
 **Sticky Note Operations:**
 - `sticky-moved` - Handle sticky note movement between columns/unassigned
 - `sticky-updated` - Handle sticky note content/color updates (collaborative editing)
+- `sticky-created` - Handle sticky note creation with real-time broadcasting
 - `sticky-deleted` - Handle sticky note deletion with real-time updates
 
 **Editing Indicators:**
@@ -165,6 +166,7 @@ io.on('connection', async (socket) => {
 - `user-disconnected` - Notify when user leaves board  
 - `sticky-moved` - Broadcast sticky movement
 - `sticky-updated` - Broadcast sticky content/color changes
+- `sticky-created` - Broadcast sticky note creation
 - `sticky-deleted` - Broadcast sticky note deletion
 - `editing-started` - Show editing indicator
 - `editing-stopped` - Hide editing indicator
@@ -254,7 +256,41 @@ socket.on('join-board', async (boardId) => {
 });
 ```
 
-#### 3. Sticky Note Content Updates (sticky-updated)
+#### 3. Sticky Note Creation (sticky-created)
+```javascript
+socket.on('sticky-created', async (data) => {
+  try {
+    // 1. Validate session
+    const sessionValidation = await validateSocketSession(socket, session, 'sticky_create');
+    if (!sessionValidation.isValid) {
+      socket.emit('operation-failed', { operation: 'sticky-created', reason: sessionValidation.reason });
+      return;
+    }
+
+    // 2. CRITICAL: Validate board access
+    const accessValidation = await boardAccess(data.boardId);
+    if (!accessValidation.canAccess) {
+      socket.emit('access-denied', { resource: 'board', boardId: data.boardId, reason: accessValidation.reason });
+      return;
+    }
+
+    // 3. Process sticky creation
+    const createData = {
+      ...data,
+      userId: session.userId,
+      timestamp: Date.now()
+    };
+    
+    // 4. CRITICAL: Use io.to() so creator sees their own sticky immediately
+    io.to(`board:${data.boardId}`).emit('sticky-created', createData);
+  } catch (error) {
+    console.error('❌ Error in sticky-created:', error);
+    socket.emit('operation-failed', { operation: 'sticky-created', reason: 'Internal server error' });
+  }
+});
+```
+
+#### 4. Sticky Note Content Updates (sticky-updated)
 ```javascript
 socket.on('sticky-updated', async (data) => {
   try {
@@ -642,6 +678,8 @@ try {
 ---
 
 ## Current Implementation Status (Last Updated: 2025-07-22)
+
+**Latest Update (Issue #71):** Added real-time sticky note creation with `sticky-created` event
 
 ### ✅ Fully Implemented Features
 - **User Authentication & Authorization** - Enhanced security with session validation
