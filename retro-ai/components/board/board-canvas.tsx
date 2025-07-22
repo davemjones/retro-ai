@@ -22,7 +22,8 @@ import { Button } from "@/components/ui/button";
 import { Plus } from "lucide-react";
 import { toast } from "sonner";
 import { useSocket } from "@/hooks/use-socket";
-import { animateStickyMovement, animateStickyEntering, animationQueue } from "@/lib/animation-utils";
+import { animateStickyEntering } from "@/lib/animation-utils";
+import { useFlipAnimation } from "@/hooks/use-flip-animation";
 
 interface MovementEvent {
   stickyId: string;
@@ -171,20 +172,22 @@ export function BoardCanvas({ board, columns: initialColumns, userId, isOwner }:
   // Track if we initiated the movement to prevent echo
   const isLocalMovement = useRef(false);
   
-  // Track stickies currently animating to prevent conflicts
-  const [animatingStickies, setAnimatingStickies] = useState<Set<string>>(new Set());
+  // Removed animatingStickies state - now using flipAnimation.isAnimating()
+  
+  // FLIP animation hook for smooth remote movements
+  const flipAnimation = useFlipAnimation({ enabled: true, duration: 300 });
 
   // Socket integration for real-time collaboration
   const { isConnected, emitStickyMoved } = useSocket({
     boardId: board.id,
-    onStickyMoved: useCallback(async (data: MovementEvent) => {
+    onStickyMoved: useCallback((data: MovementEvent) => {
       // Only update if this movement wasn't initiated by us
       if (isLocalMovement.current || data.userId === userId) {
         return;
       }
 
       // Skip if already animating this sticky to prevent conflicts
-      if (animatingStickies.has(data.stickyId)) {
+      if (flipAnimation.isAnimating(data.stickyId)) {
         console.log(`Skipping animation for ${data.stickyId} - already in progress`);
         return;
       }
@@ -226,16 +229,9 @@ export function BoardCanvas({ board, columns: initialColumns, userId, isOwner }:
         }));
       }
 
-      // Add sticky to animating set
-      setAnimatingStickies(prev => new Set([...prev, data.stickyId]));
-
-      try {
-        // Animate the movement to the target position
-        await animationQueue.add(async () => {
-          await animateStickyMovement(data.stickyId, data.columnId);
-        });
-
-        // After animation completes, update the state
+      // FLIP Animation: Record position, update state, then animate
+      flipAnimation.animateMovement(data.stickyId, () => {
+        // Update state immediately (FLIP pattern)
         if (data.columnId === null) {
           // Moving to unassigned area
           setColumns(prevColumns => 
@@ -279,19 +275,8 @@ export function BoardCanvas({ board, columns: initialColumns, userId, isOwner }:
             })
           );
         }
-      } catch (error) {
-        console.error('Animation failed:', error);
-        // Fallback to immediate state update if animation fails
-        // ... (same update logic as above, could be extracted to a function)
-      } finally {
-        // Remove sticky from animating set
-        setAnimatingStickies(prev => {
-          const next = new Set(prev);
-          next.delete(data.stickyId);
-          return next;
-        });
-      }
-    }, [userId, router, columns, unassignedStickies, animatingStickies]),
+      });
+    }, [userId, router, columns, unassignedStickies, flipAnimation]),
     onColumnRenamed: useCallback((data: ColumnRenameEvent) => {
       // Don't update if this rename was initiated by us
       if (data.userId === userId) {

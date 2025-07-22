@@ -48,53 +48,104 @@ export function calculateTargetTransform(
 }
 
 /**
- * Animates a sticky note movement to its target position using CSS transforms
+ * Records the current position of an element for FLIP animations
+ */
+export function recordElementPosition(stickyId: string): DOMRect | null {
+  const element = document.querySelector(`[data-sticky-id="${stickyId}"]`);
+  if (!element) return null;
+  return element.getBoundingClientRect();
+}
+
+/**
+ * FLIP Animation: Animates a sticky note using the FLIP pattern
+ * This works with React by updating state first, then animating the visual transition
+ */
+export async function animateStickyMovementFLIP(
+  stickyId: string,
+  fromPosition: DOMRect,
+  options: AnimationOptions = {}
+): Promise<void> {
+  const { duration } = { ...DEFAULT_ANIMATION_OPTIONS, ...options };
+  
+  // Check if user prefers reduced motion
+  if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+    return; // Skip animation
+  }
+
+  const stickyElement = document.querySelector(`[data-sticky-id="${stickyId}"]`) as HTMLElement;
+  if (!stickyElement) {
+    console.warn(`Sticky element not found for FLIP animation: ${stickyId}`);
+    return;
+  }
+
+  // Additional safety check - ensure element is still in DOM
+  if (!document.body.contains(stickyElement)) {
+    console.warn(`Sticky element ${stickyId} is not in DOM, skipping animation`);
+    return;
+  }
+
+  // FLIP: First, Last, Invert, Play
+  
+  // LAST: Get the final position (after React state update)
+  const lastPosition = stickyElement.getBoundingClientRect();
+  
+  // INVERT: Calculate the difference and apply reverse transform
+  const deltaX = fromPosition.left - lastPosition.left;
+  const deltaY = fromPosition.top - lastPosition.top;
+  
+  // Don't animate if there's no movement
+  if (Math.abs(deltaX) < 1 && Math.abs(deltaY) < 1) {
+    return;
+  }
+
+  // Apply the inverted transform immediately (puts it back to start position visually)
+  stickyElement.style.transition = 'none';
+  stickyElement.style.transform = `translate(${deltaX}px, ${deltaY}px)`;
+  stickyElement.classList.add('sticky-remote-moving');
+
+  // Force a reflow to ensure the transform is applied
+  void stickyElement.offsetHeight;
+
+  // PLAY: Animate to the final position (transform: none)
+  return new Promise((resolve) => {
+    const cleanup = () => {
+      stickyElement.classList.remove('sticky-remote-moving');
+      stickyElement.style.transition = '';
+      stickyElement.style.transform = '';
+      resolve();
+    };
+
+    // Apply transition and animate to final position
+    stickyElement.style.transition = `transform ${duration}ms cubic-bezier(0.2, 0, 0.2, 1)`;
+    stickyElement.style.transform = 'translate(0, 0)';
+
+    // Listen for transition end
+    const onTransitionEnd = (event: TransitionEvent) => {
+      if (event.target === stickyElement && event.propertyName === 'transform') {
+        cleanup();
+        stickyElement.removeEventListener('transitionend', onTransitionEnd as EventListener);
+      }
+    };
+
+    stickyElement.addEventListener('transitionend', onTransitionEnd as EventListener);
+
+    // Fallback timeout
+    setTimeout(cleanup, (duration || 300) + 50);
+  });
+}
+
+/**
+ * Legacy animation function - kept for backward compatibility
+ * @deprecated Use animateStickyMovementFLIP instead
  */
 export async function animateStickyMovement(
   stickyId: string,
   targetColumnId: string | null,
   options: AnimationOptions = {}
 ): Promise<void> {
-  const { duration, easing } = { ...DEFAULT_ANIMATION_OPTIONS, ...options };
-  
-  const stickyElement = document.querySelector(`[data-sticky-id="${stickyId}"]`) as HTMLElement;
-  if (!stickyElement) {
-    console.warn(`Sticky element not found: ${stickyId}`);
-    return;
-  }
-
-  // Check if user prefers reduced motion
-  if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
-    return; // Skip animation
-  }
-
-  const targetTransform = calculateTargetTransform(stickyElement, targetColumnId);
-  
-  // Apply the moving class for visual feedback
-  stickyElement.classList.add('sticky-remote-moving');
-  
-  // Apply the transform
-  stickyElement.style.transform = targetTransform;
-  
-  // Return a promise that resolves when the animation completes
-  return new Promise((resolve) => {
-    const cleanup = () => {
-      stickyElement.classList.remove('sticky-remote-moving');
-      stickyElement.style.transform = '';
-      resolve();
-    };
-    
-    // Use transition end event or fallback timeout
-    const onTransitionEnd = () => {
-      cleanup();
-      stickyElement.removeEventListener('transitionend', onTransitionEnd);
-    };
-    
-    stickyElement.addEventListener('transitionend', onTransitionEnd);
-    
-    // Fallback timeout in case transitionend doesn't fire
-    setTimeout(cleanup, (duration || 300) + 50);
-  });
+  console.warn('animateStickyMovement is deprecated, use FLIP pattern instead');
+  // For now, just skip the animation to prevent conflicts
+  return Promise.resolve();
 }
 
 /**
