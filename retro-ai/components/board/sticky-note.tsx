@@ -43,6 +43,7 @@ interface StickyNoteProps {
       createdAt: Date;
       updatedAt: Date;
     };
+    editedBy: string[];
     createdAt: Date;
     updatedAt: Date;
     boardId: string;
@@ -116,6 +117,9 @@ export function StickyNote({ sticky, userId, moveIndicator: propMoveIndicator }:
   };
 
   const isOwner = sticky.author.id === userId;
+  const canEdit = true; // All team members can edit
+  const hasBeenEditedByOthers = sticky.editedBy && sticky.editedBy.length > 0 && 
+                                sticky.editedBy.some(editorId => editorId !== sticky.authorId);
 
   const handleDelete = async () => {
     if (!confirm("Are you sure you want to delete this sticky note?")) {
@@ -183,26 +187,26 @@ export function StickyNote({ sticky, userId, moveIndicator: propMoveIndicator }:
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end">
+                  {canEdit && (
+                    <DropdownMenuItem
+                      onClick={() => {
+                        setShowEditDialog(true);
+                        emitEditingStart(sticky.id, sticky.boardId);
+                      }}
+                    >
+                      <Edit className="mr-2 h-3 w-3" />
+                      Edit
+                    </DropdownMenuItem>
+                  )}
                   {isOwner && (
-                    <>
-                      <DropdownMenuItem
-                        onClick={() => {
-                          setShowEditDialog(true);
-                          emitEditingStart(sticky.id, sticky.boardId);
-                        }}
-                      >
-                        <Edit className="mr-2 h-3 w-3" />
-                        Edit
-                      </DropdownMenuItem>
-                      <DropdownMenuItem
-                        onClick={handleDelete}
-                        disabled={isDeleting}
-                        className="text-destructive"
-                      >
-                        <Trash className="mr-2 h-3 w-3" />
-                        Delete
-                      </DropdownMenuItem>
-                    </>
+                    <DropdownMenuItem
+                      onClick={handleDelete}
+                      disabled={isDeleting}
+                      className="text-destructive"
+                    >
+                      <Trash className="mr-2 h-3 w-3" />
+                      Delete
+                    </DropdownMenuItem>
                   )}
                 </DropdownMenuContent>
               </DropdownMenu>
@@ -214,16 +218,37 @@ export function StickyNote({ sticky, userId, moveIndicator: propMoveIndicator }:
                 Moved by: {moveIndicator.movedBy}
               </span>
             ) : (
-              <div className="flex items-center gap-2">
-                <Avatar className="h-5 w-5">
-                  <AvatarFallback className="text-xs">
-                    {getInitials(sticky.author.name || '') || 
-                     getInitials(sticky.author.email) || "U"}
-                  </AvatarFallback>
-                </Avatar>
-                <span className="text-xs text-muted-foreground">
-                  {sticky.author.name || sticky.author.email}
-                </span>
+              <div className="flex items-center justify-between w-full">
+                <div className="flex items-center gap-2">
+                  <Avatar className="h-5 w-5">
+                    <AvatarFallback className="text-xs">
+                      {getInitials(sticky.author.name || '') || 
+                       getInitials(sticky.author.email) || "U"}
+                    </AvatarFallback>
+                  </Avatar>
+                  <span className="text-xs text-muted-foreground">
+                    {sticky.author.name || sticky.author.email}
+                  </span>
+                </div>
+                {hasBeenEditedByOthers && (
+                  <div className="flex items-center gap-1">
+                    <span className="text-xs text-muted-foreground">Edited by</span>
+                    <div className="flex -space-x-1">
+                      {sticky.editedBy.slice(0, 3).map((editorId, index) => (
+                        <Avatar key={editorId} className="h-4 w-4 border border-background">
+                          <AvatarFallback className="text-[10px]">
+                            +{index + 1}
+                          </AvatarFallback>
+                        </Avatar>
+                      ))}
+                      {sticky.editedBy.length > 3 && (
+                        <div className="h-4 w-4 rounded-full border border-background bg-muted flex items-center justify-center">
+                          <span className="text-[10px]">+{sticky.editedBy.length - 3}</span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
               </div>
             )}
           </div>

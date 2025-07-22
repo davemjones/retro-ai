@@ -53,14 +53,11 @@ export async function PATCH(
       );
     }
 
-    // Check if user is the author (for content/color changes)
-    if ((content !== undefined || color !== undefined) && sticky.authorId !== session.user.id) {
-      return NextResponse.json(
-        { error: "Only the author can edit content and color" },
-        { status: 403 }
-      );
-    }
-
+    // Allow team members to edit content and color (collaborative editing)
+    // Track non-author edits in editedBy array
+    const isEditingContent = content !== undefined || color !== undefined;
+    const isNonAuthorEdit = isEditingContent && sticky.authorId !== session.user.id;
+    
     // Update sticky note
     const updatedSticky = await prisma.sticky.update({
       where: { id: stickyId },
@@ -70,6 +67,13 @@ export async function PATCH(
         ...(columnId !== undefined && { columnId }),
         ...(positionX !== undefined && { positionX }),
         ...(positionY !== undefined && { positionY }),
+        // Add editor to editedBy array if they're not the original author
+        // and not already in the array
+        ...(isNonAuthorEdit && !sticky.editedBy.includes(session.user.id) && {
+          editedBy: {
+            push: session.user.id
+          }
+        }),
       },
       include: {
         author: true,
