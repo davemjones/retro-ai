@@ -41,9 +41,25 @@ interface ColumnDeleteEvent {
   timestamp: number;
 }
 
+interface StickyUpdateEvent {
+  stickyId: string;
+  content?: string;
+  color?: string;
+  boardId: string;
+  userId: string;
+  editedBy: string[];
+  editors?: {
+    id: string;
+    name: string | null;
+    email: string;
+  }[];
+  timestamp: number;
+}
+
 interface UseSocketOptions {
   boardId?: string;
   onStickyMoved?: (data: MovementEvent) => void;
+  onStickyUpdated?: (data: StickyUpdateEvent) => void;
   onEditingStarted?: (data: EditingEvent) => void;
   onEditingStopped?: (data: EditingEvent) => void;
   onUserConnected?: (data: UserEvent) => void;
@@ -57,6 +73,7 @@ export function useSocket(options: UseSocketOptions = {}) {
   const {
     boardId,
     onStickyMoved,
+    onStickyUpdated,
     onEditingStarted,
     onEditingStopped,
     onUserConnected,
@@ -98,6 +115,11 @@ export function useSocket(options: UseSocketOptions = {}) {
       unsubscribers.push(unsubscribe);
     }
 
+    if (onStickyUpdated) {
+      const unsubscribe = socketContext.onStickyUpdated(onStickyUpdated);
+      unsubscribers.push(unsubscribe);
+    }
+
     if (onEditingStarted) {
       const unsubscribe = socketContext.onEditingStarted(onEditingStarted);
       unsubscribers.push(unsubscribe);
@@ -134,6 +156,7 @@ export function useSocket(options: UseSocketOptions = {}) {
   }, [
     socketContext,
     onStickyMoved,
+    onStickyUpdated,
     onEditingStarted,
     onEditingStopped,
     onUserConnected,
@@ -145,6 +168,7 @@ export function useSocket(options: UseSocketOptions = {}) {
   return {
     isConnected: socketContext.isConnected,
     emitStickyMoved: socketContext.emitStickyMoved,
+    emitStickyUpdated: socketContext.emitStickyUpdated,
     emitEditingStart: socketContext.emitEditingStart,
     emitEditingStop: socketContext.emitEditingStop,
     emitColumnRenamed: socketContext.emitColumnRenamed,

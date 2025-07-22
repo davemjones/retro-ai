@@ -50,7 +50,37 @@ async function getBoard(boardId: string, userId: string) {
     return null;
   }
 
-  return board;
+  // Fetch editor data for all stickies
+  const allStickies = [
+    ...board.columns.flatMap(col => col.stickies),
+    ...board.stickies
+  ];
+  
+  const editorIds = [...new Set(allStickies.flatMap(sticky => sticky.editedBy))];
+  const editors = await prisma.user.findMany({
+    where: { id: { in: editorIds } },
+    select: { id: true, name: true, email: true }
+  });
+  
+  const editorMap = Object.fromEntries(editors.map(e => [e.id, e]));
+  
+  // Add editor data to stickies
+  const boardWithEditors = {
+    ...board,
+    columns: board.columns.map(col => ({
+      ...col,
+      stickies: col.stickies.map(sticky => ({
+        ...sticky,
+        editors: sticky.editedBy.map(id => editorMap[id]).filter(Boolean)
+      }))
+    })),
+    stickies: board.stickies.map(sticky => ({
+      ...sticky,
+      editors: sticky.editedBy.map(id => editorMap[id]).filter(Boolean)
+    }))
+  };
+
+  return boardWithEditors;
 }
 
 export default async function BoardPage({

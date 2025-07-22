@@ -8,6 +8,33 @@
 
 The Retro AI application uses a **standalone Node.js server** (`server.js`) with Socket.io for real-time communication, NOT Next.js API routes for WebSocket handling.
 
+### Current Server Configuration (server.js)
+
+**Server Setup:**
+- Next.js custom server with HTTP server
+- Socket.io server mounted at `/api/socket`
+- CORS configured for Next.js origin
+- Global server instances: `global.httpServer`, `global.io`
+
+**Socket.io Configuration:**
+```javascript
+const io = new Server(httpServer, {
+  path: '/api/socket',
+  addTrailingSlash: false,
+  transports: ['websocket', 'polling'],
+  cors: {
+    origin: process.env.NEXTAUTH_URL || `http://localhost:${port}`,
+    methods: ["GET", "POST"]
+  }
+});
+```
+
+**Authentication Flow:**
+1. Import `socket-auth-secure.mjs` dynamically (NEVER `.ts` files)
+2. Call `authenticateSocket()` with enhanced options
+3. Create `boardAccess` middleware with `createBoardIsolationMiddleware()`
+4. Store session data on socket: `socket.session = session`
+
 ### Key Components
 
 1. **`server.js`** - Main server with Express-like HTTP server + Socket.io
@@ -42,6 +69,12 @@ The Retro AI application uses a **standalone Node.js server** (`server.js`) with
 - **ALWAYS emit** proper error events: `access-denied`, `operation-failed`, `auth-failed`
 - **ALWAYS include** meaningful error messages and reasons
 - **ALWAYS log** security violations for monitoring
+
+### 5. WebSocket Broadcasting Rules ⚠️ CRITICAL
+- **Use `io.to()` for content updates** where users need to see their own changes reflected
+- **Use `socket.to()` for notifications** where users don't need to see their own actions
+- **Content updates**: `sticky-updated`, `sticky-moved`, `column-renamed`, `column-deleted` → Use `io.to()`
+- **Notifications**: `user-connected`, `user-disconnected`, `editing-started`, `editing-stopped` → Use `socket.to()`
 
 ## File Structure and Responsibilities
 
@@ -99,6 +132,67 @@ io.on('connection', async (socket) => {
   }
 });
 ```
+
+## Current Socket Events Implementation (Updated 2025-07-22)
+
+### Complete List of Implemented Socket Events
+
+**Connection Management:**
+- `connection` - Initial socket connection with authentication
+- `join-board` - Join a specific board room with board access validation
+- `leave-board` - Leave a board room 
+- `disconnect` - Handle socket disconnection
+
+**Sticky Note Operations:**
+- `sticky-moved` - Handle sticky note movement between columns/unassigned
+- `sticky-updated` - Handle sticky note content/color updates (collaborative editing)
+
+**Editing Indicators:**
+- `editing-start` - Show when user starts editing a sticky note
+- `editing-stop` - Hide editing indicator when user stops editing
+
+**Column Operations (Board Owner Only):**
+- `column-renamed` - Handle column title changes
+- `column-deleted` - Handle column deletion (with sticky migration)
+
+**Session Management:**
+- `session-heartbeat` - Keep-alive mechanism  
+- `force-session-refresh` - Manual session refresh
+
+**Client Events (Emitted TO clients):**
+- `user-connected` - Notify when user joins board
+- `user-disconnected` - Notify when user leaves board  
+- `sticky-moved` - Broadcast sticky movement
+- `sticky-updated` - Broadcast sticky content/color changes
+- `editing-started` - Show editing indicator
+- `editing-stopped` - Hide editing indicator
+- `column-renamed` - Broadcast column title changes
+- `column-deleted` - Broadcast column deletion
+- `board-joined` - Confirm board join success
+- `session-heartbeat-response` - Heartbeat acknowledgment
+- `session-refreshed` - Session refresh confirmation
+- `auth-failed` - Authentication failure
+- `operation-failed` - Operation validation failure
+- `access-denied` - Board/resource access denied
+
+### Session Management Implementation
+
+**Enhanced Authentication Options:**
+```javascript
+session = await authenticateSocket(socket, {
+  enableFingerprinting: true,
+  enableSessionValidation: true, 
+  enableRealTimeMonitoring: true,
+  sessionTimeoutMs: 24 * 60 * 60 * 1000, // 24 hours
+  maxIdleTimeMs: 30 * 60 * 1000, // 30 minutes
+});
+```
+
+**Session Heartbeat System:**
+- Client sends `session-heartbeat` events
+- Server responds with `session-heartbeat-response`
+- Used for session validation and keep-alive
+- Helps track active connections and session health
 
 ### Required Socket Events with Authorization
 
@@ -158,7 +252,41 @@ socket.on('join-board', async (boardId) => {
 });
 ```
 
-#### 3. Board Operations (sticky-moved, editing-start, etc.)
+#### 3. Sticky Note Content Updates (sticky-updated)
+```javascript
+socket.on('sticky-updated', async (data) => {
+  try {
+    // 1. Validate session
+    const sessionValidation = await validateSocketSession(socket, session, 'sticky_update');
+    if (!sessionValidation.isValid) {
+      socket.emit('operation-failed', { operation: 'sticky-updated', reason: sessionValidation.reason });
+      return;
+    }
+
+    // 2. CRITICAL: Validate board access
+    const accessValidation = await boardAccess(data.boardId);
+    if (!accessValidation.canAccess) {
+      socket.emit('access-denied', { resource: 'board', boardId: data.boardId, reason: accessValidation.reason });
+      return;
+    }
+
+    // 3. Process content update
+    const updateData = {
+      ...data,
+      userId: session.userId,
+      timestamp: Date.now()
+    };
+    
+    // 4. CRITICAL: Use io.to() so sender sees their own updates
+    io.to(`board:${data.boardId}`).emit('sticky-updated', updateData);
+  } catch (error) {
+    console.error('❌ Error in sticky-updated:', error);
+    socket.emit('operation-failed', { operation: 'sticky-updated', reason: 'Internal server error' });
+  }
+});
+```
+
+#### 4. Board Operations (sticky-moved, editing-start, etc.)
 ```javascript
 socket.on('sticky-moved', async (data) => {
   try {
@@ -183,7 +311,7 @@ socket.on('sticky-moved', async (data) => {
       sessionId: session.sessionId,
       timestamp: Date.now()
     };
-    socket.to(`board:${data.boardId}`).emit('sticky-moved', movementData);
+    io.to(`board:${data.boardId}`).emit('sticky-moved', movementData);
   } catch (error) {
     console.error('❌ Error in sticky-moved:', error);
     socket.emit('operation-failed', { operation: 'sticky-moved', reason: 'Internal server error' });
@@ -225,7 +353,7 @@ socket.on('column-renamed', async (data) => {
       userId: session.userId,
       timestamp: Date.now()
     };
-    socket.to(`board:${data.boardId}`).emit('column-renamed', renameData);
+    io.to(`board:${data.boardId}`).emit('column-renamed', renameData);
   } catch (error) {
     console.error('❌ Error in column-renamed:', error);
     socket.emit('operation-failed', { operation: 'column-renamed', reason: 'Internal server error' });
@@ -264,7 +392,7 @@ socket.on('column-deleted', async (data) => {
       userId: session.userId,
       timestamp: Date.now()
     };
-    socket.to(`board:${data.boardId}`).emit('column-deleted', deleteData);
+    io.to(`board:${data.boardId}`).emit('column-deleted', deleteData);
   } catch (error) {
     console.error('❌ Error in column-deleted:', error);
     socket.emit('operation-failed', { operation: 'column-deleted', reason: 'Internal server error' });
@@ -464,6 +592,51 @@ try {
 3. Monitor socket connection counts
 4. Check for memory leaks in event handlers
 5. Review error handling performance
+
+---
+
+## Current Implementation Status (Last Updated: 2025-07-22)
+
+### ✅ Fully Implemented Features
+- **User Authentication & Authorization** - Enhanced security with session validation
+- **Board Isolation** - Team-based access control with board ownership validation
+- **Sticky Note Movement** - Real-time drag & drop with proper authorization
+- **Sticky Note Content Editing** - Collaborative editing with real-time updates
+- **Edit History Tracking** - Visual indicators showing who edited each note
+- **Editing Indicators** - Live indicators when users are editing notes
+- **Column Management** - Create, rename, delete columns (board owner only)
+- **Session Management** - Heartbeat system with session monitoring
+- **Error Handling** - Comprehensive error events and logging
+
+### 🔧 Critical Implementation Details
+
+**Broadcasting Pattern Fixed (Issue #35):**
+- **Content Updates**: Use `io.to()` to broadcast to ALL users including sender
+- **Notifications**: Use `socket.to()` to broadcast to others excluding sender
+- **Sticky Updates & Moves**: Must use `io.to()` so editors see their own changes
+
+**Authentication Scope Management:**
+- ALL socket event handlers MUST be inside the authentication try block
+- Import `socket-auth-secure.mjs` (NEVER `.ts` files)  
+- Session data stored as `socket.session`
+
+**Board Access Validation:**
+- Every board operation requires `boardAccess()` validation
+- Checks team membership automatically
+- Column operations require board ownership (`accessValidation.isOwner`)
+
+### 🚨 Known Issues & Limitations
+- Server.js uses CommonJS (require) but should ideally use ES modules
+- Some TypeScript warnings in authentication modules (non-critical)
+- Session timeout/cleanup could be more robust
+
+### 📋 For Future Developers
+1. **ALWAYS** read this document before touching real-time code
+2. **NEVER** import `.ts` files in `server.js`
+3. **ALWAYS** validate sessions and board access
+4. **ALWAYS** update this document when adding new socket events
+5. **TEST** cross-team access scenarios thoroughly
+6. **USE** proper broadcasting patterns (`io.to()` vs `socket.to()`)
 
 ---
 

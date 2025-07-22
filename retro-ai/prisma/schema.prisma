@@ -96,6 +96,7 @@ model Sticky {
   positionY Float
   authorId  String
   author    User     @relation(fields: [authorId], references: [id])
+  editedBy  String[] @default([])
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }

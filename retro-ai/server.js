@@ -177,13 +177,55 @@ app.prepare().then(() => {
           timestamp: Date.now()
         };
         
-        // Broadcast to all other users in the board
-        socket.to(`board:${data.boardId}`).emit('sticky-moved', movementData);
+        // Broadcast to all users in the board (including sender)
+        io.to(`board:${data.boardId}`).emit('sticky-moved', movementData);
         console.log(`📝 Sticky ${data.stickyId} moved by ${session.userId} (session: ${session.sessionId})`);
       } catch (error) {
         console.error('❌ Error in sticky-moved:', error);
         socket.emit('operation-failed', { 
           operation: 'sticky-moved', 
+          reason: 'Internal server error' 
+        });
+      }
+    });
+
+    // Handle sticky note content/color updates with authorization
+    socket.on('sticky-updated', async (data) => {
+      try {
+        // Validate session for this operation
+        const sessionValidation = await validateSocketSession(socket, session, 'sticky_update');
+        if (!sessionValidation.isValid) {
+          socket.emit('operation-failed', { 
+            operation: 'sticky-updated', 
+            reason: sessionValidation.reason 
+          });
+          return;
+        }
+
+        // Validate board access
+        const accessValidation = await boardAccess(data.boardId);
+        if (!accessValidation.canAccess) {
+          socket.emit('access-denied', { 
+            resource: 'board', 
+            boardId: data.boardId, 
+            reason: accessValidation.reason 
+          });
+          return;
+        }
+
+        const updateData = {
+          ...data,
+          userId: session.userId,
+          timestamp: Date.now()
+        };
+        
+        // Broadcast to all users in the board (including sender)
+        io.to(`board:${data.boardId}`).emit('sticky-updated', updateData);
+        console.log(`📝 Sticky ${data.stickyId} updated by ${session.userId} (session: ${session.sessionId})`);
+      } catch (error) {
+        console.error('❌ Error in sticky-updated:', error);
+        socket.emit('operation-failed', { 
+          operation: 'sticky-updated', 
           reason: 'Internal server error' 
         });
       }
@@ -311,7 +353,7 @@ app.prepare().then(() => {
           timestamp: Date.now()
         };
         
-        socket.to(`board:${data.boardId}`).emit('column-renamed', renameData);
+        io.to(`board:${data.boardId}`).emit('column-renamed', renameData);
         console.log(`📝 Column ${data.columnId} renamed to "${data.title}" by ${session.userId} (session: ${session.sessionId})`);
       } catch (error) {
         console.error('❌ Error in column-renamed:', error);
@@ -350,7 +392,7 @@ app.prepare().then(() => {
           timestamp: Date.now()
         };
         
-        socket.to(`board:${data.boardId}`).emit('column-deleted', deleteData);
+        io.to(`board:${data.boardId}`).emit('column-deleted', deleteData);
         console.log(`🗑️ Column ${data.columnId} deleted by ${session.userId} (session: ${session.sessionId})`);
       } catch (error) {
         console.error('❌ Error in column-deleted:', error);

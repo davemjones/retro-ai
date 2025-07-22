@@ -49,6 +49,21 @@ interface ColumnDeleteEvent {
   timestamp: number;
 }
 
+interface StickyUpdateEvent {
+  stickyId: string;
+  content?: string;
+  color?: string;
+  boardId: string;
+  userId: string;
+  editedBy: string[];
+  editors?: {
+    id: string;
+    name: string | null;
+    email: string;
+  }[];
+  timestamp: number;
+}
+
 interface SocketContextType {
   socket: Socket | null;
   isConnected: boolean;
@@ -58,11 +73,13 @@ interface SocketContextType {
   emitStickyMoved: (data: Omit<MovementEvent, 'userId' | 'timestamp'>) => void;
   emitEditingStart: (stickyId: string, boardId?: string) => void;
   emitEditingStop: (stickyId: string, boardId?: string) => void;
+  emitStickyUpdated: (data: Omit<StickyUpdateEvent, 'userId' | 'timestamp'>) => void;
   emitColumnRenamed: (data: Omit<ColumnRenameEvent, 'userId' | 'timestamp'>) => void;
   emitColumnDeleted: (data: Omit<ColumnDeleteEvent, 'userId' | 'timestamp'>) => void;
   sendHeartbeat: () => void;
   forceSessionRefresh: () => void;
   onStickyMoved: (callback: (data: MovementEvent) => void) => () => void;
+  onStickyUpdated: (callback: (data: StickyUpdateEvent) => void) => () => void;
   onEditingStarted: (callback: (data: EditingEvent) => void) => () => void;
   onEditingStopped: (callback: (data: EditingEvent) => void) => () => void;
   onUserConnected: (callback: (data: UserEvent) => void) => () => void;
@@ -204,6 +221,12 @@ export function SocketProvider({ children }: SocketProviderProps) {
       socket.emit("sticky-moved", data);
     }
   };
+  
+  const emitStickyUpdated = (data: Omit<StickyUpdateEvent, 'userId' | 'timestamp'>) => {
+    if (socket && isConnected) {
+      socket.emit("sticky-updated", data);
+    }
+  };
 
   const emitEditingStart = (stickyId: string, boardId?: string) => {
     if (socket && isConnected) {
@@ -246,6 +269,13 @@ export function SocketProvider({ children }: SocketProviderProps) {
     
     socket.on("sticky-moved", callback);
     return () => socket.off("sticky-moved", callback);
+  };
+  
+  const onStickyUpdated = (callback: (data: StickyUpdateEvent) => void) => {
+    if (!socket) return () => {};
+    
+    socket.on("sticky-updated", callback);
+    return () => socket.off("sticky-updated", callback);
   };
 
   const onEditingStarted = (callback: (data: EditingEvent) => void) => {
@@ -332,6 +362,7 @@ export function SocketProvider({ children }: SocketProviderProps) {
     joinBoard,
     leaveBoard,
     emitStickyMoved,
+    emitStickyUpdated,
     emitEditingStart,
     emitEditingStop,
     emitColumnRenamed,
@@ -339,6 +370,7 @@ export function SocketProvider({ children }: SocketProviderProps) {
     sendHeartbeat,
     forceSessionRefresh,
     onStickyMoved,
+    onStickyUpdated,
     onEditingStarted,
     onEditingStopped,
     onUserConnected,
