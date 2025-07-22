@@ -303,6 +303,7 @@ export function BoardTimer({ boardId, userId }: BoardTimerProps) {
         {/* Timer Display */}
         <div className={`font-mono text-lg font-bold min-w-[60px] text-center ${
           isTimerCompleted ? 'text-red-600 animate-pulse' : 
+          timerState.remainingTime <= 20000 ? 'text-red-600' :
           timerState.isRunning ? 'text-green-600' : 'text-foreground'
         }`}>
           {formatTime(timerState.remainingTime)}
@@ -373,20 +374,37 @@ export function BoardTimer({ boardId, userId }: BoardTimerProps) {
     );
   }
 
-  // Collapsed view - just show icon with time if running
+  // Collapsed view - show icon with time if running or paused
+  const showTimeInCollapsed = timerState.isRunning || isPaused;
+  const getCollapsedColor = () => {
+    if (isTimerCompleted) return 'text-red-600';
+    if (timerState.remainingTime <= 20000) return 'text-red-600';
+    if (timerState.isRunning) return 'text-green-600';
+    if (isPaused) return 'text-yellow-600';
+    return 'text-muted-foreground';
+  };
+  
+  const getCollapsedTitle = () => {
+    if (showTimeInCollapsed) {
+      const status = timerState.isRunning ? 'Timer' : 'Paused';
+      return `${status}: ${formatTime(timerState.remainingTime)}`;
+    }
+    return "Open Timer";
+  };
+
   return (
     <Button
       variant="ghost"
       size="sm"
       onClick={() => setIsExpanded(true)}
-      className={`h-8 px-2 ${
-        timerState.isRunning ? 'text-green-600' : 'text-muted-foreground'
-      } hover:text-foreground`}
-      title={timerState.isRunning ? `Timer: ${formatTime(timerState.remainingTime)}` : "Open Timer"}
+      className={`h-8 px-2 ${getCollapsedColor()} hover:text-foreground`}
+      title={getCollapsedTitle()}
     >
       <Clock className="h-4 w-4" />
-      {timerState.isRunning && (
-        <span className="ml-1 font-mono text-xs">
+      {showTimeInCollapsed && (
+        <span className={`ml-1 font-mono text-xs ${
+          timerState.remainingTime <= 20000 && showTimeInCollapsed ? 'text-red-600' : ''
+        }`}>
           {formatTime(timerState.remainingTime)}
         </span>
       )}
