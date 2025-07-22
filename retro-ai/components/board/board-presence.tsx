@@ -1,6 +1,7 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback, useMemo } from 'react';
+import React from 'react';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { useSocket as useSocketContext } from '@/lib/socket-context';
 import { 
@@ -15,51 +16,41 @@ interface BoardPresenceProps {
   currentUserId: string;
 }
 
-export function BoardPresence({ boardId, currentUserId }: BoardPresenceProps) {
+function BoardPresenceComponent({ boardId, currentUserId }: BoardPresenceProps) {
   const [activeUsers, setActiveUsers] = useState<ActiveUser[]>([]);
   const { socket } = useSocketContext();
 
+  // Memoize event handlers to prevent recreating them on every render
+  const handleUserConnected = useCallback((data: {
+    userId: string;
+    userName: string;
+    userEmail: string;
+    timestamp: number;
+  }) => {
+    console.log('User connected:', data);
+    
+    setActiveUsers(prev => {
+      // Remove any existing entry for this user and add the new one
+      const filtered = prev.filter(u => u.userId !== data.userId);
+      return [...filtered, data];
+    });
+  }, []);
+
+  const handleUserDisconnected = useCallback((data: {
+    userId: string;
+  }) => {
+    console.log('User disconnected:', data);
+    
+    setActiveUsers(prev => prev.filter(u => u.userId !== data.userId));
+  }, []);
+
+  const handleRoomUsers = useCallback((users: ActiveUser[]) => {
+    console.log('Room users:', users);
+    setActiveUsers(users);
+  }, []);
+
   useEffect(() => {
     if (!socket) return;
-
-    // Handle user connected event
-    const handleUserConnected = (data: {
-      userId: string;
-      userName: string;
-      userEmail: string;
-      timestamp: number;
-    }) => {
-      console.log('User connected:', data);
-      
-      setActiveUsers(prev => {
-        // Remove any existing entry for this user and add the new one
-        const filtered = prev.filter(u => u.userId !== data.userId);
-        return [...filtered, {
-          ...data,
-          status: 'active' as const
-        }];
-      });
-    };
-
-    // Handle user disconnected event
-    const handleUserDisconnected = (data: {
-      userId: string;
-    }) => {
-      console.log('User disconnected:', data);
-      
-      setActiveUsers(prev => prev.filter(u => u.userId !== data.userId));
-    };
-
-    // Handle room users event (when joining a board)
-    const handleRoomUsers = (users: ActiveUser[]) => {
-      console.log('Room users:', users);
-      // Set all room users as active since they're currently connected
-      const activeRoomUsers = users.map(user => ({
-        ...user,
-        status: 'active' as const
-      }));
-      setActiveUsers(activeRoomUsers);
-    };
 
     // Subscribe to events
     socket.on('user-connected', handleUserConnected);
@@ -75,15 +66,19 @@ export function BoardPresence({ boardId, currentUserId }: BoardPresenceProps) {
       socket.off('user-disconnected', handleUserDisconnected);
       socket.off('room-users', handleRoomUsers);
     };
-  }, [socket, boardId]);
+  }, [socket, boardId, handleUserConnected, handleUserDisconnected, handleRoomUsers]);
 
   // Note: Removed periodic status updates - users in presence list are considered active
   // Real activity tracking would require heartbeat/interaction monitoring
 
-  // Process and sort users
-  const processedUsers = sortUsersByActivity(deduplicateUsers(activeUsers));
-  const displayUsers = processedUsers.slice(0, 5);
-  const overflow = processedUsers.length - 5;
+  // Memoize processed users to prevent unnecessary re-calculations
+  const { displayUsers, overflow } = useMemo(() => {
+    const processedUsers = sortUsersByActivity(deduplicateUsers(activeUsers));
+    const displayUsers = processedUsers.slice(0, 5);
+    const overflow = Math.max(0, processedUsers.length - 5);
+    
+    return { displayUsers, overflow };
+  }, [activeUsers]);
 
   return (
     <div className="flex items-center gap-2">
@@ -106,12 +101,6 @@ export function BoardPresence({ boardId, currentUserId }: BoardPresenceProps) {
               {user.userId === currentUserId && ' (you)'}
             </div>
             
-            {/* Status indicator */}
-            <div className={`absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full border-2 border-background ${
-              user.status === 'active' ? 'bg-green-500' : 
-              user.status === 'away' ? 'bg-yellow-500' : 
-              'bg-gray-400'
-            }`} />
           </div>
         ))}
         
@@ -126,3 +115,6 @@ export function BoardPresence({ boardId, currentUserId }: BoardPresenceProps) {
     </div>
   );
 }
+
+// Memoize component to prevent unnecessary re-renders when props haven't changed
+export const BoardPresence = React.memo(BoardPresenceComponent);
