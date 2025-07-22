@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import Link from "next/link";
 import { ArrowLeft, Settings, Users, Calendar } from "lucide-react";
 import { BoardCanvas } from "@/components/board/board-canvas";
+import { BoardPresence } from "@/components/board/board-presence";
 
 async function getBoard(boardId: string, userId: string) {
   const board = await prisma.board.findUnique({
@@ -129,6 +130,11 @@ export default async function BoardPage({
           </div>
         </div>
         <div className="flex items-center gap-2">
+          <BoardPresence 
+            boardId={board.id} 
+            currentUserId={session.user.id}
+          />
+          <div className="h-4 w-px bg-border" />
           <Button variant="outline" size="sm">
             <Settings className="mr-2 h-4 w-4" />
             Settings

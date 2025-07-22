@@ -162,8 +162,9 @@ io.on('connection', async (socket) => {
 - `force-session-refresh` - Manual session refresh
 
 **Client Events (Emitted TO clients):**
-- `user-connected` - Notify when user joins board
-- `user-disconnected` - Notify when user leaves board  
+- `user-connected` - Notify when user joins board (includes userId, userName, userEmail, timestamp)
+- `user-disconnected` - Notify when user leaves board (includes userId)
+- `room-users` - Send list of all active users in board (sent on join)
 - `sticky-moved` - Broadcast sticky movement
 - `sticky-updated` - Broadcast sticky content/color changes
 - `sticky-created` - Broadcast sticky note creation
@@ -679,11 +680,13 @@ try {
 
 ## Current Implementation Status (Last Updated: 2025-07-22)
 
-**Latest Update (Issue #71):** Added real-time sticky note creation with `sticky-created` event
+**Latest Update (Issue #38):** Added real-time user presence indicators with enhanced user data tracking
+**Previous Update (Issue #71):** Added real-time sticky note creation with `sticky-created` event
 
 ### ✅ Fully Implemented Features
 - **User Authentication & Authorization** - Enhanced security with session validation
 - **Board Isolation** - Team-based access control with board ownership validation
+- **User Presence Tracking** - Real-time presence indicators with full user data (name, email, ID)
 - **Sticky Note Movement** - Real-time drag & drop with proper authorization
 - **Sticky Note Content Editing** - Collaborative editing with real-time updates
 - **Sticky Note Deletion** - Real-time deletion with UI consistency (DeleteStickyDialog)
@@ -709,6 +712,13 @@ try {
 - Every board operation requires `boardAccess()` validation
 - Checks team membership automatically
 - Column operations require board ownership (`accessValidation.isOwner`)
+
+**User Presence Tracking (Issue #38):**
+- Server maintains `boardUsers` Map for active user tracking
+- Each user join sends full user data (userId, userName, userEmail)
+- `room-users` event sends current board users to new joiners
+- Automatic cleanup on disconnect or board leave
+- Prevents duplicate presence when switching boards
 
 ### 🚨 Known Issues & Limitations
 - Server.js uses CommonJS (require) but should ideally use ES modules
