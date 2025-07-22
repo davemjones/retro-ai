@@ -189,6 +189,48 @@ app.prepare().then(() => {
       }
     });
 
+    // Handle sticky note content/color updates with authorization
+    socket.on('sticky-updated', async (data) => {
+      try {
+        // Validate session for this operation
+        const sessionValidation = await validateSocketSession(socket, session, 'sticky_update');
+        if (!sessionValidation.isValid) {
+          socket.emit('operation-failed', { 
+            operation: 'sticky-updated', 
+            reason: sessionValidation.reason 
+          });
+          return;
+        }
+
+        // Validate board access
+        const accessValidation = await boardAccess(data.boardId);
+        if (!accessValidation.canAccess) {
+          socket.emit('access-denied', { 
+            resource: 'board', 
+            boardId: data.boardId, 
+            reason: accessValidation.reason 
+          });
+          return;
+        }
+
+        const updateData = {
+          ...data,
+          userId: session.userId,
+          timestamp: Date.now()
+        };
+        
+        // Broadcast to all other users in the board
+        socket.to(`board:${data.boardId}`).emit('sticky-updated', updateData);
+        console.log(`📝 Sticky ${data.stickyId} updated by ${session.userId} (session: ${session.sessionId})`);
+      } catch (error) {
+        console.error('❌ Error in sticky-updated:', error);
+        socket.emit('operation-failed', { 
+          operation: 'sticky-updated', 
+          reason: 'Internal server error' 
+        });
+      }
+    });
+
     // Handle editing start with authorization
     socket.on('editing-start', async (data) => {
       try {

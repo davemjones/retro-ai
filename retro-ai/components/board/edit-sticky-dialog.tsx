@@ -12,6 +12,7 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
+import { useSocket } from "@/hooks/use-socket";
 
 const STICKY_COLORS = [
   { name: "Yellow", value: "#FFE066" },
@@ -29,6 +30,13 @@ interface EditStickyDialogProps {
     id: string;
     content: string;
     color: string;
+    boardId: string;
+    editedBy: string[];
+    editors?: {
+      id: string;
+      name: string | null;
+      email: string;
+    }[];
   };
   onStickyUpdated: () => void;
 }
@@ -42,6 +50,7 @@ export function EditStickyDialog({
   const [content, setContent] = useState("");
   const [color, setColor] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const { emitStickyUpdated } = useSocket();
 
   useEffect(() => {
     if (open) {
@@ -77,6 +86,16 @@ export function EditStickyDialog({
       if (!response.ok) {
         throw new Error(data.error || "Failed to update sticky note");
       }
+
+      // Emit WebSocket event for real-time updates
+      emitStickyUpdated({
+        stickyId: sticky.id,
+        content: content.trim(),
+        color,
+        boardId: sticky.boardId,
+        editedBy: data.sticky.editedBy || sticky.editedBy,
+        editors: data.sticky.editors || sticky.editors,
+      });
 
       toast.success("Sticky note updated!");
       onOpenChange(false);
