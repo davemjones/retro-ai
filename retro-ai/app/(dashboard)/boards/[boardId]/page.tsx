@@ -8,6 +8,7 @@ import Link from "next/link";
 import { ArrowLeft, Settings, Users, Calendar } from "lucide-react";
 import { BoardCanvas } from "@/components/board/board-canvas";
 import { BoardPresence } from "@/components/board/board-presence";
+import { BoardTimer } from "@/components/board/timer-component";
 
 async function getBoard(boardId: string, userId: string) {
   const board = await prisma.board.findUnique({
@@ -133,6 +134,11 @@ export default async function BoardPage({
           <BoardPresence 
             boardId={board.id} 
             currentUserId={session.user.id}
+          />
+          <div className="h-4 w-px bg-border" />
+          <BoardTimer 
+            boardId={board.id}
+            userId={session.user.id}
           />
           <div className="h-4 w-px bg-border" />
           <Button variant="outline" size="sm">

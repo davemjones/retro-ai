@@ -78,6 +78,10 @@ const io = new Server(httpServer, {
 | `column-deleted` | Delete column | Board owner | `io.to()` |
 | `editing-start` | Start editing | Team member | `socket.to()` |
 | `editing-stop` | Stop editing | Team member | `socket.to()` |
+| `timer-set` | Set timer duration | Team member | `io.to()` |
+| `timer-started` | Start countdown | Team member | `io.to()` |
+| `timer-paused` | Pause countdown | Team member | `io.to()` |
+| `timer-stopped` | Stop/reset timer | Team member | `io.to()` |
 
 ### Client Events (TO clients)
 
@@ -90,6 +94,10 @@ const io = new Server(httpServer, {
 | `auth-failed` | `{reason}` | Authentication error |
 | `operation-failed` | `{operation, reason}` | Validation failure |
 | `access-denied` | `{resource, reason}` | Authorization failure |
+| `timer-set` | `{duration, userId, userName, timestamp}` | Timer duration updated |
+| `timer-started` | `{duration, startTime, userId, userName, timestamp}` | Timer countdown started |
+| `timer-paused` | `{userId, userName, timestamp}` | Timer countdown paused |
+| `timer-stopped` | `{userId, userName, timestamp}` | Timer stopped/reset |
 
 ## Standard Socket Event Template
 
@@ -329,6 +337,7 @@ useEffect(() => {
 - **Enhanced Authentication** - Session validation with board isolation
 - **User Presence Tracking** - Real-time avatars with stable ordering (Issue #38 resolved)
 - **Real-time Collaboration** - Sticky notes, columns, editing indicators
+- **Timer Component** - Synchronized countdown timers for all board participants (Issue #73 resolved)
 - **Broadcasting Patterns** - Correct `io.to()` vs `socket.to()` usage
 - **Performance Optimizations** - No `router.refresh()`, stable socket connections
 - **Security** - Team-based access control, board ownership validation
