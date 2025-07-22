@@ -17,12 +17,6 @@ interface DeleteStickyDialogProps {
   onClose: () => void;
   sticky: {
     id: string;
-    content: string;
-    author: {
-      id: string;
-      name: string | null;
-      email: string;
-    };
   };
   boardId: string;
   onStickyDeleted: () => void;
@@ -71,11 +65,6 @@ export function DeleteStickyDialog({
     }
   };
 
-  // Truncate content for display (max 50 characters)
-  const displayContent = sticky.content.length > 50 
-    ? sticky.content.substring(0, 50) + "..." 
-    : sticky.content;
-
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent>
@@ -83,11 +72,6 @@ export function DeleteStickyDialog({
           <DialogTitle>Delete Sticky Note</DialogTitle>
           <DialogDescription>
             Are you sure you want to delete this sticky note?
-            <br />
-            <br />
-            <strong>Content:</strong> "{displayContent}"
-            <br />
-            <strong>Author:</strong> {sticky.author.name || sticky.author.email}
             <br />
             <br />
             This action cannot be undone.
