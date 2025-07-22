@@ -49,6 +49,13 @@ interface ColumnDeleteEvent {
   timestamp: number;
 }
 
+interface StickyDeleteEvent {
+  stickyId: string;
+  boardId: string;
+  userId: string;
+  timestamp: number;
+}
+
 interface StickyUpdateEvent {
   stickyId: string;
   content?: string;
@@ -313,6 +320,22 @@ export function BoardCanvas({ board, columns: initialColumns, userId, isOwner }:
               }
             : sticky
         )
+      );
+    }, []),
+    onStickyDeleted: useCallback((data: StickyDeleteEvent) => {
+      // Process all sticky deletions (including our own) for consistency
+      
+      // Remove sticky from columns
+      setColumns(prevColumns =>
+        prevColumns.map(column => ({
+          ...column,
+          stickies: column.stickies.filter(sticky => sticky.id !== data.stickyId),
+        }))
+      );
+
+      // Remove sticky from unassigned area
+      setUnassignedStickies(prevStickies =>
+        prevStickies.filter(sticky => sticky.id !== data.stickyId)
       );
     }, []),
   });

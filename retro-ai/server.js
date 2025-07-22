@@ -403,6 +403,46 @@ app.prepare().then(() => {
       }
     });
 
+    // Handle sticky note deletion with authorization
+    socket.on('sticky-deleted', async (data) => {
+      try {
+        const sessionValidation = await validateSocketSession(socket, session, 'sticky_delete');
+        if (!sessionValidation.isValid) {
+          socket.emit('operation-failed', { 
+            operation: 'sticky-deleted', 
+            reason: sessionValidation.reason 
+          });
+          return;
+        }
+
+        const accessValidation = await boardAccess(data.boardId);
+        if (!accessValidation.canAccess) {
+          socket.emit('access-denied', { 
+            resource: 'board', 
+            boardId: data.boardId, 
+            reason: accessValidation.reason 
+          });
+          return;
+        }
+
+        const deleteData = {
+          ...data,
+          userId: session.userId,
+          timestamp: Date.now()
+        };
+        
+        // Broadcast to all users in the board
+        io.to(`board:${data.boardId}`).emit('sticky-deleted', deleteData);
+        console.log(`🗑️ Sticky ${data.stickyId} deleted by ${session.userId} (session: ${session.sessionId})`);
+      } catch (error) {
+        console.error('❌ Error in sticky-deleted:', error);
+        socket.emit('operation-failed', { 
+          operation: 'sticky-deleted', 
+          reason: 'Internal server error' 
+        });
+      }
+    });
+
     // Handle disconnect
     socket.on('disconnect', () => {
       console.log('🔌 User disconnected:', socket.id);

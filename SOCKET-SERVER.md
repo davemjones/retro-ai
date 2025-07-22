@@ -146,6 +146,7 @@ io.on('connection', async (socket) => {
 **Sticky Note Operations:**
 - `sticky-moved` - Handle sticky note movement between columns/unassigned
 - `sticky-updated` - Handle sticky note content/color updates (collaborative editing)
+- `sticky-deleted` - Handle sticky note deletion with real-time updates
 
 **Editing Indicators:**
 - `editing-start` - Show when user starts editing a sticky note
@@ -164,6 +165,7 @@ io.on('connection', async (socket) => {
 - `user-disconnected` - Notify when user leaves board  
 - `sticky-moved` - Broadcast sticky movement
 - `sticky-updated` - Broadcast sticky content/color changes
+- `sticky-deleted` - Broadcast sticky note deletion
 - `editing-started` - Show editing indicator
 - `editing-stopped` - Hide editing indicator
 - `column-renamed` - Broadcast column title changes
@@ -398,6 +400,50 @@ socket.on('column-deleted', async (data) => {
     socket.emit('operation-failed', { operation: 'column-deleted', reason: 'Internal server error' });
   }
 });
+
+socket.on('sticky-deleted', async (data) => {
+  try {
+    // 1. Validate session
+    const sessionValidation = await validateSocketSession(socket, session, 'sticky_delete');
+    if (!sessionValidation.isValid) {
+      socket.emit('operation-failed', { 
+        operation: 'sticky-deleted', 
+        reason: sessionValidation.reason 
+      });
+      return;
+    }
+
+    // 2. CRITICAL: Validate board access
+    const accessValidation = await boardAccess(data.boardId);
+    if (!accessValidation.canAccess) {
+      socket.emit('access-denied', { 
+        resource: 'board', 
+        boardId: data.boardId, 
+        reason: accessValidation.reason 
+      });
+      return;
+    }
+
+    // 3. Process sticky deletion (authorization handled by API layer)
+    // Note: Sticky deletion permissions are enforced by the API:
+    // - Authors can delete their own stickies
+    // - Team admins/owners can delete any sticky
+    const deleteData = {
+      ...data,
+      userId: session.userId,
+      timestamp: Date.now()
+    };
+    
+    // 4. CRITICAL: Use io.to() so all users see the deletion immediately
+    io.to(`board:${data.boardId}`).emit('sticky-deleted', deleteData);
+  } catch (error) {
+    console.error('❌ Error in sticky-deleted:', error);
+    socket.emit('operation-failed', { 
+      operation: 'sticky-deleted', 
+      reason: 'Internal server error' 
+    });
+  }
+});
 ```
 
 ### `lib/socket-auth-secure.mjs` - Authentication Module
@@ -602,6 +648,7 @@ try {
 - **Board Isolation** - Team-based access control with board ownership validation
 - **Sticky Note Movement** - Real-time drag & drop with proper authorization
 - **Sticky Note Content Editing** - Collaborative editing with real-time updates
+- **Sticky Note Deletion** - Real-time deletion with UI consistency (DeleteStickyDialog)
 - **Edit History Tracking** - Visual indicators showing who edited each note
 - **Editing Indicators** - Live indicators when users are editing notes
 - **Column Management** - Create, rename, delete columns (board owner only)
@@ -610,10 +657,10 @@ try {
 
 ### 🔧 Critical Implementation Details
 
-**Broadcasting Pattern Fixed (Issue #35):**
+**Broadcasting Pattern Fixed (Issue #35, #70):**
 - **Content Updates**: Use `io.to()` to broadcast to ALL users including sender
 - **Notifications**: Use `socket.to()` to broadcast to others excluding sender
-- **Sticky Updates & Moves**: Must use `io.to()` so editors see their own changes
+- **Sticky Updates, Moves & Deletions**: Must use `io.to()` so users see their own changes immediately
 
 **Authentication Scope Management:**
 - ALL socket event handlers MUST be inside the authentication try block

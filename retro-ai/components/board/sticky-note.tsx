@@ -16,6 +16,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { MoreHorizontal, Edit, Trash } from "lucide-react";
 import { EditStickyDialog } from "./edit-sticky-dialog";
+import { DeleteStickyDialog } from "./delete-sticky-dialog";
 import { EditingIndicator } from "./editing-indicator";
 import { toast } from "sonner";
 import { useSocket } from "@/hooks/use-socket";
@@ -65,15 +66,15 @@ interface StickyNoteProps {
 export function StickyNote({ sticky, userId, moveIndicator: propMoveIndicator }: StickyNoteProps) {
   const router = useRouter();
   const [showEditDialog, setShowEditDialog] = useState(false);
-  const [isDeleting, setIsDeleting] = useState(false);
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [editingUser, setEditingUser] = useState<{ userId: string; userName: string } | null>(null);
   const [moveIndicator, setMoveIndicator] = useState<{
     movedBy: string;
     timestamp: number;
   } | null>(propMoveIndicator || null);
 
-  // Socket integration for editing indicators
-  const { emitEditingStart, emitEditingStop } = useSocket({
+  // Socket integration for editing indicators and deletion
+  const { emitEditingStart, emitEditingStop, emitStickyDeleted } = useSocket({
     onEditingStarted: useCallback((data: EditingEvent) => {
       if (data.stickyId === sticky.id && data.userId !== userId) {
         setEditingUser({ userId: data.userId, userName: data.userName });
@@ -125,30 +126,6 @@ export function StickyNote({ sticky, userId, moveIndicator: propMoveIndicator }:
   const canEdit = true; // All team members can edit
   const hasBeenEditedByOthers = sticky.editors && sticky.editors.length > 0;
 
-  const handleDelete = async () => {
-    if (!confirm("Are you sure you want to delete this sticky note?")) {
-      return;
-    }
-
-    setIsDeleting(true);
-    try {
-      const response = await fetch(`/api/stickies/${sticky.id}`, {
-        method: "DELETE",
-      });
-
-      if (!response.ok) {
-        throw new Error("Failed to delete sticky note");
-      }
-
-      toast.success("Sticky note deleted");
-      router.refresh();
-    } catch (error) {
-      console.error("Failed to delete sticky note:", error);
-      toast.error("Failed to delete sticky note");
-    } finally {
-      setIsDeleting(false);
-    }
-  };
 
   return (
     <>
@@ -243,8 +220,7 @@ export function StickyNote({ sticky, userId, moveIndicator: propMoveIndicator }:
                   )}
                   {isOwner && (
                     <DropdownMenuItem
-                      onClick={handleDelete}
-                      disabled={isDeleting}
+                      onClick={() => setShowDeleteDialog(true)}
                       className="text-destructive"
                     >
                       <Trash className="mr-2 h-3 w-3" />
@@ -272,6 +248,18 @@ export function StickyNote({ sticky, userId, moveIndicator: propMoveIndicator }:
           emitEditingStop(sticky.id, sticky.boardId);
           // Note: No router.refresh() - let WebSocket handle real-time updates
         }}
+      />
+
+      <DeleteStickyDialog
+        isOpen={showDeleteDialog}
+        onClose={() => setShowDeleteDialog(false)}
+        sticky={sticky}
+        boardId={sticky.boardId}
+        onStickyDeleted={() => {
+          setShowDeleteDialog(false);
+          // Note: No router.refresh() - let WebSocket handle real-time updates
+        }}
+        emitStickyDeleted={emitStickyDeleted}
       />
     </>
   );
