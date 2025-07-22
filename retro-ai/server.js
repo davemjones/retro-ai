@@ -177,8 +177,8 @@ app.prepare().then(() => {
           timestamp: Date.now()
         };
         
-        // Broadcast to all other users in the board
-        socket.to(`board:${data.boardId}`).emit('sticky-moved', movementData);
+        // Broadcast to all users in the board (including sender)
+        io.to(`board:${data.boardId}`).emit('sticky-moved', movementData);
         console.log(`📝 Sticky ${data.stickyId} moved by ${session.userId} (session: ${session.sessionId})`);
       } catch (error) {
         console.error('❌ Error in sticky-moved:', error);
@@ -219,8 +219,8 @@ app.prepare().then(() => {
           timestamp: Date.now()
         };
         
-        // Broadcast to all other users in the board
-        socket.to(`board:${data.boardId}`).emit('sticky-updated', updateData);
+        // Broadcast to all users in the board (including sender)
+        io.to(`board:${data.boardId}`).emit('sticky-updated', updateData);
         console.log(`📝 Sticky ${data.stickyId} updated by ${session.userId} (session: ${session.sessionId})`);
       } catch (error) {
         console.error('❌ Error in sticky-updated:', error);
@@ -353,7 +353,7 @@ app.prepare().then(() => {
           timestamp: Date.now()
         };
         
-        socket.to(`board:${data.boardId}`).emit('column-renamed', renameData);
+        io.to(`board:${data.boardId}`).emit('column-renamed', renameData);
         console.log(`📝 Column ${data.columnId} renamed to "${data.title}" by ${session.userId} (session: ${session.sessionId})`);
       } catch (error) {
         console.error('❌ Error in column-renamed:', error);
@@ -392,7 +392,7 @@ app.prepare().then(() => {
           timestamp: Date.now()
         };
         
-        socket.to(`board:${data.boardId}`).emit('column-deleted', deleteData);
+        io.to(`board:${data.boardId}`).emit('column-deleted', deleteData);
         console.log(`🗑️ Column ${data.columnId} deleted by ${session.userId} (session: ${session.sessionId})`);
       } catch (error) {
         console.error('❌ Error in column-deleted:', error);

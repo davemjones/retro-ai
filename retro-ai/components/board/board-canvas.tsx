@@ -49,6 +49,21 @@ interface ColumnDeleteEvent {
   timestamp: number;
 }
 
+interface StickyUpdateEvent {
+  stickyId: string;
+  content?: string;
+  color?: string;
+  boardId: string;
+  userId: string;
+  editedBy: string[];
+  editors?: {
+    id: string;
+    name: string | null;
+    email: string;
+  }[];
+  timestamp: number;
+}
+
 interface BoardData {
   id: string;
   title: string;
@@ -71,6 +86,12 @@ interface BoardData {
         createdAt: Date;
         updatedAt: Date;
       };
+      editedBy: string[];
+      editors?: {
+        id: string;
+        name: string | null;
+        email: string;
+      }[];
       createdAt: Date;
       updatedAt: Date;
       boardId: string;
@@ -92,6 +113,12 @@ interface BoardData {
       createdAt: Date;
       updatedAt: Date;
     };
+    editedBy: string[];
+    editors?: {
+      id: string;
+      name: string | null;
+      email: string;
+    }[];
     createdAt: Date;
     updatedAt: Date;
     boardId: string;
@@ -253,6 +280,41 @@ export function BoardCanvas({ board, columns: initialColumns, userId, isOwner }:
         return prevColumns.filter(column => column.id !== data.columnId);
       });
     }, [userId]),
+    onStickyUpdated: useCallback((data: StickyUpdateEvent) => {
+      // Process all sticky updates (including our own) to maintain consistency
+
+      // Update local state for both columns and unassigned stickies
+      setColumns(prevColumns =>
+        prevColumns.map(column => ({
+          ...column,
+          stickies: column.stickies.map(sticky =>
+            sticky.id === data.stickyId
+              ? {
+                  ...sticky,
+                  content: data.content || sticky.content,
+                  color: data.color || sticky.color,
+                  editedBy: data.editedBy,
+                  editors: data.editors,
+                }
+              : sticky
+          ),
+        }))
+      );
+
+      setUnassignedStickies(prevStickies =>
+        prevStickies.map(sticky =>
+          sticky.id === data.stickyId
+            ? {
+                ...sticky,
+                content: data.content || sticky.content,
+                color: data.color || sticky.color,
+                editedBy: data.editedBy,
+                editors: data.editors,
+              }
+            : sticky
+        )
+      );
+    }, []),
   });
 
   const handleColumnRenamed = useCallback((columnId: string, newTitle: string) => {

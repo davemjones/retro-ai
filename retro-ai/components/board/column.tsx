@@ -32,6 +32,12 @@ interface ColumnProps {
         createdAt: Date;
         updatedAt: Date;
       };
+      editedBy: string[];
+      editors?: {
+        id: string;
+        name: string | null;
+        email: string;
+      }[];
       createdAt: Date;
       updatedAt: Date;
       boardId: string;

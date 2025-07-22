@@ -267,7 +267,7 @@ export function StickyNote({ sticky, userId, moveIndicator: propMoveIndicator }:
         onStickyUpdated={() => {
           setShowEditDialog(false);
           emitEditingStop(sticky.id, sticky.boardId);
-          router.refresh();
+          // Note: No router.refresh() - let WebSocket handle real-time updates
         }}
       />
     </>
