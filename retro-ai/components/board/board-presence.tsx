@@ -131,10 +131,6 @@ export function BoardPresence({ boardId, currentUserId }: BoardPresenceProps) {
         )}
       </div>
       
-      {/* Online count */}
-      <span className="text-xs text-muted-foreground">
-        {formatPresenceCount(processedUsers.length)}
-      </span>
     </div>
   );
 }
