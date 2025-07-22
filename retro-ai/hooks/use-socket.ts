@@ -56,6 +56,23 @@ interface StickyUpdateEvent {
   timestamp: number;
 }
 
+interface StickyCreateEvent {
+  stickyId: string;
+  content: string;
+  color: string;
+  boardId: string;
+  columnId: string | null;
+  positionX: number;
+  positionY: number;
+  author: {
+    id: string;
+    name: string | null;
+    email: string;
+  };
+  userId: string;
+  timestamp: number;
+}
+
 interface StickyDeleteEvent {
   stickyId: string;
   boardId: string;
@@ -67,6 +84,7 @@ interface UseSocketOptions {
   boardId?: string;
   onStickyMoved?: (data: MovementEvent) => void;
   onStickyUpdated?: (data: StickyUpdateEvent) => void;
+  onStickyCreated?: (data: StickyCreateEvent) => void;
   onStickyDeleted?: (data: StickyDeleteEvent) => void;
   onEditingStarted?: (data: EditingEvent) => void;
   onEditingStopped?: (data: EditingEvent) => void;
@@ -82,6 +100,7 @@ export function useSocket(options: UseSocketOptions = {}) {
     boardId,
     onStickyMoved,
     onStickyUpdated,
+    onStickyCreated,
     onStickyDeleted,
     onEditingStarted,
     onEditingStopped,
@@ -129,6 +148,11 @@ export function useSocket(options: UseSocketOptions = {}) {
       unsubscribers.push(unsubscribe);
     }
 
+    if (onStickyCreated) {
+      const unsubscribe = socketContext.onStickyCreated(onStickyCreated);
+      unsubscribers.push(unsubscribe);
+    }
+
     if (onStickyDeleted) {
       const unsubscribe = socketContext.onStickyDeleted(onStickyDeleted);
       unsubscribers.push(unsubscribe);
@@ -171,6 +195,7 @@ export function useSocket(options: UseSocketOptions = {}) {
     socketContext,
     onStickyMoved,
     onStickyUpdated,
+    onStickyCreated,
     onStickyDeleted,
     onEditingStarted,
     onEditingStopped,
@@ -184,6 +209,7 @@ export function useSocket(options: UseSocketOptions = {}) {
     isConnected: socketContext.isConnected,
     emitStickyMoved: socketContext.emitStickyMoved,
     emitStickyUpdated: socketContext.emitStickyUpdated,
+    emitStickyCreated: socketContext.emitStickyCreated,
     emitStickyDeleted: socketContext.emitStickyDeleted,
     emitEditingStart: socketContext.emitEditingStart,
     emitEditingStop: socketContext.emitEditingStop,
