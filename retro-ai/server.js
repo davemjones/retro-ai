@@ -546,6 +546,142 @@ app.prepare().then(() => {
       }
     });
 
+    // Handle timer set with authorization
+    socket.on('timer-set', async (data) => {
+      try {
+        const sessionValidation = await validateSocketSession(socket, session, 'timer_set');
+        if (!sessionValidation.isValid) {
+          socket.emit('operation-failed', { 
+            operation: 'timer-set', 
+            reason: sessionValidation.reason 
+          });
+          return;
+        }
+
+        const accessValidation = await boardAccess(data.boardId);
+        if (!accessValidation.canAccess) {
+          socket.emit('access-denied', { 
+            resource: 'board', 
+            boardId: data.boardId, 
+            reason: accessValidation.reason 
+          });
+          return;
+        }
+
+        // Validate duration (1 minute to 1 hour)
+        const durationMs = data.duration;
+        if (!durationMs || durationMs < 60000 || durationMs > 3600000) {
+          socket.emit('operation-failed', { 
+            operation: 'timer-set', 
+            reason: 'Invalid timer duration. Must be between 1 minute and 1 hour.' 
+          });
+          return;
+        }
+
+        const timerData = {
+          ...data,
+          userId: session.userId,
+          userName: session.userName,
+          timestamp: Date.now()
+        };
+        
+        // Broadcast to all users in the board (including sender for consistency)
+        io.to(`board:${data.boardId}`).emit('timer-set', timerData);
+        console.log(`⏰ Timer set to ${Math.floor(durationMs / 60000)} minutes by ${session.userId} in board ${data.boardId}`);
+      } catch (error) {
+        console.error('❌ Error in timer-set:', error);
+        socket.emit('operation-failed', { 
+          operation: 'timer-set', 
+          reason: 'Internal server error' 
+        });
+      }
+    });
+
+    // Handle timer start with authorization
+    socket.on('timer-started', async (data) => {
+      try {
+        const sessionValidation = await validateSocketSession(socket, session, 'timer_start');
+        if (!sessionValidation.isValid) {
+          socket.emit('operation-failed', { 
+            operation: 'timer-started', 
+            reason: sessionValidation.reason 
+          });
+          return;
+        }
+
+        const accessValidation = await boardAccess(data.boardId);
+        if (!accessValidation.canAccess) {
+          socket.emit('access-denied', { 
+            resource: 'board', 
+            boardId: data.boardId, 
+            reason: accessValidation.reason 
+          });
+          return;
+        }
+
+        // Use server timestamp for synchronization
+        const serverStartTime = Date.now();
+        const timerData = {
+          ...data,
+          startTime: serverStartTime, // Override with server time
+          userId: session.userId,
+          userName: session.userName,
+          timestamp: serverStartTime
+        };
+        
+        // Broadcast to all users in the board (including sender for sync)
+        io.to(`board:${data.boardId}`).emit('timer-started', timerData);
+        console.log(`▶️ Timer started by ${session.userId} in board ${data.boardId} at ${serverStartTime}`);
+      } catch (error) {
+        console.error('❌ Error in timer-started:', error);
+        socket.emit('operation-failed', { 
+          operation: 'timer-started', 
+          reason: 'Internal server error' 
+        });
+      }
+    });
+
+    // Handle timer stop with authorization
+    socket.on('timer-stopped', async (data) => {
+      try {
+        const sessionValidation = await validateSocketSession(socket, session, 'timer_stop');
+        if (!sessionValidation.isValid) {
+          socket.emit('operation-failed', { 
+            operation: 'timer-stopped', 
+            reason: sessionValidation.reason 
+          });
+          return;
+        }
+
+        const accessValidation = await boardAccess(data.boardId);
+        if (!accessValidation.canAccess) {
+          socket.emit('access-denied', { 
+            resource: 'board', 
+            boardId: data.boardId, 
+            reason: accessValidation.reason 
+          });
+          return;
+        }
+
+        const timerData = {
+          ...data,
+          userId: session.userId,
+          userName: session.userName,
+          timestamp: Date.now()
+        };
+        
+        // Broadcast to all users in the board (including sender for consistency)
+        io.to(`board:${data.boardId}`).emit('timer-stopped', timerData);
+        console.log(`⏹️ Timer stopped by ${session.userId} in board ${data.boardId}`);
+      } catch (error) {
+        console.error('❌ Error in timer-stopped:', error);
+        socket.emit('operation-failed', { 
+          operation: 'timer-stopped', 
+          reason: 'Internal server error' 
+        });
+      }
+    });
+
     // Handle disconnect
     socket.on('disconnect', () => {
       console.log('🔌 User disconnected:', socket.id);

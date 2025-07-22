@@ -88,6 +88,15 @@ interface StickyDeleteEvent {
   timestamp: number;
 }
 
+interface TimerEvent {
+  duration?: number;
+  startTime?: number;
+  boardId: string;
+  userId: string;
+  userName: string;
+  timestamp: number;
+}
+
 interface SocketContextType {
   socket: Socket | null;
   isConnected: boolean;
@@ -102,6 +111,9 @@ interface SocketContextType {
   emitColumnRenamed: (data: Omit<ColumnRenameEvent, 'userId' | 'timestamp'>) => void;
   emitColumnDeleted: (data: Omit<ColumnDeleteEvent, 'userId' | 'timestamp'>) => void;
   emitStickyDeleted: (data: Omit<StickyDeleteEvent, 'userId' | 'timestamp'>) => void;
+  emitTimerSet: (data: Omit<TimerEvent, 'userId' | 'userName' | 'timestamp'>) => void;
+  emitTimerStarted: (data: Omit<TimerEvent, 'userId' | 'userName' | 'timestamp'>) => void;
+  emitTimerStopped: (data: Omit<TimerEvent, 'userId' | 'userName' | 'timestamp' | 'duration' | 'startTime'>) => void;
   sendHeartbeat: () => void;
   forceSessionRefresh: () => void;
   onStickyMoved: (callback: (data: MovementEvent) => void) => () => void;
@@ -119,6 +131,9 @@ interface SocketContextType {
   onOperationFailed: (callback: (data: { operation: string; reason: string }) => void) => () => void;
   onAccessDenied: (callback: (data: { resource: string; reason: string }) => void) => () => void;
   onHeartbeatResponse: (callback: (data: { isValid: boolean; sessionId: string; timestamp: number }) => void) => () => void;
+  onTimerSet: (callback: (data: TimerEvent) => void) => () => void;
+  onTimerStarted: (callback: (data: TimerEvent) => void) => () => void;
+  onTimerStopped: (callback: (data: TimerEvent) => void) => () => void;
 }
 
 const SocketContext = createContext<SocketContextType | null>(null);
@@ -292,6 +307,24 @@ export function SocketProvider({ children }: SocketProviderProps) {
     }
   };
 
+  const emitTimerSet = (data: Omit<TimerEvent, 'userId' | 'userName' | 'timestamp'>) => {
+    if (socket && isConnected) {
+      socket.emit("timer-set", data);
+    }
+  };
+
+  const emitTimerStarted = (data: Omit<TimerEvent, 'userId' | 'userName' | 'timestamp'>) => {
+    if (socket && isConnected) {
+      socket.emit("timer-started", data);
+    }
+  };
+
+  const emitTimerStopped = (data: Omit<TimerEvent, 'userId' | 'userName' | 'timestamp' | 'duration' | 'startTime'>) => {
+    if (socket && isConnected) {
+      socket.emit("timer-stopped", data);
+    }
+  };
+
   const sendHeartbeat = () => {
     if (socket && isConnected) {
       socket.emit("session-heartbeat");
@@ -409,6 +442,27 @@ export function SocketProvider({ children }: SocketProviderProps) {
     return () => socket.off("sticky-deleted", callback);
   };
 
+  const onTimerSet = (callback: (data: TimerEvent) => void) => {
+    if (!socket) return () => {};
+    
+    socket.on("timer-set", callback);
+    return () => socket.off("timer-set", callback);
+  };
+
+  const onTimerStarted = (callback: (data: TimerEvent) => void) => {
+    if (!socket) return () => {};
+    
+    socket.on("timer-started", callback);
+    return () => socket.off("timer-started", callback);
+  };
+
+  const onTimerStopped = (callback: (data: TimerEvent) => void) => {
+    if (!socket) return () => {};
+    
+    socket.on("timer-stopped", callback);
+    return () => socket.off("timer-stopped", callback);
+  };
+
   const contextValue: SocketContextType = {
     socket,
     isConnected,
@@ -423,6 +477,9 @@ export function SocketProvider({ children }: SocketProviderProps) {
     emitColumnRenamed,
     emitColumnDeleted,
     emitStickyDeleted,
+    emitTimerSet,
+    emitTimerStarted,
+    emitTimerStopped,
     sendHeartbeat,
     forceSessionRefresh,
     onStickyMoved,
@@ -440,6 +497,9 @@ export function SocketProvider({ children }: SocketProviderProps) {
     onOperationFailed,
     onAccessDenied,
     onHeartbeatResponse,
+    onTimerSet,
+    onTimerStarted,
+    onTimerStopped,
   };
 
   return (
