@@ -142,6 +142,7 @@ export function Column({ column, userId, boardId, isOwner, moveIndicators, onCol
   return (
     <Card
       ref={setNodeRef}
+      data-column-id={column.id}
       className={`min-w-[300px] max-w-[300px] h-fit max-h-[calc(100vh-12rem)] flex flex-col ${
         isOver ? "ring-2 ring-primary" : ""
       }`}

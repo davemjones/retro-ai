@@ -22,6 +22,8 @@ import { Button } from "@/components/ui/button";
 import { Plus } from "lucide-react";
 import { toast } from "sonner";
 import { useSocket } from "@/hooks/use-socket";
+import { animateStickyEntering } from "@/lib/animation-utils";
+import { useFlipAnimation } from "@/hooks/use-flip-animation";
 
 interface MovementEvent {
   stickyId: string;
@@ -169,6 +171,11 @@ export function BoardCanvas({ board, columns: initialColumns, userId, isOwner }:
   
   // Track if we initiated the movement to prevent echo
   const isLocalMovement = useRef(false);
+  
+  // Removed animatingStickies state - now using flipAnimation.isAnimating()
+  
+  // FLIP animation hook for smooth remote movements
+  const flipAnimation = useFlipAnimation({ enabled: true, duration: 300 });
 
   // Socket integration for real-time collaboration
   const { isConnected, emitStickyMoved } = useSocket({
@@ -176,6 +183,12 @@ export function BoardCanvas({ board, columns: initialColumns, userId, isOwner }:
     onStickyMoved: useCallback((data: MovementEvent) => {
       // Only update if this movement wasn't initiated by us
       if (isLocalMovement.current || data.userId === userId) {
+        return;
+      }
+
+      // Skip if already animating this sticky to prevent conflicts
+      if (flipAnimation.isAnimating(data.stickyId)) {
+        console.log(`Skipping animation for ${data.stickyId} - already in progress`);
         return;
       }
 
@@ -216,51 +229,54 @@ export function BoardCanvas({ board, columns: initialColumns, userId, isOwner }:
         }));
       }
 
-      // Update local state based on the movement
-      if (data.columnId === null) {
-        // Moving to unassigned area
-        setColumns(prevColumns => 
-          prevColumns.map(column => ({
-            ...column,
-            stickies: column.stickies.filter(sticky => sticky.id !== data.stickyId),
-          }))
-        );
-        
-        // Add to unassigned
-        setUnassignedStickies(prev => {
-          // Don't add if already exists
-          if (prev.some(s => s.id === data.stickyId)) {
-            return prev;
-          }
-          return [...prev, movedSticky];
-        });
-      } else {
-        // Moving to a column
-        setUnassignedStickies(prev => 
-          prev.filter(sticky => sticky.id !== data.stickyId)
-        );
-        
-        setColumns(prevColumns => 
-          prevColumns.map(column => {
-            if (column.id === data.columnId) {
-              // Add to target column if not already there
-              if (column.stickies.some(s => s.id === data.stickyId)) {
-                return column;
-              }
-              return {
-                ...column,
-                stickies: [...column.stickies, movedSticky],
-              };
-            }
-            // Remove from other columns
-            return {
+      // FLIP Animation: Record position, update state, then animate
+      flipAnimation.animateMovement(data.stickyId, () => {
+        // Update state immediately (FLIP pattern)
+        if (data.columnId === null) {
+          // Moving to unassigned area
+          setColumns(prevColumns => 
+            prevColumns.map(column => ({
               ...column,
               stickies: column.stickies.filter(sticky => sticky.id !== data.stickyId),
-            };
-          })
-        );
-      }
-    }, [userId, router, columns, unassignedStickies]),
+            }))
+          );
+          
+          // Add to unassigned
+          setUnassignedStickies(prev => {
+            // Don't add if already exists
+            if (prev.some(s => s.id === data.stickyId)) {
+              return prev;
+            }
+            return [...prev, movedSticky];
+          });
+        } else {
+          // Moving to a column
+          setUnassignedStickies(prev => 
+            prev.filter(sticky => sticky.id !== data.stickyId)
+          );
+          
+          setColumns(prevColumns => 
+            prevColumns.map(column => {
+              if (column.id === data.columnId) {
+                // Add to target column if not already there
+                if (column.stickies.some(s => s.id === data.stickyId)) {
+                  return column;
+                }
+                return {
+                  ...column,
+                  stickies: [...column.stickies, movedSticky],
+                };
+              }
+              // Remove from other columns
+              return {
+                ...column,
+                stickies: column.stickies.filter(sticky => sticky.id !== data.stickyId),
+              };
+            })
+          );
+        }
+      });
+    }, [userId, router, columns, unassignedStickies, flipAnimation]),
     onColumnRenamed: useCallback((data: ColumnRenameEvent) => {
       // Don't update if this rename was initiated by us
       if (data.userId === userId) {
@@ -389,7 +405,14 @@ export function BoardCanvas({ board, columns: initialColumns, userId, isOwner }:
           )
         );
       }
-    }, []),
+
+      // Apply entering animation for remote sticky creations
+      if (data.userId !== userId) {
+        setTimeout(() => {
+          animateStickyEntering(data.stickyId);
+        }, 50); // Small delay to ensure DOM is updated
+      }
+    }, [userId]),
     onStickyDeleted: useCallback((data: StickyDeleteEvent) => {
       // Process all sticky deletions (including our own) for consistency
       
