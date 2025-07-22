@@ -641,6 +641,47 @@ app.prepare().then(() => {
       }
     });
 
+    // Handle timer pause with authorization
+    socket.on('timer-paused', async (data) => {
+      try {
+        const sessionValidation = await validateSocketSession(socket, session, 'timer_pause');
+        if (!sessionValidation.isValid) {
+          socket.emit('operation-failed', { 
+            operation: 'timer-paused', 
+            reason: sessionValidation.reason 
+          });
+          return;
+        }
+
+        const accessValidation = await boardAccess(data.boardId);
+        if (!accessValidation.canAccess) {
+          socket.emit('access-denied', { 
+            resource: 'board', 
+            boardId: data.boardId, 
+            reason: accessValidation.reason 
+          });
+          return;
+        }
+
+        const timerData = {
+          ...data,
+          userId: session.userId,
+          userName: session.userName,
+          timestamp: Date.now()
+        };
+        
+        // Broadcast to all users in the board (including sender for consistency)
+        io.to(`board:${data.boardId}`).emit('timer-paused', timerData);
+        console.log(`⏸️ Timer paused by ${session.userId} in board ${data.boardId}`);
+      } catch (error) {
+        console.error('❌ Error in timer-paused:', error);
+        socket.emit('operation-failed', { 
+          operation: 'timer-paused', 
+          reason: 'Internal server error' 
+        });
+      }
+    });
+
     // Handle timer stop with authorization
     socket.on('timer-stopped', async (data) => {
       try {

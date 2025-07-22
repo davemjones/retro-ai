@@ -145,25 +145,37 @@ export function BoardTimer({ boardId, userId }: BoardTimerProps) {
       });
     };
 
-    const handleTimerStopped = (shouldReset = true) => {
+    const handleTimerPaused = () => {
       setTimerState(prev => ({
         ...prev,
         isRunning: false,
-        remainingTime: shouldReset ? prev.duration : prev.remainingTime, // Only reset if requested
         startTime: undefined,
         endTime: undefined,
       }));
-      setIsPaused(!shouldReset); // Set paused state if not resetting
+      setIsPaused(true); // Set paused state
+    };
+
+    const handleTimerStopped = () => {
+      setTimerState(prev => ({
+        ...prev,
+        isRunning: false,
+        remainingTime: prev.duration, // Always reset to full duration
+        startTime: undefined,
+        endTime: undefined,
+      }));
+      setIsPaused(false); // Clear paused state
     };
 
     // Set up socket listeners
     const unsubscribeSet = socketContext.onTimerSet?.(handleTimerSet) || (() => {});
     const unsubscribeStarted = socketContext.onTimerStarted?.(handleTimerStarted) || (() => {});
-    const unsubscribeStopped = socketContext.onTimerStopped?.(() => handleTimerStopped(true)) || (() => {}); // Always reset on socket stop
+    const unsubscribePaused = socketContext.onTimerPaused?.(handleTimerPaused) || (() => {});
+    const unsubscribeStopped = socketContext.onTimerStopped?.(handleTimerStopped) || (() => {});
 
     return () => {
       unsubscribeSet();
       unsubscribeStarted();
+      unsubscribePaused();
       unsubscribeStopped();
     };
   }, [socketContext, userId]);
@@ -253,9 +265,13 @@ export function BoardTimer({ boardId, userId }: BoardTimerProps) {
     
     setIsPaused(true); // Set paused state
 
-    // For now, don't emit socket event for pause - keep it local
-    // In a full implementation, you might want a separate pause event
-  }, [timerState.isRunning]);
+    // Emit socket event for synchronized pause
+    if (socketContext.isConnected && socketContext.emitTimerPaused) {
+      socketContext.emitTimerPaused({
+        boardId,
+      });
+    }
+  }, [timerState.isRunning, boardId, socketContext]);
 
   const isTimerCompleted = timerState.remainingTime === 0;
   const canStart = !timerState.isRunning && !isPaused && timerState.remainingTime > 0;

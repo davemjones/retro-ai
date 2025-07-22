@@ -113,6 +113,7 @@ interface SocketContextType {
   emitStickyDeleted: (data: Omit<StickyDeleteEvent, 'userId' | 'timestamp'>) => void;
   emitTimerSet: (data: Omit<TimerEvent, 'userId' | 'userName' | 'timestamp'>) => void;
   emitTimerStarted: (data: Omit<TimerEvent, 'userId' | 'userName' | 'timestamp'>) => void;
+  emitTimerPaused: (data: Omit<TimerEvent, 'userId' | 'userName' | 'timestamp' | 'duration' | 'startTime'>) => void;
   emitTimerStopped: (data: Omit<TimerEvent, 'userId' | 'userName' | 'timestamp' | 'duration' | 'startTime'>) => void;
   sendHeartbeat: () => void;
   forceSessionRefresh: () => void;
@@ -133,6 +134,7 @@ interface SocketContextType {
   onHeartbeatResponse: (callback: (data: { isValid: boolean; sessionId: string; timestamp: number }) => void) => () => void;
   onTimerSet: (callback: (data: TimerEvent) => void) => () => void;
   onTimerStarted: (callback: (data: TimerEvent) => void) => () => void;
+  onTimerPaused: (callback: (data: TimerEvent) => void) => () => void;
   onTimerStopped: (callback: (data: TimerEvent) => void) => () => void;
 }
 
@@ -319,6 +321,12 @@ export function SocketProvider({ children }: SocketProviderProps) {
     }
   };
 
+  const emitTimerPaused = (data: Omit<TimerEvent, 'userId' | 'userName' | 'timestamp' | 'duration' | 'startTime'>) => {
+    if (socket && isConnected) {
+      socket.emit("timer-paused", data);
+    }
+  };
+
   const emitTimerStopped = (data: Omit<TimerEvent, 'userId' | 'userName' | 'timestamp' | 'duration' | 'startTime'>) => {
     if (socket && isConnected) {
       socket.emit("timer-stopped", data);
@@ -456,6 +464,13 @@ export function SocketProvider({ children }: SocketProviderProps) {
     return () => socket.off("timer-started", callback);
   };
 
+  const onTimerPaused = (callback: (data: TimerEvent) => void) => {
+    if (!socket) return () => {};
+    
+    socket.on("timer-paused", callback);
+    return () => socket.off("timer-paused", callback);
+  };
+
   const onTimerStopped = (callback: (data: TimerEvent) => void) => {
     if (!socket) return () => {};
     
@@ -479,6 +494,7 @@ export function SocketProvider({ children }: SocketProviderProps) {
     emitStickyDeleted,
     emitTimerSet,
     emitTimerStarted,
+    emitTimerPaused,
     emitTimerStopped,
     sendHeartbeat,
     forceSessionRefresh,
@@ -499,6 +515,7 @@ export function SocketProvider({ children }: SocketProviderProps) {
     onHeartbeatResponse,
     onTimerSet,
     onTimerStarted,
+    onTimerPaused,
     onTimerStopped,
   };
 
