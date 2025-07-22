@@ -65,9 +65,7 @@ export function Column({ column, userId, boardId, isOwner, moveIndicators, onCol
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  const { emitColumnRenamed, emitColumnDeleted } = useSocket({
-    boardId,
-  });
+  const { emitColumnRenamed, emitColumnDeleted } = useSocket();
 
   useEffect(() => {
     if (isEditing && inputRef.current) {
