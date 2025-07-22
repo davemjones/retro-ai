@@ -136,3 +136,48 @@
 .animate-pulse-move {
   animation: pulse-move 1.5s ease-in-out infinite;
 }
+
+/* Smooth transitions for remote sticky note movements */
+.sticky-remote-moving {
+  transition: transform 300ms cubic-bezier(0.2, 0, 0.2, 1);
+  z-index: 1000;
+  box-shadow: 0 8px 25px -5px rgba(0, 0, 0, 0.15), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
+}
+
+.sticky-remote-entering {
+  opacity: 0;
+  transform: scale(0.95);
+  animation: sticky-enter 250ms cubic-bezier(0.2, 0, 0.2, 1) forwards;
+}
+
+.sticky-remote-leaving {
+  animation: sticky-leave 200ms cubic-bezier(0.2, 0, 0.2, 1) forwards;
+}
+
+@keyframes sticky-enter {
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes sticky-leave {
+  to {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+}
+
+/* Respect user's motion preferences */
+@media (prefers-reduced-motion: reduce) {
+  .sticky-remote-moving {
+    transition: none;
+  }
+  
+  .sticky-remote-entering,
+  .sticky-remote-leaving {
+    animation: none;
+    opacity: 1;
+    transform: scale(1);
+  }
+}

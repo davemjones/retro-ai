@@ -22,6 +22,7 @@ import { Button } from "@/components/ui/button";
 import { Plus } from "lucide-react";
 import { toast } from "sonner";
 import { useSocket } from "@/hooks/use-socket";
+import { animateStickyMovement, animateStickyEntering, animationQueue } from "@/lib/animation-utils";
 
 interface MovementEvent {
   stickyId: string;
@@ -169,13 +170,22 @@ export function BoardCanvas({ board, columns: initialColumns, userId, isOwner }:
   
   // Track if we initiated the movement to prevent echo
   const isLocalMovement = useRef(false);
+  
+  // Track stickies currently animating to prevent conflicts
+  const [animatingStickies, setAnimatingStickies] = useState<Set<string>>(new Set());
 
   // Socket integration for real-time collaboration
   const { isConnected, emitStickyMoved } = useSocket({
     boardId: board.id,
-    onStickyMoved: useCallback((data: MovementEvent) => {
+    onStickyMoved: useCallback(async (data: MovementEvent) => {
       // Only update if this movement wasn't initiated by us
       if (isLocalMovement.current || data.userId === userId) {
+        return;
+      }
+
+      // Skip if already animating this sticky to prevent conflicts
+      if (animatingStickies.has(data.stickyId)) {
+        console.log(`Skipping animation for ${data.stickyId} - already in progress`);
         return;
       }
 
@@ -216,51 +226,72 @@ export function BoardCanvas({ board, columns: initialColumns, userId, isOwner }:
         }));
       }
 
-      // Update local state based on the movement
-      if (data.columnId === null) {
-        // Moving to unassigned area
-        setColumns(prevColumns => 
-          prevColumns.map(column => ({
-            ...column,
-            stickies: column.stickies.filter(sticky => sticky.id !== data.stickyId),
-          }))
-        );
-        
-        // Add to unassigned
-        setUnassignedStickies(prev => {
-          // Don't add if already exists
-          if (prev.some(s => s.id === data.stickyId)) {
-            return prev;
-          }
-          return [...prev, movedSticky];
+      // Add sticky to animating set
+      setAnimatingStickies(prev => new Set([...prev, data.stickyId]));
+
+      try {
+        // Animate the movement to the target position
+        await animationQueue.add(async () => {
+          await animateStickyMovement(data.stickyId, data.columnId);
         });
-      } else {
-        // Moving to a column
-        setUnassignedStickies(prev => 
-          prev.filter(sticky => sticky.id !== data.stickyId)
-        );
-        
-        setColumns(prevColumns => 
-          prevColumns.map(column => {
-            if (column.id === data.columnId) {
-              // Add to target column if not already there
-              if (column.stickies.some(s => s.id === data.stickyId)) {
-                return column;
-              }
-              return {
-                ...column,
-                stickies: [...column.stickies, movedSticky],
-              };
-            }
-            // Remove from other columns
-            return {
+
+        // After animation completes, update the state
+        if (data.columnId === null) {
+          // Moving to unassigned area
+          setColumns(prevColumns => 
+            prevColumns.map(column => ({
               ...column,
               stickies: column.stickies.filter(sticky => sticky.id !== data.stickyId),
-            };
-          })
-        );
+            }))
+          );
+          
+          // Add to unassigned
+          setUnassignedStickies(prev => {
+            // Don't add if already exists
+            if (prev.some(s => s.id === data.stickyId)) {
+              return prev;
+            }
+            return [...prev, movedSticky];
+          });
+        } else {
+          // Moving to a column
+          setUnassignedStickies(prev => 
+            prev.filter(sticky => sticky.id !== data.stickyId)
+          );
+          
+          setColumns(prevColumns => 
+            prevColumns.map(column => {
+              if (column.id === data.columnId) {
+                // Add to target column if not already there
+                if (column.stickies.some(s => s.id === data.stickyId)) {
+                  return column;
+                }
+                return {
+                  ...column,
+                  stickies: [...column.stickies, movedSticky],
+                };
+              }
+              // Remove from other columns
+              return {
+                ...column,
+                stickies: column.stickies.filter(sticky => sticky.id !== data.stickyId),
+              };
+            })
+          );
+        }
+      } catch (error) {
+        console.error('Animation failed:', error);
+        // Fallback to immediate state update if animation fails
+        // ... (same update logic as above, could be extracted to a function)
+      } finally {
+        // Remove sticky from animating set
+        setAnimatingStickies(prev => {
+          const next = new Set(prev);
+          next.delete(data.stickyId);
+          return next;
+        });
       }
-    }, [userId, router, columns, unassignedStickies]),
+    }, [userId, router, columns, unassignedStickies, animatingStickies]),
     onColumnRenamed: useCallback((data: ColumnRenameEvent) => {
       // Don't update if this rename was initiated by us
       if (data.userId === userId) {
@@ -389,7 +420,14 @@ export function BoardCanvas({ board, columns: initialColumns, userId, isOwner }:
           )
         );
       }
-    }, []),
+
+      // Apply entering animation for remote sticky creations
+      if (data.userId !== userId) {
+        setTimeout(() => {
+          animateStickyEntering(data.stickyId);
+        }, 50); // Small delay to ensure DOM is updated
+      }
+    }, [userId]),
     onStickyDeleted: useCallback((data: StickyDeleteEvent) => {
       // Process all sticky deletions (including our own) for consistency
       

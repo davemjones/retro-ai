@@ -45,6 +45,7 @@ export function UnassignedArea({ stickies, userId, moveIndicators }: UnassignedA
   return (
     <div
       ref={setNodeRef}
+      data-area="unassigned"
       className={cn(
         "min-w-[300px] bg-muted/30 rounded-lg border-2 border-dashed transition-colors",
         isOver ? "border-primary bg-primary/10" : "border-muted-foreground/30"
