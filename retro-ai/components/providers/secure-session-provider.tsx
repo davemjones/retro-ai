@@ -44,21 +44,22 @@ export function SecureSessionProvider({ children }: SecureSessionProviderProps) 
     }
   }, [error]);
 
-  // Periodically validate session (every 30 seconds)
-  useEffect(() => {
-    if (status !== 'authenticated' || !session) {
-      return;
-    }
-
-    const interval = setInterval(() => {
-      const isValid = validateSession();
-      if (!isValid) {
-        console.error('🚨 Periodic session validation failed');
-      }
-    }, 30000); // 30 seconds
-
-    return () => clearInterval(interval);
-  }, [session, status, validateSession]);
+  // Disabled periodic validation - was causing cross-user session violations
+  // TODO: Implement proper per-user session validation that doesn't interfere with legitimate separate users
+  // useEffect(() => {
+  //   if (status !== 'authenticated' || !session) {
+  //     return;
+  //   }
+  //
+  //   const interval = setInterval(() => {
+  //     const isValid = validateSession();
+  //     if (!isValid) {
+  //       console.error('🚨 Periodic session validation failed');
+  //     }
+  //   }, 30000); // 30 seconds
+  //
+  //   return () => clearInterval(interval);
+  // }, [session, status, validateSession]);
 
   // Show loading state while session security is being initialized
   if (status === 'loading') {

@@ -702,8 +702,7 @@ export function BoardCanvas({ board, columns: initialColumns, userId, isOwner }:
         console.log("Emitted movement event:", { stickyId: activeId, columnId: targetColumnId, boardId: board.id });
       }
       
-      // Refresh to update the UI
-      router.refresh();
+      // No router.refresh() needed - WebSocket handles real-time UI updates
     } catch (error) {
       console.error("Failed to move sticky note:", error);
       toast.error("Failed to move sticky note");
@@ -718,7 +717,7 @@ export function BoardCanvas({ board, columns: initialColumns, userId, isOwner }:
     }
 
     setActiveId(null);
-  }, [findContainer, getItemsForContainer, initialColumns, router, isConnected, emitStickyMoved, board.stickies, board.id]);
+  }, [findContainer, getItemsForContainer, initialColumns, isConnected, emitStickyMoved, board.stickies, board.id]);
 
   const activeSticky = findActiveSticky();
 

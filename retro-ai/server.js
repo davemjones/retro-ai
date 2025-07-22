@@ -41,12 +41,43 @@ app.prepare().then(() => {
   global.httpServer = httpServer;
   global.io = io;
 
+  // Store active users per board
+  const boardUsers = new Map(); // boardId -> Map of userId -> user data
+  
+  // Helper function to add user to board
+  function addUserToBoard(boardId, userData) {
+    if (!boardUsers.has(boardId)) {
+      boardUsers.set(boardId, new Map());
+    }
+    boardUsers.get(boardId).set(userData.userId, userData);
+  }
+  
+  // Helper function to remove user from board
+  function removeUserFromBoard(boardId, userId) {
+    if (boardUsers.has(boardId)) {
+      const users = boardUsers.get(boardId);
+      users.delete(userId);
+      if (users.size === 0) {
+        boardUsers.delete(boardId);
+      }
+    }
+  }
+  
+  // Helper function to get all users in a board
+  function getBoardUsers(boardId) {
+    if (!boardUsers.has(boardId)) {
+      return [];
+    }
+    return Array.from(boardUsers.get(boardId).values());
+  }
+  
   // Socket.io connection handling
   io.on('connection', async (socket) => {
     console.log('🔌 User connected:', socket.id);
     
     let session = null;
     let boardAccess = null;
+    let currentBoardId = null;
     try {
       // Enhanced authentication with session validation
       const { 
@@ -107,13 +138,34 @@ app.prepare().then(() => {
           return;
         }
 
+        // Leave previous board if any
+        if (currentBoardId && currentBoardId !== boardId) {
+          socket.leave(`board:${currentBoardId}`);
+          removeUserFromBoard(currentBoardId, session.userId);
+          socket.to(`board:${currentBoardId}`).emit('user-disconnected', {
+            userId: session.userId
+          });
+        }
+        
         socket.join(`board:${boardId}`);
-        socket.to(`board:${boardId}`).emit('user-connected', {
+        currentBoardId = boardId;
+        
+        // Add user to board presence tracking
+        const userData = {
           userId: session.userId,
           userName: session.userName,
-          sessionId: session.sessionId,
+          userEmail: session.userEmail,
+          socketId: socket.id,
           timestamp: Date.now()
-        });
+        };
+        addUserToBoard(boardId, userData);
+        
+        // Notify others in the board
+        socket.to(`board:${boardId}`).emit('user-connected', userData);
+        
+        // Send current room users to the joiner
+        const roomUsers = getBoardUsers(boardId);
+        socket.emit('room-users', roomUsers);
         
         // Send session confirmation to user
         socket.emit('board-joined', {
@@ -122,7 +174,7 @@ app.prepare().then(() => {
           timestamp: Date.now()
         });
         
-        console.log(`✅ User ${session.userId} joined board ${boardId} (session: ${session.sessionId})`);
+        console.log(`✅ User ${session.userId} (${session.userName}) joined board ${boardId}`);
       } catch (error) {
         console.error('❌ Error in join-board:', error);
         socket.emit('operation-failed', { 
@@ -135,14 +187,23 @@ app.prepare().then(() => {
     // Leave board room
     socket.on('leave-board', (boardId) => {
       socket.leave(`board:${boardId}`);
-      console.log(`👋 User ${socket.id} left board ${boardId}`);
       
-      // Notify other users in the board
-      socket.to(`board:${boardId}`).emit('user-disconnected', {
-        userId: socket.id,
-        userName: session.userName,
-        timestamp: Date.now()
-      });
+      // Remove from presence tracking
+      if (session) {
+        removeUserFromBoard(boardId, session.userId);
+        
+        // Notify other users in the board
+        socket.to(`board:${boardId}`).emit('user-disconnected', {
+          userId: session.userId
+        });
+        
+        console.log(`👋 User ${session.userId} (${session.userName}) left board ${boardId}`);
+      }
+      
+      // Clear current board if it matches
+      if (currentBoardId === boardId) {
+        currentBoardId = null;
+      }
     });
 
     // Handle sticky note movement with authorization
@@ -488,6 +549,15 @@ app.prepare().then(() => {
     // Handle disconnect
     socket.on('disconnect', () => {
       console.log('🔌 User disconnected:', socket.id);
+      
+      // Clean up user presence
+      if (currentBoardId && session) {
+        removeUserFromBoard(currentBoardId, session.userId);
+        socket.to(`board:${currentBoardId}`).emit('user-disconnected', {
+          userId: session.userId
+        });
+        console.log(`👋 User ${session.userId} (${session.userName}) disconnected from board ${currentBoardId}`);
+      }
     });
 
     } catch (error) {

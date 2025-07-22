@@ -132,7 +132,7 @@ export function useSocket(options: UseSocketOptions = {}) {
         currentBoardRef.current = null;
       }
     };
-  }, [socketContext, boardId]);
+  }, [socketContext.isConnected, socketContext.joinBoard, socketContext.leaveBoard, boardId]);
 
   // Set up event listeners
   useEffect(() => {
