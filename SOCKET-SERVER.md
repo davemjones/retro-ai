@@ -80,7 +80,8 @@ const io = new Server(httpServer, {
 | `editing-stop` | Stop editing | Team member | `socket.to()` |
 | `timer-set` | Set timer duration | Team member | `io.to()` |
 | `timer-started` | Start countdown | Team member | `io.to()` |
-| `timer-stopped` | Stop/pause timer | Team member | `io.to()` |
+| `timer-paused` | Pause countdown | Team member | `io.to()` |
+| `timer-stopped` | Stop/reset timer | Team member | `io.to()` |
 
 ### Client Events (TO clients)
 
@@ -95,7 +96,8 @@ const io = new Server(httpServer, {
 | `access-denied` | `{resource, reason}` | Authorization failure |
 | `timer-set` | `{duration, userId, userName, timestamp}` | Timer duration updated |
 | `timer-started` | `{duration, startTime, userId, userName, timestamp}` | Timer countdown started |
-| `timer-stopped` | `{userId, userName, timestamp}` | Timer stopped/paused |
+| `timer-paused` | `{userId, userName, timestamp}` | Timer countdown paused |
+| `timer-stopped` | `{userId, userName, timestamp}` | Timer stopped/reset |
 
 ## Standard Socket Event Template
 
