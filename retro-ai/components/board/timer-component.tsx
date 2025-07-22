@@ -43,11 +43,6 @@ const TIMER_DURATIONS = [
   { label: "5 min", value: 5 },
   { label: "10 min", value: 10 },
   { label: "15 min", value: 15 },
-  { label: "20 min", value: 20 },
-  { label: "25 min", value: 25 },
-  { label: "30 min", value: 30 },
-  { label: "45 min", value: 45 },
-  { label: "60 min", value: 60 },
 ];
 
 export function BoardTimer({ boardId, userId }: BoardTimerProps) {
@@ -59,6 +54,7 @@ export function BoardTimer({ boardId, userId }: BoardTimerProps) {
   
   const [selectedDuration, setSelectedDuration] = useState("5"); // Duration in minutes
   const [isExpanded, setIsExpanded] = useState(false);
+  const [isPaused, setIsPaused] = useState(false); // Track if timer is paused
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
   
   const socketContext = useSocket();
@@ -149,20 +145,21 @@ export function BoardTimer({ boardId, userId }: BoardTimerProps) {
       });
     };
 
-    const handleTimerStopped = () => {
+    const handleTimerStopped = (shouldReset = true) => {
       setTimerState(prev => ({
         ...prev,
         isRunning: false,
-        remainingTime: prev.duration, // Reset to full duration
+        remainingTime: shouldReset ? prev.duration : prev.remainingTime, // Only reset if requested
         startTime: undefined,
         endTime: undefined,
       }));
+      setIsPaused(!shouldReset); // Set paused state if not resetting
     };
 
     // Set up socket listeners
     const unsubscribeSet = socketContext.onTimerSet?.(handleTimerSet) || (() => {});
     const unsubscribeStarted = socketContext.onTimerStarted?.(handleTimerStarted) || (() => {});
-    const unsubscribeStopped = socketContext.onTimerStopped?.(handleTimerStopped) || (() => {});
+    const unsubscribeStopped = socketContext.onTimerStopped?.(() => handleTimerStopped(true)) || (() => {}); // Always reset on socket stop
 
     return () => {
       unsubscribeSet();
@@ -195,32 +192,35 @@ export function BoardTimer({ boardId, userId }: BoardTimerProps) {
     }
   }, [timerState.isRunning, boardId, socketContext]);
 
-  // Handle start timer
+  // Handle start/resume timer
   const handleStart = useCallback(() => {
     if (timerState.isRunning) return;
 
     const now = Date.now();
-    const endTime = now + timerState.duration;
+    const durationToUse = isPaused ? timerState.remainingTime : timerState.duration;
+    const endTime = now + durationToUse;
     
     setTimerState(prev => ({
       ...prev,
       isRunning: true,
       startTime: now,
       endTime: endTime,
-      remainingTime: prev.duration,
+      remainingTime: durationToUse,
     }));
+    
+    setIsPaused(false); // Clear paused state
 
     // Emit socket event
     if (socketContext.isConnected && socketContext.emitTimerStarted) {
       socketContext.emitTimerStarted({
-        duration: timerState.duration,
+        duration: durationToUse,
         startTime: now,
         boardId,
       });
     }
-  }, [timerState.isRunning, timerState.duration, boardId, socketContext]);
+  }, [timerState.isRunning, timerState.duration, timerState.remainingTime, isPaused, boardId, socketContext]);
 
-  // Handle stop timer
+  // Handle stop timer (completely reset)
   const handleStop = useCallback(() => {
     setTimerState(prev => ({
       ...prev,
@@ -229,6 +229,8 @@ export function BoardTimer({ boardId, userId }: BoardTimerProps) {
       startTime: undefined,
       endTime: undefined,
     }));
+    
+    setIsPaused(false); // Clear paused state
 
     // Emit socket event
     if (socketContext.isConnected && socketContext.emitTimerStopped) {
@@ -238,7 +240,7 @@ export function BoardTimer({ boardId, userId }: BoardTimerProps) {
     }
   }, [boardId, socketContext]);
 
-  // Handle pause/resume (stops the timer but keeps current remaining time)
+  // Handle pause (stops timer but keeps remaining time)
   const handlePause = useCallback(() => {
     if (!timerState.isRunning) return;
     
@@ -248,19 +250,18 @@ export function BoardTimer({ boardId, userId }: BoardTimerProps) {
       startTime: undefined,
       endTime: undefined,
     }));
+    
+    setIsPaused(true); // Set paused state
 
-    // Emit stop event (we treat pause as stop)
-    if (socketContext.isConnected && socketContext.emitTimerStopped) {
-      socketContext.emitTimerStopped({
-        boardId,
-      });
-    }
-  }, [timerState.isRunning, boardId, socketContext]);
+    // For now, don't emit socket event for pause - keep it local
+    // In a full implementation, you might want a separate pause event
+  }, [timerState.isRunning]);
 
   const isTimerCompleted = timerState.remainingTime === 0;
-  const canStart = !timerState.isRunning && timerState.remainingTime > 0;
+  const canStart = !timerState.isRunning && !isPaused && timerState.remainingTime > 0;
+  const canResume = !timerState.isRunning && isPaused && timerState.remainingTime > 0;
   const canPause = timerState.isRunning;
-  const canStop = timerState.isRunning || timerState.remainingTime !== timerState.duration;
+  const canStop = timerState.isRunning || isPaused || timerState.remainingTime !== timerState.duration;
 
   if (isExpanded) {
     return (
@@ -269,9 +270,9 @@ export function BoardTimer({ boardId, userId }: BoardTimerProps) {
         <Select 
           value={selectedDuration} 
           onValueChange={handleDurationChange}
-          disabled={timerState.isRunning}
+          disabled={timerState.isRunning || isPaused}
         >
-          <SelectTrigger className="w-20 h-8">
+          <SelectTrigger className="w-24 h-8">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
@@ -300,6 +301,18 @@ export function BoardTimer({ boardId, userId }: BoardTimerProps) {
               onClick={handleStart}
               className="h-8 w-8 p-0"
               title="Start Timer"
+            >
+              <Play className="h-3 w-3" />
+            </Button>
+          )}
+          
+          {canResume && (
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={handleStart}
+              className="h-8 w-8 p-0"
+              title="Resume Timer"
             >
               <Play className="h-3 w-3" />
             </Button>
