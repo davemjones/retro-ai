@@ -64,6 +64,13 @@ interface StickyUpdateEvent {
   timestamp: number;
 }
 
+interface StickyDeleteEvent {
+  stickyId: string;
+  boardId: string;
+  userId: string;
+  timestamp: number;
+}
+
 interface SocketContextType {
   socket: Socket | null;
   isConnected: boolean;
@@ -76,6 +83,7 @@ interface SocketContextType {
   emitStickyUpdated: (data: Omit<StickyUpdateEvent, 'userId' | 'timestamp'>) => void;
   emitColumnRenamed: (data: Omit<ColumnRenameEvent, 'userId' | 'timestamp'>) => void;
   emitColumnDeleted: (data: Omit<ColumnDeleteEvent, 'userId' | 'timestamp'>) => void;
+  emitStickyDeleted: (data: Omit<StickyDeleteEvent, 'userId' | 'timestamp'>) => void;
   sendHeartbeat: () => void;
   forceSessionRefresh: () => void;
   onStickyMoved: (callback: (data: MovementEvent) => void) => () => void;
@@ -87,6 +95,7 @@ interface SocketContextType {
   onSessionEvent: (callback: (data: SessionEvent) => void) => () => void;
   onColumnRenamed: (callback: (data: ColumnRenameEvent) => void) => () => void;
   onColumnDeleted: (callback: (data: ColumnDeleteEvent) => void) => () => void;
+  onStickyDeleted: (callback: (data: StickyDeleteEvent) => void) => () => void;
   onAuthFailed: (callback: (data: { reason: string }) => void) => () => void;
   onOperationFailed: (callback: (data: { operation: string; reason: string }) => void) => () => void;
   onAccessDenied: (callback: (data: { resource: string; reason: string }) => void) => () => void;
@@ -252,6 +261,12 @@ export function SocketProvider({ children }: SocketProviderProps) {
     }
   };
 
+  const emitStickyDeleted = (data: Omit<StickyDeleteEvent, 'userId' | 'timestamp'>) => {
+    if (socket && isConnected) {
+      socket.emit("sticky-deleted", data);
+    }
+  };
+
   const sendHeartbeat = () => {
     if (socket && isConnected) {
       socket.emit("session-heartbeat");
@@ -355,6 +370,13 @@ export function SocketProvider({ children }: SocketProviderProps) {
     return () => socket.off("column-deleted", callback);
   };
 
+  const onStickyDeleted = (callback: (data: StickyDeleteEvent) => void) => {
+    if (!socket) return () => {};
+    
+    socket.on("sticky-deleted", callback);
+    return () => socket.off("sticky-deleted", callback);
+  };
+
   const contextValue: SocketContextType = {
     socket,
     isConnected,
@@ -367,6 +389,7 @@ export function SocketProvider({ children }: SocketProviderProps) {
     emitEditingStop,
     emitColumnRenamed,
     emitColumnDeleted,
+    emitStickyDeleted,
     sendHeartbeat,
     forceSessionRefresh,
     onStickyMoved,
@@ -378,6 +401,7 @@ export function SocketProvider({ children }: SocketProviderProps) {
     onSessionEvent,
     onColumnRenamed,
     onColumnDeleted,
+    onStickyDeleted,
     onAuthFailed,
     onOperationFailed,
     onAccessDenied,
