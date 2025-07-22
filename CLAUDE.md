@@ -161,3 +161,8 @@ useEffect(() => {
   }
 }, [socket]);
 ```
+
+## UI/UX Issues
+
+### Sticky Note Rendering
+- The avatar on the sticky note is too small and is clipping the user initials. Increase the size of the circle.
