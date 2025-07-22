@@ -9,6 +9,7 @@ declare module "next-auth" {
     sessionId?: string;
     issuedAt?: number;
     requiresFingerprint?: boolean; // SECURITY: Session fingerprinting requirement
+    windowSessionId?: string; // SECURITY: Window-specific session isolation
   }
 }
 
@@ -22,5 +23,6 @@ declare module "next-auth/jwt" {
       userAgentHash: string;
       timestamp: number;
     };
+    windowSessionId?: string; // SECURITY: Window-specific session isolation
   }
 }

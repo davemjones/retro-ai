@@ -20,7 +20,7 @@ export const authOptions: NextAuthOptions = {
         httpOnly: true,
         sameSite: "strict",
         path: "/",
-        secure: true, // SECURITY FIX: Always use secure cookies to prevent session sharing
+        secure: process.env.NODE_ENV === "production", // Secure in production, allow HTTP in development
         maxAge: 24 * 60 * 60, // 24 hours
       },
     },
@@ -30,7 +30,7 @@ export const authOptions: NextAuthOptions = {
         httpOnly: true,
         sameSite: "strict",
         path: "/",
-        secure: true, // SECURITY FIX: Always use secure cookies to prevent session sharing
+        secure: process.env.NODE_ENV === "production", // Secure in production, allow HTTP in development
         maxAge: 15 * 60, // 15 minutes
       },
     },
@@ -40,7 +40,7 @@ export const authOptions: NextAuthOptions = {
         httpOnly: true,
         sameSite: "strict",
         path: "/",
-        secure: true, // SECURITY FIX: Always use secure cookies to prevent session sharing
+        secure: process.env.NODE_ENV === "production", // Secure in production, allow HTTP in development
         maxAge: 60 * 60, // 1 hour
       },
     },
@@ -50,7 +50,7 @@ export const authOptions: NextAuthOptions = {
         httpOnly: true,
         sameSite: "strict",
         path: "/",
-        secure: true, // SECURITY FIX: Always use secure cookies to prevent session sharing
+        secure: process.env.NODE_ENV === "production", // Secure in production, allow HTTP in development
         maxAge: 15 * 60, // 15 minutes
       },
     },
@@ -110,6 +110,9 @@ export const authOptions: NextAuthOptions = {
         
         // Pass fingerprinting requirement for middleware validation
         session.requiresFingerprint = token.requiresFingerprint as boolean;
+        
+        // Pass window session requirement for client-side validation
+        session.windowSessionId = token.windowSessionId as string;
       }
 
       return session;
@@ -139,6 +142,9 @@ export const authOptions: NextAuthOptions = {
           
           // Generate unique session ID for tracking
           token.sessionId = generateSecureSessionId();
+          
+          // Generate window session requirement for client-side validation
+          token.windowSessionId = generateSecureSessionId(); // This will be validated client-side
           
           // Create UserSession record for this login with session fingerprinting
           try {
@@ -186,13 +192,14 @@ export const authOptions: NextAuthOptions = {
         return token;
       }
 
-      console.log('Database user found, returning token with preserved sessionId and fingerprint requirement');
+      console.log('Database user found, returning token with preserved sessionId, fingerprint, and window session requirements');
       return {
         id: dbUser.id,
         name: dbUser.name,
         email: dbUser.email,
         sessionId: token.sessionId, // Preserve session ID
         requiresFingerprint: token.requiresFingerprint, // Preserve fingerprint requirement
+        windowSessionId: token.windowSessionId, // Preserve window session requirement
       };
     },
   },
