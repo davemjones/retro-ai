@@ -79,12 +79,17 @@ export function BoardTimer({ boardId, userId }: BoardTimerProps) {
       remainingTime: remaining
     }));
 
-    // Timer completed
+    // Timer completed - auto-reset for better UX
     if (remaining === 0) {
       setTimerState(prev => ({
         ...prev,
-        isRunning: false
+        isRunning: false,
+        remainingTime: prev.duration, // Reset to full duration
+        startTime: undefined,
+        endTime: undefined,
       }));
+      
+      setIsPaused(false); // Clear any paused state
       
       if (intervalRef.current) {
         clearInterval(intervalRef.current);
