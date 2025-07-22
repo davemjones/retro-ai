@@ -155,7 +155,7 @@ export function StickyNote({ sticky, userId, moveIndicator: propMoveIndicator }:
       <Card
         ref={setNodeRef}
         style={{ ...style, backgroundColor: sticky.color }}
-        className={`group cursor-grab active:cursor-grabbing transition-shadow hover:shadow-md relative ${
+        className={`group cursor-grab active:cursor-grabbing transition-shadow hover:shadow-md relative py-1 ${
           isDragging ? "shadow-lg" : ""
         }`}
         {...attributes}
