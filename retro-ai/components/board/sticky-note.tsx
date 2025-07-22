@@ -14,7 +14,7 @@ import {
   DropdownMenuItem, 
   DropdownMenuTrigger 
 } from "@/components/ui/dropdown-menu";
-import { MoreHorizontal, Edit, Trash, GripVertical } from "lucide-react";
+import { MoreHorizontal, Edit, Trash } from "lucide-react";
 import { EditStickyDialog } from "./edit-sticky-dialog";
 import { EditingIndicator } from "./editing-indicator";
 import { toast } from "sonner";
@@ -159,6 +159,7 @@ export function StickyNote({ sticky, userId, moveIndicator: propMoveIndicator }:
           isDragging ? "shadow-lg" : ""
         }`}
         {...attributes}
+        {...listeners}
       >
         {/* Editing indicator */}
         {editingUser && (
@@ -168,24 +169,62 @@ export function StickyNote({ sticky, userId, moveIndicator: propMoveIndicator }:
           />
         )}
         
-        <CardContent className="p-3">
-          <div className="flex items-start justify-between gap-2 mb-2">
-            <div
-              {...listeners}
-              className="flex-1 text-sm leading-relaxed break-words"
-            >
-              {sticky.content}
-            </div>
-            <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-              <div {...listeners} className="cursor-grab p-1">
-                <GripVertical className="h-3 w-3 text-muted-foreground" />
+        <CardContent className="p-3 h-full flex flex-col">
+          {/* Top Row: Author info (right-aligned) */}
+          <div className="flex justify-end mb-2">
+            {moveIndicator ? (
+              <span className="text-xs font-medium text-primary animate-pulse-move">
+                Moved by: {moveIndicator.movedBy}
+              </span>
+            ) : (
+              <div className="flex items-center gap-2">
+                <span className="text-xs text-muted-foreground">
+                  {sticky.author.name || sticky.author.email}
+                </span>
+                <Avatar className="h-4 w-4">
+                  <AvatarFallback className="text-xs">
+                    {getInitials(sticky.author.name || '') || 
+                     getInitials(sticky.author.email) || "U"}
+                  </AvatarFallback>
+                </Avatar>
               </div>
+            )}
+          </div>
+
+          {/* Middle: Content */}
+          <div className="flex-1 text-sm leading-relaxed break-words mb-2">
+            {sticky.content}
+          </div>
+
+          {/* Bottom Row: Edit history and menu */}
+          <div className="flex items-end justify-between">
+            {/* Left: Edit history */}
+            <div className="flex-1">
+              {hasBeenEditedByOthers && !moveIndicator && (
+                <div className="flex items-center gap-2">
+                  <span className="text-xs text-muted-foreground">Edited by</span>
+                  <div className="flex items-center gap-1">
+                    {sticky.editors!.map((editor) => (
+                      <Avatar key={editor.id} className="h-4 w-4">
+                        <AvatarFallback className="text-xs">
+                          {getInitials(editor.name || '') || 
+                           getInitials(editor.email) || "U"}
+                        </AvatarFallback>
+                      </Avatar>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Right: Edit menu (always visible) */}
+            <div className="flex items-center">
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button
                     variant="ghost"
                     size="icon"
-                    className="h-6 w-6"
+                    className="h-6 w-6 opacity-70 hover:opacity-100"
                   >
                     <MoreHorizontal className="h-3 w-3" />
                   </Button>
@@ -215,42 +254,6 @@ export function StickyNote({ sticky, userId, moveIndicator: propMoveIndicator }:
                 </DropdownMenuContent>
               </DropdownMenu>
             </div>
-          </div>
-          <div className="space-y-2">
-            {moveIndicator ? (
-              <span className="text-xs font-medium text-primary animate-pulse-move">
-                Moved by: {moveIndicator.movedBy}
-              </span>
-            ) : (
-              <>
-                <div className="flex items-center gap-2">
-                  <Avatar className="h-5 w-5">
-                    <AvatarFallback className="text-xs">
-                      {getInitials(sticky.author.name || '') || 
-                       getInitials(sticky.author.email) || "U"}
-                    </AvatarFallback>
-                  </Avatar>
-                  <span className="text-xs text-muted-foreground">
-                    {sticky.author.name || sticky.author.email}
-                  </span>
-                </div>
-                {hasBeenEditedByOthers && (
-                  <div className="flex items-center gap-2">
-                    <span className="text-xs text-muted-foreground">Edited by</span>
-                    <div className="flex items-center gap-1">
-                      {sticky.editors!.map((editor) => (
-                        <Avatar key={editor.id} className="h-5 w-5">
-                          <AvatarFallback className="text-xs">
-                            {getInitials(editor.name || '') || 
-                             getInitials(editor.email) || "U"}
-                          </AvatarFallback>
-                        </Avatar>
-                      ))}
-                    </div>
-                  </div>
-                )}
-              </>
-            )}
           </div>
         </CardContent>
       </Card>
