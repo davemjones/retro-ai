@@ -189,6 +189,48 @@ app.prepare().then(() => {
       }
     });
 
+    // Handle sticky note creation with authorization
+    socket.on('sticky-created', async (data) => {
+      try {
+        // Validate session for this operation
+        const sessionValidation = await validateSocketSession(socket, session, 'sticky_create');
+        if (!sessionValidation.isValid) {
+          socket.emit('operation-failed', { 
+            operation: 'sticky-created', 
+            reason: sessionValidation.reason 
+          });
+          return;
+        }
+
+        // Validate board access
+        const accessValidation = await boardAccess(data.boardId);
+        if (!accessValidation.canAccess) {
+          socket.emit('access-denied', { 
+            resource: 'board', 
+            boardId: data.boardId, 
+            reason: accessValidation.reason 
+          });
+          return;
+        }
+
+        const createData = {
+          ...data,
+          userId: session.userId,
+          timestamp: Date.now()
+        };
+        
+        // Broadcast to all users in the board (including sender)
+        io.to(`board:${data.boardId}`).emit('sticky-created', createData);
+        console.log(`📝 Sticky ${data.stickyId} created by ${session.userId} (session: ${session.sessionId})`);
+      } catch (error) {
+        console.error('❌ Error in sticky-created:', error);
+        socket.emit('operation-failed', { 
+          operation: 'sticky-created', 
+          reason: 'Internal server error' 
+        });
+      }
+    });
+
     // Handle sticky note content/color updates with authorization
     socket.on('sticky-updated', async (data) => {
       try {

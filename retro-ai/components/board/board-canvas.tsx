@@ -71,6 +71,23 @@ interface StickyUpdateEvent {
   timestamp: number;
 }
 
+interface StickyCreateEvent {
+  stickyId: string;
+  content: string;
+  color: string;
+  boardId: string;
+  columnId: string | null;
+  positionX: number;
+  positionY: number;
+  author: {
+    id: string;
+    name: string | null;
+    email: string;
+  };
+  userId: string;
+  timestamp: number;
+}
+
 interface BoardData {
   id: string;
   title: string;
@@ -321,6 +338,57 @@ export function BoardCanvas({ board, columns: initialColumns, userId, isOwner }:
             : sticky
         )
       );
+    }, []),
+    onStickyCreated: useCallback((data: StickyCreateEvent) => {
+      // Process all sticky creations (including our own) for consistency
+      console.log("Received sticky creation event:", data);
+
+      // Create the new sticky object from the event data
+      const newSticky = {
+        id: data.stickyId,
+        content: data.content,
+        color: data.color,
+        positionX: data.positionX,
+        positionY: data.positionY,
+        author: {
+          ...data.author,
+          password: '', // Not needed for display
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        },
+        editedBy: [],
+        editors: [],
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        boardId: data.boardId,
+        columnId: data.columnId,
+        authorId: data.author.id,
+      };
+
+      if (data.columnId === null) {
+        // Add to unassigned area
+        setUnassignedStickies(prevStickies => {
+          // Don't add if already exists
+          if (prevStickies.some(s => s.id === data.stickyId)) {
+            return prevStickies;
+          }
+          return [...prevStickies, newSticky];
+        });
+      } else {
+        // Add to specific column
+        setColumns(prevColumns =>
+          prevColumns.map(column =>
+            column.id === data.columnId
+              ? {
+                  ...column,
+                  stickies: column.stickies.some(s => s.id === data.stickyId)
+                    ? column.stickies // Don't add if already exists
+                    : [...column.stickies, newSticky],
+                }
+              : column
+          )
+        );
+      }
     }, []),
     onStickyDeleted: useCallback((data: StickyDeleteEvent) => {
       // Process all sticky deletions (including our own) for consistency

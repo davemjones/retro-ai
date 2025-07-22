@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
+import { useSocket } from "@/hooks/use-socket";
 import {
   Dialog,
   DialogContent,
@@ -45,6 +46,8 @@ export function CreateStickyDialog({
   const [color, setColor] = useState(STICKY_COLORS[0].value);
   const [columnId, setColumnId] = useState<string | undefined>(undefined);
   const [isLoading, setIsLoading] = useState(false);
+  
+  const { emitStickyCreated } = useSocket();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -77,6 +80,22 @@ export function CreateStickyDialog({
       if (!response.ok) {
         throw new Error(data.error || "Failed to create sticky note");
       }
+
+      // Emit WebSocket event for real-time updates
+      emitStickyCreated({
+        stickyId: data.sticky.id,
+        content: data.sticky.content,
+        color: data.sticky.color,
+        boardId: data.sticky.boardId,
+        columnId: data.sticky.columnId,
+        positionX: data.sticky.positionX,
+        positionY: data.sticky.positionY,
+        author: {
+          id: data.sticky.author.id,
+          name: data.sticky.author.name,
+          email: data.sticky.author.email,
+        },
+      });
 
       toast.success("Sticky note created!");
       setContent("");
