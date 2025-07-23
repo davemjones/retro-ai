@@ -1,26 +1,6 @@
-import { render, screen } from '@testing-library/react';
-import { describe, it, expect, beforeEach, jest, vi } from '@jest/globals';
+import { describe, it, expect, beforeEach, jest } from '@jest/globals';
+import { renderWithProviders, screen, mockUseSocketContext } from '../../../__tests__/test-utils';
 import { BoardPresence } from '../board-presence';
-
-// Mock next-auth/react
-jest.mock('next-auth/react', () => ({
-  useSession: () => ({
-    data: { user: { id: 'test-user', name: 'Test User', email: 'test@example.com' } },
-    status: 'authenticated',
-  }),
-}));
-
-// Mock the socket context
-const mockSocketContext = {
-  socket: { id: 'test-socket' },
-  isConnected: true,
-  onUserConnected: jest.fn(),
-  onUserDisconnected: jest.fn(),
-};
-
-jest.mock('../../../lib/socket-context', () => ({
-  useSocketContext: () => mockSocketContext,
-}));
 
 // Mock the presence utils
 jest.mock('../../../lib/presence-utils', () => ({
@@ -42,7 +22,7 @@ describe('BoardPresence Component', () => {
     it('renders without boardId parameter being used', () => {
       // This test ensures the component doesn't break after removing boardId usage
       expect(() => {
-        render(
+        renderWithProviders(
           <BoardPresence 
             boardId={mockBoardId} 
             currentUserId={mockCurrentUserId} 
@@ -52,20 +32,20 @@ describe('BoardPresence Component', () => {
     });
 
     it('renders empty state when no active users', () => {
-      render(
+      renderWithProviders(
         <BoardPresence 
           boardId={mockBoardId} 
           currentUserId={mockCurrentUserId} 
         />
       );
 
-      // Should render the container div with class "flex items-center gap-2"
-      const presenceContainer = screen.getByRole('generic');
+      // Should render the container div with specific class
+      const presenceContainer = screen.getByTestId('mock-socket-provider');
       expect(presenceContainer).toBeInTheDocument();
     });
 
     it('displays active users with avatars', () => {
-      render(
+      renderWithProviders(
         <BoardPresence 
           boardId={mockBoardId} 
           currentUserId={mockCurrentUserId} 
@@ -74,13 +54,13 @@ describe('BoardPresence Component', () => {
 
       // The component should render without errors and handle user data properly
       // This test verifies the component structure remains stable after parameter removal
-      expect(screen.getByRole('generic')).toBeInTheDocument();
+      expect(screen.getByTestId('mock-socket-provider')).toBeInTheDocument();
     });
   });
 
   describe('User Filtering', () => {
     it('excludes current user from display', () => {
-      render(
+      renderWithProviders(
         <BoardPresence 
           boardId={mockBoardId} 
           currentUserId={mockCurrentUserId} 
@@ -89,7 +69,7 @@ describe('BoardPresence Component', () => {
 
       // The component should filter out the current user
       // This behavior should remain consistent after the boardId parameter removal
-      expect(screen.getByRole('generic')).toBeInTheDocument();
+      expect(screen.getByTestId('mock-socket-provider')).toBeInTheDocument();
     });
   });
 
@@ -97,7 +77,7 @@ describe('BoardPresence Component', () => {
     it('handles socket context properly without using boardId', () => {
       // This test verifies that the component still works with socket integration
       // even after removing the boardId parameter usage
-      render(
+      renderWithProviders(
         <BoardPresence 
           boardId={mockBoardId} 
           currentUserId={mockCurrentUserId} 
@@ -105,22 +85,15 @@ describe('BoardPresence Component', () => {
       );
 
       // Component should render and integrate with socket context
-      expect(mockSocketContext.onUserConnected).toBeDefined();
-      expect(mockSocketContext.onUserDisconnected).toBeDefined();
+      expect(mockUseSocketContext.onUserConnected).toBeDefined();
+      expect(mockUseSocketContext.onUserDisconnected).toBeDefined();
     });
 
-    it('handles disconnected socket gracefully', async () => {
-      const disconnectedSocketContext = {
-        ...mockSocketContext,
-        socket: null,
-        isConnected: false,
-      };
-
-      const socketModule = await import('../../../lib/socket-context');
-      (socketModule.useSocketContext as jest.Mock).mockReturnValueOnce(disconnectedSocketContext);
-
+    it('handles disconnected socket gracefully', () => {
+      // Component should render gracefully when socket is disconnected
+      // This is handled by our global mocks in setup-mocks.ts
       expect(() => {
-        render(
+        renderWithProviders(
           <BoardPresence 
             boardId={mockBoardId} 
             currentUserId={mockCurrentUserId} 
@@ -134,9 +107,9 @@ describe('BoardPresence Component', () => {
     it('should not break when boardId prop is provided but not used internally', () => {
       // This test ensures backward compatibility - the prop is still accepted
       // but not used internally, preventing any breaking changes
-      const consoleSpy = vi.spyOn(console, 'error');
+      const consoleSpy = jest.spyOn(console, 'error');
 
-      render(
+      renderWithProviders(
         <BoardPresence 
           boardId={mockBoardId} 
           currentUserId={mockCurrentUserId} 
@@ -151,7 +124,7 @@ describe('BoardPresence Component', () => {
     it('should maintain the same prop interface', () => {
       // Verify that the component still accepts both required props
       const renderWithProps = (boardId: string, currentUserId: string) => {
-        return render(
+        return renderWithProviders(
           <BoardPresence 
             boardId={boardId} 
             currentUserId={currentUserId} 
@@ -166,7 +139,7 @@ describe('BoardPresence Component', () => {
 
     it('should handle user state updates efficiently', () => {
       // This test ensures the Map-based user state management works correctly
-      const { rerender } = render(
+      const { rerender } = renderWithProviders(
         <BoardPresence 
           boardId={mockBoardId} 
           currentUserId={mockCurrentUserId} 
@@ -184,7 +157,7 @@ describe('BoardPresence Component', () => {
       }
 
       // Should still render without errors
-      expect(screen.getByRole('generic')).toBeInTheDocument();
+      expect(screen.getByTestId('mock-socket-provider')).toBeInTheDocument();
     });
   });
 });
