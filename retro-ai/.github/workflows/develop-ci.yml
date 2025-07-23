@@ -1,0 +1,57 @@
+name: Develop CI
+
+on:
+  push:
+    branches:
+      - develop
+  pull_request:
+    branches:
+      - develop
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        node-version: [18.x, 20.x]
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js ${{ matrix.node-version }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: 'npm'
+          cache-dependency-path: retro-ai/package-lock.json
+
+      - name: Install dependencies
+        working-directory: ./retro-ai
+        run: npm ci
+
+      - name: Run linting
+        working-directory: ./retro-ai
+        run: npm run lint
+
+      - name: Run tests
+        working-directory: ./retro-ai
+        run: npm test
+
+      - name: Run tests with coverage
+        working-directory: ./retro-ai
+        run: npm run test:coverage
+
+      - name: Build application
+        working-directory: ./retro-ai
+        run: npm run build
+
+  security:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Run npm audit
+        working-directory: ./retro-ai
+        run: npm audit --audit-level=moderate

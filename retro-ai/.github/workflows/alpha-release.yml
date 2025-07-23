@@ -1,0 +1,87 @@
+name: Alpha Release
+
+on:
+  push:
+    branches:
+      - staging
+
+permissions:
+  contents: write
+  packages: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: retro-ai/package-lock.json
+
+      - name: Install dependencies
+        working-directory: ./retro-ai
+        run: npm ci
+
+      - name: Run tests
+        working-directory: ./retro-ai
+        run: npm test
+
+      - name: Run linting
+        working-directory: ./retro-ai
+        run: npm run lint
+
+      - name: Build application
+        working-directory: ./retro-ai
+        run: npm run build
+
+      - name: Generate version
+        id: version
+        run: |
+          # Get current version from package.json
+          CURRENT_VERSION=$(node -p "require('./retro-ai/package.json').version")
+          
+          # Generate build number from date
+          BUILD=$(date +%Y%m%d%H%M)
+          
+          # Get short commit hash
+          COMMIT=$(git rev-parse --short HEAD)
+          
+          # Create alpha version
+          ALPHA_VERSION="${CURRENT_VERSION}-alpha.${BUILD}+${COMMIT}"
+          
+          echo "version=${ALPHA_VERSION}" >> $GITHUB_OUTPUT
+          echo "Alpha version: ${ALPHA_VERSION}"
+
+      - name: Create Git tag
+        run: |
+          git config user.name "GitHub Actions"
+          git config user.email "actions@github.com"
+          git tag -a "v${{ steps.version.outputs.version }}" -m "Alpha release v${{ steps.version.outputs.version }}"
+          git push origin "v${{ steps.version.outputs.version }}"
+
+      - name: Create GitHub Release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: v${{ steps.version.outputs.version }}
+          release_name: Alpha Release v${{ steps.version.outputs.version }}
+          body: |
+            ## Alpha Release
+            
+            This is an alpha release from the staging branch.
+            
+            **Version**: ${{ steps.version.outputs.version }}
+            **Commit**: ${{ github.sha }}
+            
+            ### ⚠️ Warning
+            This is a pre-release version and may contain bugs. Use at your own risk.
+          draft: false
+          prerelease: true
