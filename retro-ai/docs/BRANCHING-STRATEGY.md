@@ -86,7 +86,7 @@ git push -u origin fix/issue-XX-description
 1. Create PR from `develop` to `staging`
 2. Review changes and test thoroughly
 3. Merge PR
-4. GitHub Actions automatically:
+4. GitHub Actions automatically (on self-hosted runners):
    - Runs tests and builds
    - Creates versioned tag: `v0.1.0-alpha.202507230930+a7c3e09`
    - Creates GitHub pre-release
@@ -101,10 +101,22 @@ git push -u origin fix/issue-XX-description
 3. Create PR from `staging` to `main`
 4. Review and approve
 5. Merge PR
-6. GitHub Actions automatically:
+6. GitHub Actions automatically (on self-hosted runners):
    - Runs final tests and builds
    - Creates versioned tag: `v0.1.0`
    - Creates GitHub release with changelog
+
+### Manual Workflow Triggers
+
+You can manually trigger workflows with different runner types:
+
+```bash
+# Use GitHub-hosted runners (fallback)
+gh workflow run "Alpha Release" --field runner_type=ubuntu-latest
+
+# Use self-hosted runners (default)
+gh workflow run "Alpha Release" --field runner_type=self-hosted
+```
 
 ## Versioning Convention
 
@@ -151,6 +163,16 @@ For critical production issues:
 5. **Keep develop stable** - don't merge broken code
 6. **Update documentation** when adding features
 7. **Delete branches** after merging
+
+## Self-Hosted Runners
+
+The project uses self-hosted GitHub Actions runners for builds and deployments. See [SELF-HOSTED-RUNNERS.md](./SELF-HOSTED-RUNNERS.md) for setup instructions.
+
+### Key Points:
+- All workflows default to `self-hosted` runners
+- Fallback to `ubuntu-latest` available via manual trigger
+- Requires proper runner setup and maintenance
+- Provides better performance and cost control
 
 ## Scripts and Commands
 

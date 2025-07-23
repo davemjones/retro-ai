@@ -7,10 +7,20 @@ on:
   pull_request:
     branches:
       - develop
+  workflow_dispatch:
+    inputs:
+      runner_type:
+        description: 'Choose runner type'
+        required: false
+        default: 'self-hosted'
+        type: choice
+        options:
+          - self-hosted
+          - ubuntu-latest
 
 jobs:
   test:
-    runs-on: ubuntu-latest
+    runs-on: ${{ github.event.inputs.runner_type || 'self-hosted' }}
     strategy:
       matrix:
         node-version: [18.x, 20.x]
@@ -47,7 +57,7 @@ jobs:
         run: npm run build
 
   security:
-    runs-on: ubuntu-latest
+    runs-on: ${{ github.event.inputs.runner_type || 'self-hosted' }}
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
