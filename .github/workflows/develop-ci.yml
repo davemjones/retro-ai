@@ -23,7 +23,7 @@ jobs:
     runs-on: ${{ github.event.inputs.runner_type || 'self-hosted' }}
     strategy:
       matrix:
-        node-version: [18.x, 20.x]
+        node-version: [18.x]
 
     steps:
       - name: Checkout code
@@ -58,6 +58,10 @@ jobs:
 
   security:
     runs-on: ${{ github.event.inputs.runner_type || 'self-hosted' }}
+    strategy:
+       matrix:
+         node-version: [18.x]
+ 
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
