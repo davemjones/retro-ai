@@ -11,18 +11,18 @@ jest.mock('next-auth/react', () => ({
 }));
 
 // Mock the socket hooks
-jest.mock('./hooks/use-socket', () => ({
+jest.mock('../hooks/use-socket', () => ({
   useSocket: jest.fn(() => mockUseSocket),
 }));
 
-jest.mock('./lib/socket-context', () => ({
+jest.mock('../lib/socket-context', () => ({
   useSocket: jest.fn(() => mockUseSocketContext),
   useSocketContext: jest.fn(() => mockUseSocketContext),
   SocketProvider: ({ children }: { children: React.ReactNode }) => children,
 }));
 
 // Mock prisma
-jest.mock('./lib/prisma', () => ({
+jest.mock('../lib/prisma', () => ({
   prisma: {
     userSession: {
       create: jest.fn(),

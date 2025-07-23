@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, jest } from '@jest/globals';
-import { renderWithProviders, screen } from '../../../test-utils';
+import { renderWithProviders, screen } from '../../../test-support/test-utils';
 import { StickyNote } from '../sticky-note';
 
 jest.mock('@dnd-kit/sortable', () => ({
