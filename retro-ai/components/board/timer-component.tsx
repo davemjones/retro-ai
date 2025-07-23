@@ -205,6 +205,9 @@ export function BoardTimer({ boardId, userId }: BoardTimerProps) {
       socketContext.emitTimerSet({
         duration: durationMs,
         boardId,
+        isRunning: false,
+        startTime: undefined,
+        endTime: undefined,
       });
     }
   }, [timerState.isRunning, boardId, socketContext]);
@@ -233,6 +236,8 @@ export function BoardTimer({ boardId, userId }: BoardTimerProps) {
         duration: durationToUse,
         startTime: now,
         boardId,
+        isRunning: true,
+        endTime: endTime,
       });
     }
   }, [timerState.isRunning, timerState.duration, timerState.remainingTime, isPaused, boardId, socketContext]);
@@ -253,6 +258,8 @@ export function BoardTimer({ boardId, userId }: BoardTimerProps) {
     if (socketContext.isConnected && socketContext.emitTimerStopped) {
       socketContext.emitTimerStopped({
         boardId,
+        isRunning: false,
+        endTime: undefined,
       });
     }
   }, [boardId, socketContext]);
@@ -274,6 +281,8 @@ export function BoardTimer({ boardId, userId }: BoardTimerProps) {
     if (socketContext.isConnected && socketContext.emitTimerPaused) {
       socketContext.emitTimerPaused({
         boardId,
+        isRunning: false,
+        endTime: undefined,
       });
     }
   }, [timerState.isRunning, boardId, socketContext]);

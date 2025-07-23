@@ -43,7 +43,7 @@ export function SocketSessionMonitor() {
   const [lastHeartbeat, setLastHeartbeat] = useState<number | null>(null);
   const [sessionHealth, setSessionHealth] = useState<'healthy' | 'warning' | 'critical'>('healthy');
   const [displayTime, setDisplayTime] = useState(Date.now());
-  const [heartbeatFailureCount, setHeartbeatFailureCount] = useState(0); // Used in setters for health logic
+  const [, setHeartbeatFailureCount] = useState(0); // Used in setters for health logic
   const heartbeatTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const heartbeatStartTimeRef = useRef<number | null>(null);
 
