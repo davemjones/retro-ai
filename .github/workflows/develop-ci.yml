@@ -69,6 +69,10 @@ jobs:
           cache: 'npm'
           cache-dependency-path: retro-ai/package-lock.json
 
+      - name: Install dependencies
+        working-directory: ./retro-ai
+        run: npm ci
+
       - name: Run npm audit
         working-directory: ./retro-ai
         run: npm audit --audit-level=moderate
