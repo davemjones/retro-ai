@@ -1,6 +1,7 @@
 import React from 'react';
 import { render } from '@testing-library/react';
 import { SessionProvider } from 'next-auth/react';
+import { jest } from '@jest/globals';
 
 // Mock session data for tests
 export const mockSession = {

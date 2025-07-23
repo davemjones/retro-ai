@@ -72,13 +72,13 @@ jest.mock('next/navigation', () => ({
 }));
 
 // Mock fetch globally
-global.fetch = jest.fn(() =>
-  Promise.resolve({
-    ok: true,
-    json: () => Promise.resolve({}),
-    text: () => Promise.resolve(''),
-  })
-) as jest.Mock;
+global.fetch = jest.fn((input: RequestInfo | URL, init?: RequestInit) =>
+  Promise.resolve(new Response('{}', {
+    status: 200,
+    statusText: 'OK',
+    headers: new Headers({ 'Content-Type': 'application/json' }),
+  }))
+) as jest.MockedFunction<typeof fetch>;
 
 // Mock DOM APIs that might be missing in jsdom
 Object.defineProperty(window, 'matchMedia', {
@@ -100,11 +100,11 @@ global.ResizeObserver = jest.fn().mockImplementation(() => ({
   observe: jest.fn(),
   unobserve: jest.fn(),
   disconnect: jest.fn(),
-}));
+})) as jest.MockedClass<typeof ResizeObserver>;
 
 // Mock IntersectionObserver
 global.IntersectionObserver = jest.fn().mockImplementation(() => ({
   observe: jest.fn(),
   unobserve: jest.fn(),
   disconnect: jest.fn(),
-}));
+})) as jest.MockedClass<typeof IntersectionObserver>;
