@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useCallback, useEffect } from "react";
-import { useRouter } from "next/navigation";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { Card, CardContent } from "@/components/ui/card";
@@ -18,7 +17,6 @@ import { MoreHorizontal, Edit, Trash } from "lucide-react";
 import { EditStickyDialog } from "./edit-sticky-dialog";
 import { DeleteStickyDialog } from "./delete-sticky-dialog";
 import { EditingIndicator } from "./editing-indicator";
-import { toast } from "sonner";
 import { useSocket } from "@/hooks/use-socket";
 
 interface EditingEvent {
@@ -64,7 +62,6 @@ interface StickyNoteProps {
 }
 
 export function StickyNote({ sticky, userId, moveIndicator: propMoveIndicator }: StickyNoteProps) {
-  const router = useRouter();
   const [showEditDialog, setShowEditDialog] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [editingUser, setEditingUser] = useState<{ userId: string; userName: string } | null>(null);

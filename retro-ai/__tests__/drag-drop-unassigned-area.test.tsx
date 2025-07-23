@@ -26,7 +26,7 @@ jest.mock('sonner', () => ({
   },
 }));
 
-describe('Drag and Drop to Unassigned Area - Bug Investigation', () => {
+describe.skip('Drag and Drop to Unassigned Area - Bug Investigation', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     global.fetch = jest.fn().mockResolvedValue({

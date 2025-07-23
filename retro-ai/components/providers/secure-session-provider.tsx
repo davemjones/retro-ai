@@ -17,10 +17,8 @@ export function SecureSessionProvider({ children }: SecureSessionProviderProps) 
   const { data: session, status } = useSession();
   const {
     isWindowSessionValid,
-    windowSessionId,
     securityLevel,
     error,
-    validateSession,
     getSessionInfo
   } = useWindowSessionSecurity();
 

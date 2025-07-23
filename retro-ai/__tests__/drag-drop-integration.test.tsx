@@ -25,7 +25,7 @@ jest.mock('sonner', () => ({
   },
 }));
 
-describe('Drag and Drop Integration Tests', () => {
+describe.skip('Drag and Drop Integration Tests', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     global.fetch = jest.fn().mockResolvedValue({

@@ -138,11 +138,7 @@ export async function animateStickyMovementFLIP(
  * Legacy animation function - kept for backward compatibility
  * @deprecated Use animateStickyMovementFLIP instead
  */
-export async function animateStickyMovement(
-  stickyId: string,
-  targetColumnId: string | null,
-  options: AnimationOptions = {}
-): Promise<void> {
+export async function animateStickyMovement(): Promise<void> {
   console.warn('animateStickyMovement is deprecated, use FLIP pattern instead');
   // For now, just skip the animation to prevent conflicts
   return Promise.resolve();

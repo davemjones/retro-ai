@@ -4,26 +4,40 @@
 
 **CRITICAL: BEFORE starting ANY issue work, ALWAYS follow this workflow first:**
 
+### Branch Strategy (develop → staging → main)
+- **develop**: Default branch for all new work
+- **staging**: Alpha/beta releases
+- **main**: Production releases only
+
 When working on a new issue:
-1. **ALWAYS** checkout the main branch first (unless explicitly told not to)
-2. Pull the latest changes: `git pull origin main`
-3. Create a new branch for the issue: `git checkout -b fix/issue-XX-description`
+1. **ALWAYS** checkout the develop branch first (unless explicitly told not to)
+2. Pull the latest changes: `git pull origin develop`
+3. Create a new branch for the issue: `git checkout -b feature/issue-XX-description`
 4. Work on the issue in the new branch
-5. Commit changes and create a pull request
+5. Commit changes and create a pull request to **develop**
 6. **Ensure the PR automatically closes the issue ticket**
 
 ⚠️ **MANDATORY**: Add Git workflow as the FIRST todo item for every new issue before any technical work.
 
+### Branch Naming Conventions
+- **Features**: `feature/issue-XX-brief-description`
+- **Bug Fixes**: `fix/issue-XX-brief-description`
+- **Enhancements**: `enhance/issue-XX-brief-description`
+- **Security**: `security/issue-XX-brief-description`
+- **Documentation**: `docs/issue-XX-brief-description`
+
 Example workflow:
 ```bash
-git checkout main
-git pull origin main
+git checkout develop
+git pull origin develop
 git checkout -b fix/issue-47-eslint-errors
 # ... make changes ...
 git add .
 git commit -m "Fix ESLint errors (#47)"
 git push -u origin fix/issue-47-eslint-errors
 ```
+
+**See [docs/BRANCHING-STRATEGY.md](./docs/BRANCHING-STRATEGY.md) for complete workflow details.**
 
 ## Linting Requirements
 
@@ -94,7 +108,7 @@ When working on real-time features, you MUST update these sections in `SOCKET-SE
 - Any API route that triggers real-time updates
 
 ## Pre-issue Work Checklist
-- [ ] **Git workflow completed** (checkout main, pull latest, create feature branch)
+- [ ] **Git workflow completed** (checkout develop, pull latest, create feature branch)
 - [ ] Issue analysis and todo list created
 - [ ] Technical approach planned
 - [ ] **If working on real-time/Socket.io code**: Read SOCKET-SERVER.md first
