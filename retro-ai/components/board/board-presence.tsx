@@ -11,7 +11,6 @@ interface BoardPresenceProps {
 }
 
 function BoardPresenceComponent({
-  boardId,
   currentUserId,
 }: BoardPresenceProps) {
   // Use Map for O(1) add/remove operations - no complex deduplication needed

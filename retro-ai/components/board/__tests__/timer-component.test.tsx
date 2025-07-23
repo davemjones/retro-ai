@@ -1,10 +1,20 @@
 import { render, screen, fireEvent, waitFor, act } from '@testing-library/react';
-import { vi, describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, jest } from '@jest/globals';
 import { BoardTimer } from '../timer-component';
 
+// Mock next-auth/react
+jest.mock('next-auth/react', () => ({
+  useSession: () => ({
+    data: { user: { id: 'test-user', name: 'Test User', email: 'test@example.com' } },
+    status: 'authenticated',
+  }),
+}));
+
 interface TimerEvent {
-  duration?: number;
+  duration: number;
   startTime?: number;
+  endTime?: number;
+  isRunning: boolean;
   boardId: string;
   userId: string;
   userName: string;
@@ -15,34 +25,40 @@ interface TimerEvent {
 const mockSocketContext = {
   socket: { id: 'test-socket' },
   isConnected: true,
-  emitTimerSet: vi.fn(),
-  emitTimerStarted: vi.fn(),
-  emitTimerStopped: vi.fn(),
-  onTimerSet: vi.fn((callback) => {
+  emitTimerSet: jest.fn(),
+  emitTimerStarted: jest.fn(),
+  emitTimerStopped: jest.fn(),
+  emitTimerPaused: jest.fn(),
+  onTimerSet: jest.fn((callback) => {
     mockSocketContext._onTimerSetCallback = callback;
     return () => {}; // unsubscribe function
   }),
-  onTimerStarted: vi.fn((callback) => {
+  onTimerStarted: jest.fn((callback) => {
     mockSocketContext._onTimerStartedCallback = callback;
     return () => {};
   }),
-  onTimerStopped: vi.fn((callback) => {
+  onTimerStopped: jest.fn((callback) => {
     mockSocketContext._onTimerStoppedCallback = callback;
+    return () => {};
+  }),
+  onTimerPaused: jest.fn((callback) => {
+    mockSocketContext._onTimerPausedCallback = callback;
     return () => {};
   }),
   _onTimerSetCallback: null as ((data: TimerEvent) => void) | null,
   _onTimerStartedCallback: null as ((data: TimerEvent) => void) | null,
   _onTimerStoppedCallback: null as ((data: TimerEvent) => void) | null,
+  _onTimerPausedCallback: null as ((data: TimerEvent) => void) | null,
 };
 
-vi.mock('@/lib/socket-context', () => ({
+jest.mock('../../../lib/socket-context', () => ({
   useSocket: () => mockSocketContext,
 }));
 
 // Mock setInterval and clearInterval for timer testing
-vi.mock('node:timers', () => ({
-  setInterval: vi.fn(),
-  clearInterval: vi.fn(),
+jest.mock('node:timers', () => ({
+  setInterval: jest.fn(),
+  clearInterval: jest.fn(),
 }));
 
 describe('BoardTimer', () => {
@@ -50,28 +66,29 @@ describe('BoardTimer', () => {
   const mockUserId = 'test-user-id';
 
   beforeEach(() => {
-    vi.clearAllMocks();
+    jest.clearAllMocks();
     // Reset socket context callbacks
     mockSocketContext._onTimerSetCallback = null;
     mockSocketContext._onTimerStartedCallback = null;
     mockSocketContext._onTimerStoppedCallback = null;
+    mockSocketContext._onTimerPausedCallback = null;
     
     // Mock Date.now for consistent testing
-    vi.spyOn(Date, 'now').mockReturnValue(1000000);
+    jest.spyOn(Date, 'now').mockReturnValue(1000000);
     
     // Mock setInterval to avoid real timers in tests
-    vi.spyOn(global, 'setInterval').mockImplementation((callback) => {
+    jest.spyOn(global, 'setInterval').mockImplementation((callback) => {
       const id = setTimeout(callback, 0); // Execute immediately for testing
       return id as NodeJS.Timeout;
     });
     
-    vi.spyOn(global, 'clearInterval').mockImplementation((id) => {
+    jest.spyOn(global, 'clearInterval').mockImplementation((id) => {
       clearTimeout(id);
     });
   });
 
   afterEach(() => {
-    vi.restoreAllMocks();
+    jest.restoreAllMocks();
   });
 
   describe('Initial Render', () => {
@@ -120,6 +137,9 @@ describe('BoardTimer', () => {
       expect(mockSocketContext.emitTimerSet).toHaveBeenCalledWith({
         duration: 10 * 60 * 1000, // 10 minutes in milliseconds
         boardId: mockBoardId,
+        isRunning: false,
+        startTime: undefined,
+        endTime: undefined,
       });
     });
 
@@ -151,6 +171,8 @@ describe('BoardTimer', () => {
         duration: 5 * 60 * 1000, // 5 minutes in milliseconds
         startTime: 1000000, // Mocked Date.now()
         boardId: mockBoardId,
+        isRunning: true,
+        endTime: 1000000 + (5 * 60 * 1000), // startTime + duration
       });
     });
 
@@ -170,7 +192,7 @@ describe('BoardTimer', () => {
       });
     });
 
-    it('pauses timer and emits stop event', async () => {
+    it('pauses timer and emits pause event', async () => {
       render(<BoardTimer boardId={mockBoardId} userId={mockUserId} />);
       
       fireEvent.click(screen.getByTitle('Open Timer'));
@@ -187,8 +209,10 @@ describe('BoardTimer', () => {
         fireEvent.click(pauseButton);
       });
 
-      expect(mockSocketContext.emitTimerStopped).toHaveBeenCalledWith({
+      expect(mockSocketContext.emitTimerPaused).toHaveBeenCalledWith({
         boardId: mockBoardId,
+        isRunning: false,
+        endTime: undefined,
       });
     });
 
@@ -211,11 +235,59 @@ describe('BoardTimer', () => {
 
       expect(mockSocketContext.emitTimerStopped).toHaveBeenCalledWith({
         boardId: mockBoardId,
+        isRunning: false,
+        endTime: undefined,
       });
 
       // Timer should reset to full duration
       await waitFor(() => {
         expect(screen.getByText('05:00')).toBeInTheDocument();
+      });
+    });
+  });
+
+  describe('Pause Functionality', () => {
+    it('handles timer-paused event from other users', async () => {
+      render(<BoardTimer boardId={mockBoardId} userId={mockUserId} />);
+      
+      fireEvent.click(screen.getByTitle('Open Timer'));
+
+      // Start timer first
+      act(() => {
+        mockSocketContext._onTimerStartedCallback?.({
+          duration: 5 * 60 * 1000,
+          startTime: 1000000,
+          endTime: 1000000 + (5 * 60 * 1000),
+          isRunning: true,
+          boardId: mockBoardId,
+          userId: 'other-user',
+          userName: 'Other User',
+          timestamp: 1000000,
+        });
+      });
+
+      await waitFor(() => {
+        expect(screen.getByTitle('Pause Timer')).toBeInTheDocument();
+      });
+
+      // Then pause it
+      act(() => {
+        mockSocketContext._onTimerPausedCallback?.({
+          duration: 5 * 60 * 1000,
+          boardId: mockBoardId,
+          userId: 'other-user',
+          userName: 'Other User',
+          timestamp: 1000000,
+          isRunning: false,
+          startTime: 1000000,
+          endTime: undefined,
+        });
+      });
+
+      await waitFor(() => {
+        // Timer should be paused (shows resume button)
+        expect(screen.getByTitle('Resume Timer')).toBeInTheDocument();
+        expect(screen.queryByTitle('Pause Timer')).not.toBeInTheDocument();
       });
     });
   });
@@ -232,6 +304,9 @@ describe('BoardTimer', () => {
           userId: 'other-user',
           userName: 'Other User',
           timestamp: Date.now(),
+          isRunning: false,
+          startTime: undefined,
+          endTime: undefined,
         });
       });
 
@@ -253,6 +328,8 @@ describe('BoardTimer', () => {
         mockSocketContext._onTimerStartedCallback?.({
           duration: 5 * 60 * 1000, // 5 minutes
           startTime: 1000000,
+          endTime: 1000000 + (5 * 60 * 1000),
+          isRunning: true,
           boardId: mockBoardId,
           userId: 'other-user',
           userName: 'Other User',
@@ -278,6 +355,8 @@ describe('BoardTimer', () => {
         mockSocketContext._onTimerStartedCallback?.({
           duration: 5 * 60 * 1000,
           startTime: 1000000,
+          endTime: 1000000 + (5 * 60 * 1000),
+          isRunning: true,
           boardId: mockBoardId,
           userId: 'other-user',
           userName: 'Other User',
@@ -288,10 +367,14 @@ describe('BoardTimer', () => {
       // Then stop it
       act(() => {
         mockSocketContext._onTimerStoppedCallback?.({
+          duration: 5 * 60 * 1000,
           boardId: mockBoardId,
           userId: 'other-user',
           userName: 'Other User',
           timestamp: 1000000,
+          isRunning: false,
+          startTime: undefined,
+          endTime: undefined,
         });
       });
 
@@ -316,6 +399,9 @@ describe('BoardTimer', () => {
           userId: mockUserId, // Same user
           userName: 'Test User',
           timestamp: Date.now(),
+          isRunning: false,
+          startTime: undefined,
+          endTime: undefined,
         });
       });
 
@@ -380,8 +466,8 @@ describe('BoardTimer', () => {
         isConnected: false,
       };
 
-      const { useSocket } = await import('@/lib/socket-context');
-      vi.mocked(useSocket).mockReturnValue(disconnectedSocketContext);
+      const { useSocket } = await import('../../../lib/socket-context');
+      (useSocket as jest.Mock).mockReturnValue(disconnectedSocketContext);
 
       render(<BoardTimer boardId={mockBoardId} userId={mockUserId} />);
       
@@ -397,10 +483,11 @@ describe('BoardTimer', () => {
         onTimerSet: undefined,
         onTimerStarted: undefined,
         onTimerStopped: undefined,
+        onTimerPaused: undefined,
       };
 
-      const { useSocket } = await import('@/lib/socket-context');
-      vi.mocked(useSocket).mockReturnValue(minimalSocketContext);
+      const { useSocket } = await import('../../../lib/socket-context');
+      (useSocket as jest.Mock).mockReturnValue(minimalSocketContext);
 
       // Should render without throwing errors
       expect(() => {

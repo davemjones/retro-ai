@@ -9,14 +9,7 @@ import { PrismaClient } from '@prisma/client';
 /**
  * Enhanced authentication for Socket.io connections with team-based board authorization
  */
-async function authenticateSocket(socket, options = {}) {
-  const {
-    enableFingerprinting = true,
-    enableSessionValidation = true,
-    enableRealTimeMonitoring = true,
-    sessionTimeoutMs = 24 * 60 * 60 * 1000, // 24 hours
-    maxIdleTimeMs = 30 * 60 * 1000, // 30 minutes
-  } = options;
+async function authenticateSocket(socket) {
 
   try {
     // Extract cookies from socket headers
@@ -73,7 +66,7 @@ async function authenticateSocket(socket, options = {}) {
 /**
  * Validate socket session for specific operations
  */
-async function validateSocketSession(socket, session, operation) {
+async function validateSocketSession(socket, session) {
   try {
     // Basic session checks
     if (!session.isAuthenticated) {

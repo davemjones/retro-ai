@@ -89,8 +89,10 @@ interface StickyDeleteEvent {
 }
 
 interface TimerEvent {
-  duration?: number;
+  duration: number;
   startTime?: number;
+  endTime?: number;
+  isRunning: boolean;
   boardId: string;
   userId: string;
   userName: string;

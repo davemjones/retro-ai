@@ -441,7 +441,7 @@ export function BoardCanvas({ board, columns: initialColumns, userId, isOwner }:
     );
   }, []);
 
-  const handleColumnDeleted = useCallback((columnId: string, _migratedStickiesCount: number) => {
+  const handleColumnDeleted = useCallback((columnId: string) => {
     // For the user who initiated the deletion, we need to move the stickies
     // to unassigned in the local state immediately so they don't disappear
     setColumns(prevColumns => {
