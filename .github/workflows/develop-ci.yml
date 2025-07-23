@@ -62,6 +62,13 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: 'npm'
+          cache-dependency-path: retro-ai/package-lock.json
+
       - name: Run npm audit
         working-directory: ./retro-ai
         run: npm audit --audit-level=moderate
