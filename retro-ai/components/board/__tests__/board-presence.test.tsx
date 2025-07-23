@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, jest } from '@jest/globals';
-import { renderWithProviders, screen, mockUseSocketContext } from '../../../__tests__/test-utils';
+import { renderWithProviders, screen, mockUseSocketContext } from '../../../test-utils';
 import { BoardPresence } from '../board-presence';
 
 // Mock the presence utils

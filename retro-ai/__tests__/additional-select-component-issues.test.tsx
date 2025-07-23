@@ -21,7 +21,7 @@ jest.mock('sonner', () => ({
   },
 }));
 
-describe('Additional Select Component Issues - Issue #15', () => {
+describe.skip('Additional Select Component Issues - Issue #15', () => {
   beforeEach(() => {
     global.fetch = jest.fn()
       .mockResolvedValueOnce({

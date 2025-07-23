@@ -1,7 +1,7 @@
 import '@testing-library/jest-dom';
 
 // Import global mocks
-import './__tests__/setup-mocks';
+import './setup-mocks';
 
 // Polyfill for Web APIs in Jest/jsdom environment
 if (typeof globalThis.TextEncoder === 'undefined') {
