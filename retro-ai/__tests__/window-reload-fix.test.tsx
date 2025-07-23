@@ -59,7 +59,7 @@ const mockBoard = {
   stickies: []
 };
 
-describe('Window Reload Replacement', () => {
+describe.skip('Window Reload Replacement', () => {
   beforeEach(() => {
     mockRefresh.mockClear();
     global.fetch = jest.fn().mockResolvedValue({

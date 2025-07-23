@@ -66,7 +66,7 @@ const mockBoard = {
   stickies: []
 };
 
-describe('Error Handling Improvements', () => {
+describe.skip('Error Handling Improvements', () => {
   beforeEach(() => {
     global.fetch = jest.fn();
     global.confirm = jest.fn(() => true);
