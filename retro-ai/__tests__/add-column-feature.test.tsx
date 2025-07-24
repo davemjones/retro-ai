@@ -74,6 +74,7 @@ describe.skip('Add Column Feature', () => {
         board={mockBoard} 
         columns={mockBoard.columns} 
         userId="user-1" 
+        isOwner={true}
       />
     );
 
@@ -89,6 +90,7 @@ describe.skip('Add Column Feature', () => {
         board={mockBoard} 
         columns={mockBoard.columns} 
         userId="user-1" 
+        isOwner={true}
       />
     );
 
@@ -189,6 +191,7 @@ describe.skip('Add Column Feature', () => {
         board={mockBoard} 
         columns={mockBoard.columns} 
         userId="user-1" 
+        isOwner={true}
       />
     );
 

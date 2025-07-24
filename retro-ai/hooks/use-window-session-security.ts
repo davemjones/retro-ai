@@ -76,13 +76,13 @@ export function useWindowSessionSecurity() {
     
     try {
       await signOut({
-        callbackUrl: '/login?error=SessionSecurityViolation',
+        callbackUrl: '/?error=SessionSecurityViolation',
         redirect: true
       });
     } catch (error) {
       console.error('❌ Failed to sign out after security violation:', error);
       // Force redirect as fallback
-      window.location.href = '/login?error=SessionSecurityViolation';
+      window.location.href = '/?error=SessionSecurityViolation';
     }
   }, []);
 

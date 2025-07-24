@@ -163,7 +163,33 @@ export async function validateCookieSecurity(
 
     // Check for secure transmission
     if (process.env.NODE_ENV === 'production') {
-      if (!req.url.startsWith('https://')) {
+      // Enhanced HTTPS detection including Cloudflare tunnel headers
+      const cfVisitor = req.headers.get('cf-visitor');
+      const isSecure = req.url.startsWith('https://') || 
+                      req.headers.get('x-forwarded-proto') === 'https' ||
+                      req.headers.get('x-forwarded-ssl') === 'on' ||
+                      req.headers.get('x-original-proto') === 'https' ||
+                      (cfVisitor && cfVisitor.includes('"scheme":"https"'));
+      
+      // Debug logging for Cloudflare tunnel troubleshooting
+      if (!isSecure) {
+        console.log('🔍 HTTPS Detection Debug:', {
+          url: req.url,
+          nextauthUrl: process.env.NEXTAUTH_URL,
+          headers: {
+            'x-forwarded-proto': req.headers.get('x-forwarded-proto'),
+            'x-forwarded-ssl': req.headers.get('x-forwarded-ssl'),
+            'x-original-proto': req.headers.get('x-original-proto'),
+            'cf-visitor': req.headers.get('cf-visitor'),
+            'cf-connecting-ip': req.headers.get('cf-connecting-ip'),
+            'cf-ray': req.headers.get('cf-ray'),
+            'host': req.headers.get('host'),
+            'x-forwarded-host': req.headers.get('x-forwarded-host'),
+            'x-forwarded-for': req.headers.get('x-forwarded-for')
+          },
+          environment: process.env.NODE_ENV
+        });
+        
         return {
           isValid: false,
           shouldRotateSession: false,
@@ -305,10 +331,8 @@ export function detectSessionHijacking(req: NextRequest): {
   // Check for suspicious headers (with environment-aware detection)
   const suspiciousHeaders = ['x-original-url', 'x-rewrite-url'];
   
-  // Only treat x-forwarded-host as suspicious in production environments
-  if (!isDevelopment) {
-    suspiciousHeaders.push('x-forwarded-host');
-  }
+  // Note: x-forwarded-host header is allowed in all environments
+  // as reverse proxies commonly use this header for legitimate routing
   
   for (const header of suspiciousHeaders) {
     if (req.headers.get(header)) {

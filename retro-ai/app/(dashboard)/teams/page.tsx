@@ -38,7 +38,7 @@ export default async function TeamsPage() {
   const session = await getServerSession(authOptions);
 
   if (!session?.user?.id) {
-    redirect("/login");
+    redirect("/");
   }
 
   const teams = await getUserTeams(session.user.id);

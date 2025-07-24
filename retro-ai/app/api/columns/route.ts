@@ -30,7 +30,7 @@ export async function POST(req: Request) {
       );
     }
 
-    // Verify user has access to the board
+    // Verify user has access to the board and is the board owner
     const board = await prisma.board.findUnique({
       where: { id: boardId },
       include: {
@@ -48,6 +48,14 @@ export async function POST(req: Request) {
       return NextResponse.json(
         { error: "Board not found or access denied" },
         { status: 404 }
+      );
+    }
+
+    // Only board owner can create columns
+    if (board.createdById !== session.user.id) {
+      return NextResponse.json(
+        { error: "Only board owner can create columns" },
+        { status: 403 }
       );
     }
 

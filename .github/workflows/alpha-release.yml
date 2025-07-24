@@ -47,6 +47,10 @@ jobs:
         working-directory: ./retro-ai
         run: npm run lint
 
+      - name: Run type checking
+        working-directory: ./retro-ai
+        run: npm run typecheck
+
       - name: Build application
         working-directory: ./retro-ai
         run: npm run build

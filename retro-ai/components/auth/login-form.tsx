@@ -127,7 +127,7 @@ export function LoginForm({
             <Input
               id="email"
               type="email"
-              placeholder="m@example.com"
+              placeholder="email@example.com"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               required
@@ -137,7 +137,7 @@ export function LoginForm({
           <div className="grid gap-2">
             <div className="flex items-center">
               <Label htmlFor="password">Password</Label>
-              <Link href="#" className="ml-auto inline-block text-sm underline">
+              <Link href="#" className="ml-auto inline-block text-sm underline" tabIndex={-1}>
                 Forgot your password?
               </Link>
             </div>

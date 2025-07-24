@@ -78,7 +78,7 @@ export function CreateStickyDialog({
       const data = await response.json();
 
       if (!response.ok) {
-        throw new Error(data.error || "Failed to create sticky note");
+        throw new Error(data.error || "Failed to create note");
       }
 
       // Emit WebSocket event for real-time updates
@@ -97,7 +97,7 @@ export function CreateStickyDialog({
         },
       });
 
-      toast.success("Sticky note created!");
+      toast.success("Note created!");
       setContent("");
       setColor(STICKY_COLORS[0].value);
       setColumnId(undefined);
@@ -114,9 +114,9 @@ export function CreateStickyDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Add Sticky Note</DialogTitle>
+          <DialogTitle>Add Note</DialogTitle>
           <DialogDescription>
-            Create a new sticky note for this board
+            Create a new note for this board
           </DialogDescription>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4">
@@ -181,7 +181,7 @@ export function CreateStickyDialog({
               Cancel
             </Button>
             <Button type="submit" disabled={isLoading}>
-              {isLoading ? "Creating..." : "Create Sticky"}
+              {isLoading ? "Creating..." : "Create Note"}
             </Button>
           </div>
         </form>
