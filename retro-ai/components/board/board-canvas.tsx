@@ -773,6 +773,7 @@ export function BoardCanvas({ board, columns: initialColumns, userId, isOwner }:
           className="fixed bottom-6 right-6 h-14 w-14 rounded-full shadow-lg"
           size="icon"
           onClick={() => setShowCreateDialog(true)}
+          data-testid="floating-add-note-button"
         >
           <Plus className="h-6 w-6" />
         </Button>
@@ -784,7 +785,7 @@ export function BoardCanvas({ board, columns: initialColumns, userId, isOwner }:
           columns={columns}
           onStickyCreated={() => {
             setShowCreateDialog(false);
-            router.refresh();
+            // No router.refresh() needed - WebSocket handles real-time UI updates for all users including creator
           }}
         />
 
