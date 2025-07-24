@@ -12,7 +12,6 @@
     "migrate:reset": "prisma migrate reset --force",
     "migrate:dev": "prisma migrate dev",
     "db:seed": "prisma db seed",
-    "postinstall": "prisma generate",
     "lint": "next lint",
     "test": "jest",
     "test:watch": "jest --watch",
