@@ -753,17 +753,19 @@ export function BoardCanvas({ board, columns: initialColumns, userId, isOwner }:
             ))}
           </SortableContext>
 
-          {/* Add Column Button */}
-          <div className="min-w-[300px]">
-            <Button
-              variant="outline"
-              className="w-full h-12 border-2 border-dashed"
-              onClick={() => setShowCreateColumnDialog(true)}
-            >
-              <Plus className="mr-2 h-4 w-4" />
-              Add Column
-            </Button>
-          </div>
+          {/* Add Column Button - Only visible to board owner */}
+          {isOwner && (
+            <div className="min-w-[300px]">
+              <Button
+                variant="outline"
+                className="w-full h-12 border-2 border-dashed"
+                onClick={() => setShowCreateColumnDialog(true)}
+              >
+                <Plus className="mr-2 h-4 w-4" />
+                Add Column
+              </Button>
+            </div>
+          )}
         </div>
 
         {/* Floating Add Button */}
