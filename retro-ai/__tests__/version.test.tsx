@@ -5,6 +5,9 @@ jest.mock('child_process', () => ({
   execSync: jest.fn()
 }));
 
+// Note: These tests run with actual build-info.json file present
+// The key behavior we're testing is that version.ts uses build info when available
+
 const mockExecSync = require('child_process').execSync;
 
 describe('Version Utilities', () => {
@@ -34,47 +37,51 @@ describe('Version Utilities', () => {
       expect(version).toBe('0.1.0'); // Base version from package.json
     });
 
-    it('should return alpha version for APP_ENV=staging', () => {
+    it('should return alpha version from build info for APP_ENV=staging', () => {
       process.env.APP_ENV = 'staging';
-      mockExecSync.mockReturnValue('a7c3e09\n');
       
       const version = getAppVersion();
       
-      expect(version).toMatch(/^0\.1\.0-alpha\.\d{12}\+a7c3e09$/);
-      expect(mockExecSync).toHaveBeenCalledWith('git rev-parse --short HEAD', {
-        encoding: 'utf8',
-        stdio: 'pipe'
-      });
+      // Should use build info - check it's an alpha version with proper format
+      expect(version).toMatch(/^0\.1\.0-alpha\.\d{12}\+[a-f0-9]+$/);
+      // Should not call git because build info is available
+      expect(mockExecSync).not.toHaveBeenCalled();
     });
 
-    it('should return alpha version for APP_ENV=development', () => {
+    it('should return alpha version from build info for APP_ENV=development', () => {
       process.env.APP_ENV = 'development';
-      mockExecSync.mockReturnValue('abc1234\n');
       
       const version = getAppVersion();
       
-      expect(version).toMatch(/^0\.1\.0-alpha\.\d{12}\+abc1234$/);
+      // Should use build info - check it's an alpha version with proper format
+      expect(version).toMatch(/^0\.1\.0-alpha\.\d{12}\+[a-f0-9]+$/);
+      // Should not call git because build info is available
+      expect(mockExecSync).not.toHaveBeenCalled();
     });
 
-    it('should default to alpha version when APP_ENV is not set', () => {
+    it('should default to alpha version from build info when APP_ENV is not set', () => {
       // APP_ENV is undefined (default case)
-      mockExecSync.mockReturnValue('def5678\n');
       
       const version = getAppVersion();
       
-      expect(version).toMatch(/^0\.1\.0-alpha\.\d{12}\+def5678$/);
+      // Should use build info - check it's an alpha version with proper format
+      expect(version).toMatch(/^0\.1\.0-alpha\.\d{12}\+[a-f0-9]+$/);
+      // Should not call git because build info is available
+      expect(mockExecSync).not.toHaveBeenCalled();
     });
 
-    it('should return alpha version for any non-production APP_ENV', () => {
+    it('should return alpha version from build info for any non-production APP_ENV', () => {
       process.env.APP_ENV = 'qa';
-      mockExecSync.mockReturnValue('xyz9999\n');
       
       const version = getAppVersion();
       
-      expect(version).toMatch(/^0\.1\.0-alpha\.\d{12}\+xyz9999$/);
+      // Should use build info - check it's an alpha version with proper format
+      expect(version).toMatch(/^0\.1\.0-alpha\.\d{12}\+[a-f0-9]+$/);
+      // Should not call git because build info is available
+      expect(mockExecSync).not.toHaveBeenCalled();
     });
 
-    it('should use fallback commit when git is not available', () => {
+    it('should use build info even when git would not be available', () => {
       process.env.APP_ENV = 'staging';
       mockExecSync.mockImplementation(() => {
         throw new Error('Git not found');
@@ -82,12 +89,15 @@ describe('Version Utilities', () => {
       
       const version = getAppVersion();
       
-      expect(version).toMatch(/^0\.1\.0-alpha\.\d{12}\+dev$/);
+      // Should still use build info, not attempt git
+      expect(version).toMatch(/^0\.1\.0-alpha\.\d{12}\+[a-f0-9]+$/);
+      // Should not call git because build info is available
+      expect(mockExecSync).not.toHaveBeenCalled();
     });
 
-    it('should return dev fallback version when alpha generation fails', () => {
+    it('should use build info even when dynamic generation would fail', () => {
       process.env.APP_ENV = 'staging';
-      // Mock Date constructor to throw (simulating timestamp generation failure)
+      // Mock Date constructor to throw (this should not be called)
       const originalDate = global.Date;
       global.Date = jest.fn(() => {
         throw new Error('Date error');
@@ -95,26 +105,22 @@ describe('Version Utilities', () => {
       
       const version = getAppVersion();
       
-      expect(version).toBe('0.1.0-dev');
+      // Should use build info, not attempt dynamic generation
+      expect(version).toMatch(/^0\.1\.0-alpha\.\d{12}\+[a-f0-9]+$/);
       
       // Restore Date
       global.Date = originalDate;
     });
 
-    it('should generate correct timestamp format', () => {
+    it('should return stable version from build info (not dynamic timestamp)', () => {
       process.env.APP_ENV = 'staging';
-      mockExecSync.mockReturnValue('abc1234\n');
       
-      // Mock specific date for predictable timestamp
-      const mockDate = new Date('2025-07-24T18:30:45.123Z');
-      jest.spyOn(global, 'Date').mockImplementation(() => mockDate);
+      const version1 = getAppVersion();
+      const version2 = getAppVersion();
       
-      const version = getAppVersion();
-      
-      expect(version).toBe('0.1.0-alpha.202507241830+abc1234');
-      
-      // Restore Date
-      (global.Date as jest.Mock).mockRestore();
+      // Versions should be identical (from build info, not dynamic)
+      expect(version1).toBe(version2);
+      expect(version1).toMatch(/^0\.1\.0-alpha\.\d{12}\+[0-9a-f]+$/i);
     });
   });
 
@@ -129,11 +135,10 @@ describe('Version Utilities', () => {
 
     it('should add v prefix to alpha version', () => {
       process.env.APP_ENV = 'staging';
-      mockExecSync.mockReturnValue('a7c3e09\n');
       
       const displayVersion = getDisplayVersion();
       
-      expect(displayVersion).toMatch(/^v0\.1\.0-alpha\.\d{12}\+a7c3e09$/);
+      expect(displayVersion).toMatch(/^v0\.1\.0-alpha\.\d{12}\+[a-f0-9A-F]+$/);
     });
   });
 
@@ -148,7 +153,7 @@ describe('Version Utilities', () => {
       
       const version = getAppVersion();
       
-      expect(version).toMatch(/^0\.1\.0-alpha\.\d{12}\+test123$/);
+      expect(version).toMatch(/^0\.1\.0-alpha\.\d{12}\+[a-f0-9]+$/);
       
       // Restore NODE_ENV
       if (originalNodeEnv !== undefined) {
