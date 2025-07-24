@@ -142,6 +142,40 @@ describe('Cookie Security Utilities', () => {
       
       process.env.NODE_ENV = originalEnv;
     });
+
+    it('should accept HTTPS via proxy headers in production', async () => {
+      const originalEnv = process.env.NODE_ENV;
+      process.env.NODE_ENV = 'production';
+      
+      mockGetToken.mockResolvedValue({
+        iat: Math.floor(Date.now() / 1000),
+        exp: Math.floor(Date.now() / 1000) + 3600
+      });
+      
+      const mockRequest = {
+        headers: new Map([
+          ['user-agent', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'],
+          ['x-forwarded-proto', 'https']
+        ]),
+        cookies: new Map(),
+        method: 'GET',
+        url: 'http://staging-retroai.tryitnow.dev/dashboard' // HTTP URL but HTTPS via proxy
+      } as unknown as NextRequest;
+
+      mockRequest.headers.get = jest.fn((key: string) => {
+        const headers: Record<string, string> = {
+          'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)',
+          'x-forwarded-proto': 'https'
+        };
+        return headers[key] || null;
+      });
+
+      const result = await validateCookieSecurity(mockRequest);
+      
+      expect(result.isValid).toBe(true);
+      
+      process.env.NODE_ENV = originalEnv;
+    });
   });
 
   describe('createSecureCookieHeaders', () => {
@@ -254,7 +288,7 @@ describe('Cookie Security Utilities', () => {
       const mockRequest = {
         headers: new Map([
           ['user-agent', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'],
-          ['x-forwarded-host', 'malicious.com']
+          ['x-original-url', 'malicious.com']
         ]),
         cookies: new Map()
       } as unknown as NextRequest;
@@ -265,7 +299,27 @@ describe('Cookie Security Utilities', () => {
 
       expect(result.isHijackingAttempt).toBe(true);
       expect(result.riskLevel).toBe('high');
-      expect(result.indicators).toContain('Suspicious header detected: x-forwarded-host');
+      expect(result.indicators).toContain('Suspicious header detected: x-original-url');
+    });
+
+    it('should allow x-forwarded-host header (not suspicious)', () => {
+      const mockRequest = {
+        headers: new Map([
+          ['user-agent', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'],
+          ['x-forwarded-host', 'staging-retroai.tryitnow.dev']
+        ]),
+        cookies: new Map()
+      } as unknown as NextRequest;
+
+      mockRequest.cookies.getAll = jest.fn().mockReturnValue([
+        { name: 'next-auth.session-token', value: 'valid-token' }
+      ]);
+
+      const result = detectSessionHijacking(mockRequest);
+
+      expect(result.isHijackingAttempt).toBe(false);
+      expect(result.riskLevel).toBe('low');
+      expect(result.indicators).toHaveLength(0);
     });
 
     it('should detect suspicious user agent', () => {
