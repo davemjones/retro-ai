@@ -41,7 +41,7 @@ export default async function BoardsPage() {
   const session = await getServerSession(authOptions);
 
   if (!session?.user?.id) {
-    redirect("/login");
+    redirect("/");
   }
 
   const boards = await getUserBoards(session.user.id);
