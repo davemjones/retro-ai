@@ -1,50 +1,94 @@
-# Multi-stage build for production optimization
-# Stage 1: Build stage with all dependencies
-FROM node:18-alpine AS builder
+# syntax=docker.io/docker/dockerfile:1
 
-# Set working directory
+FROM node:20-alpine AS base
+
+# Install dependencies only when needed
+FROM base AS deps
+# Check https://github.com/nodejs/docker-node/tree/b4117f9333da4138b03a546ec926ef50a31506c3#nodealpine to understand why libc6-compat might be needed.
+RUN apk add --no-cache libc6-compat
 WORKDIR /app
 
-# Install dependencies (both prod and dev for building)
-COPY package*.json ./
-RUN npm ci
+# Install dependencies based on the preferred package manager
+COPY package.json yarn.lock* package-lock.json* pnpm-lock.yaml* .npmrc* ./
+RUN \
+  if [ -f yarn.lock ]; then yarn --frozen-lockfile; \
+  elif [ -f package-lock.json ]; then npm ci; \
+  elif [ -f pnpm-lock.yaml ]; then corepack enable pnpm && pnpm i --frozen-lockfile; \
+  else echo "Lockfile not found." && exit 1; \
+  fi
 
-# Copy application code
+# Rebuild the source code only when needed
+FROM base AS builder
+WORKDIR /app
+COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 
-# Build the Next.js application (requires devDependencies)
-RUN npm run build
+# Generate Prisma client
+RUN npx prisma generate
 
-# Stage 2: Production stage with only runtime dependencies
-FROM node:18-alpine AS runner
+# Next.js collects completely anonymous telemetry data about general usage.
+# Learn more here: https://nextjs.org/telemetry
+# Uncomment the following line in case you want to disable telemetry during the build.
+# ENV NEXT_TELEMETRY_DISABLED=1
 
-# Set working directory
+RUN \
+  if [ -f yarn.lock ]; then yarn run build; \
+  elif [ -f package-lock.json ]; then npm run build; \
+  elif [ -f pnpm-lock.yaml ]; then corepack enable pnpm && pnpm run build; \
+  else echo "Lockfile not found." && exit 1; \
+  fi
+
+# Install production dependencies in a separate stage
+FROM base AS prod-deps
+WORKDIR /app
+COPY package.json yarn.lock* package-lock.json* pnpm-lock.yaml* .npmrc* ./
+
+# Copy Prisma schema to generate client in production deps
+COPY prisma ./prisma
+RUN \
+  if [ -f yarn.lock ]; then yarn install --frozen-lockfile --production && yarn cache clean; \
+  elif [ -f package-lock.json ]; then npm ci --omit=dev && npm cache clean --force; \
+  elif [ -f pnpm-lock.yaml ]; then corepack enable pnpm && pnpm install --frozen-lockfile --prod && pnpm store prune; \
+  else echo "Lockfile not found." && exit 1; \
+  fi
+# Generate Prisma client for production
+RUN npx prisma generate
+
+# Production image, copy all the files and run next
+FROM base AS runner
 WORKDIR /app
 
-# Set environment variables for production
 ENV NODE_ENV=production
-ENV PORT=3000
+# Uncomment the following line in case you want to disable telemetry during runtime.
+# ENV NEXT_TELEMETRY_DISABLED=1
 
-# Install only production dependencies
-COPY package*.json ./
-RUN npm ci --only=production && npm cache clean --force
-
-# Copy built application from builder stage
-COPY --from=builder /app/.next ./.next
-COPY --from=builder /app/public ./public
-COPY --from=builder /app/server.js ./
-COPY --from=builder /app/prisma ./prisma
-
-# Create non-root user for security
 RUN addgroup --system --gid 1001 nodejs
 RUN adduser --system --uid 1001 nextjs
 
-# Change ownership of app directory
-RUN chown -R nextjs:nodejs /app
+# Copy public assets
+COPY --from=builder /app/public ./public
+
+# Copy built Next.js application
+COPY --from=builder --chown=nextjs:nodejs /app/.next ./.next
+
+# Copy custom server
+COPY --from=builder --chown=nextjs:nodejs /app/server.js ./server.js
+
+# Copy production dependencies from separate stage
+COPY --from=prod-deps --chown=nextjs:nodejs /app/node_modules ./node_modules
+
+# Copy package.json for runtime
+COPY --from=builder /app/package.json ./package.json
+
+# Copy Prisma schema and generated client
+COPY --from=builder --chown=nextjs:nodejs /app/prisma ./prisma
+
 USER nextjs
 
-# Expose the port the app runs on
 EXPOSE 3000
 
-# Start the application using our custom server with Socket.io
-CMD ["npm", "run", "start:server"]
+ENV PORT=3000
+ENV HOSTNAME="0.0.0.0"
+
+# Use custom server instead of Next.js standalone
+CMD ["node", "server.js"]
