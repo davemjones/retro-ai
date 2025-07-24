@@ -46,6 +46,15 @@ Before committing any changes, always run:
 cd retro-ai && npm run lint
 ```
 
+## TypeScript Type Checking Requirements
+
+Before committing any changes, always run TypeScript type checking:
+```bash
+cd retro-ai && npm run typecheck
+```
+
+**CRITICAL**: TypeScript type checking is now enforced in CI and will fail builds if there are type errors. Ensure all code passes type checking before committing.
+
 ## Common Issues to Avoid
 
 ### 1. Unused Imports
@@ -121,6 +130,7 @@ When working on real-time features, you MUST update these sections in `SOCKET-SE
 
 ## Pre-commit Checklist
 - [ ] Run `npm run lint` and fix ALL errors before committing
+- [ ] Run `npm run typecheck` and fix ALL TypeScript errors before committing
 - [ ] No TypeScript 'any' types used
 - [ ] All imports are utilized
 - [ ] React hook dependencies are complete
