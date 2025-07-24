@@ -9,8 +9,34 @@ import { ArrowLeft, Settings, Users, Calendar } from "lucide-react";
 import { BoardCanvas } from "@/components/board/board-canvas";
 import { BoardPresence } from "@/components/board/board-presence";
 import { BoardTimer } from "@/components/board/timer-component";
+import { Prisma } from "@prisma/client";
 
-async function getBoard(boardId: string, userId: string) {
+type BoardWithRelations = Prisma.BoardGetPayload<{
+  include: {
+    team: {
+      include: {
+        members: true;
+      };
+    };
+    template: true;
+    columns: {
+      include: {
+        stickies: {
+          include: {
+            author: true;
+          };
+        };
+      };
+    };
+    stickies: {
+      include: {
+        author: true;
+      };
+    };
+  };
+}>;
+
+async function getBoard(boardId: string, userId: string): Promise<BoardWithRelations | null> {
   const board = await prisma.board.findUnique({
     where: { id: boardId },
     include: {
@@ -54,31 +80,31 @@ async function getBoard(boardId: string, userId: string) {
 
   // Fetch editor data for all stickies
   const allStickies = [
-    ...board.columns.flatMap(col => col.stickies),
+    ...board.columns.flatMap((col: BoardWithRelations['columns'][0]) => col.stickies),
     ...board.stickies
   ];
   
-  const editorIds = [...new Set(allStickies.flatMap(sticky => sticky.editedBy))];
+  const editorIds = [...new Set(allStickies.flatMap((sticky: BoardWithRelations['stickies'][0]) => sticky.editedBy))];
   const editors = await prisma.user.findMany({
     where: { id: { in: editorIds } },
     select: { id: true, name: true, email: true }
   });
   
-  const editorMap = Object.fromEntries(editors.map(e => [e.id, e]));
+  const editorMap = Object.fromEntries(editors.map((e: { id: string; name: string | null; email: string }) => [e.id, e]));
   
   // Add editor data to stickies
   const boardWithEditors = {
     ...board,
-    columns: board.columns.map(col => ({
+    columns: board.columns.map((col: BoardWithRelations['columns'][0]) => ({
       ...col,
-      stickies: col.stickies.map(sticky => ({
+      stickies: col.stickies.map((sticky: BoardWithRelations['stickies'][0]) => ({
         ...sticky,
-        editors: sticky.editedBy.map(id => editorMap[id]).filter(Boolean)
+        editors: sticky.editedBy.map((id: string) => editorMap[id]).filter(Boolean)
       }))
     })),
-    stickies: board.stickies.map(sticky => ({
+    stickies: board.stickies.map((sticky: BoardWithRelations['stickies'][0]) => ({
       ...sticky,
-      editors: sticky.editedBy.map(id => editorMap[id]).filter(Boolean)
+      editors: sticky.editedBy.map((id: string) => editorMap[id]).filter(Boolean)
     }))
   };
 
