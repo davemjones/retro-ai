@@ -176,6 +176,40 @@ describe('Cookie Security Utilities', () => {
       
       process.env.NODE_ENV = originalEnv;
     });
+
+    it('should accept HTTPS via Cloudflare cf-visitor header in production', async () => {
+      const originalEnv = process.env.NODE_ENV;
+      process.env.NODE_ENV = 'production';
+      
+      mockGetToken.mockResolvedValue({
+        iat: Math.floor(Date.now() / 1000),
+        exp: Math.floor(Date.now() / 1000) + 3600
+      });
+      
+      const mockRequest = {
+        headers: new Map([
+          ['user-agent', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'],
+          ['cf-visitor', '{"scheme":"https"}']
+        ]),
+        cookies: new Map(),
+        method: 'GET',
+        url: 'http://localhost:3000/dashboard' // Internal URL but HTTPS via Cloudflare
+      } as unknown as NextRequest;
+
+      mockRequest.headers.get = jest.fn((key: string) => {
+        const headers: Record<string, string> = {
+          'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)',
+          'cf-visitor': '{"scheme":"https"}'
+        };
+        return headers[key] || null;
+      });
+
+      const result = await validateCookieSecurity(mockRequest);
+      
+      expect(result.isValid).toBe(true);
+      
+      process.env.NODE_ENV = originalEnv;
+    });
   });
 
   describe('createSecureCookieHeaders', () => {
