@@ -74,6 +74,9 @@ COPY --from=builder --chown=nextjs:nodejs /app/.next ./.next
 # Copy custom server
 COPY --from=builder --chown=nextjs:nodejs /app/server.js ./server.js
 
+# Copy lib directory with socket authentication modules
+COPY --from=builder --chown=nextjs:nodejs /app/lib ./lib
+
 # Copy production dependencies from separate stage
 COPY --from=prod-deps --chown=nextjs:nodejs /app/node_modules ./node_modules
 
