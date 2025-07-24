@@ -14,6 +14,7 @@ import {
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { LogOut, Settings, User } from "lucide-react";
 import { getInitials } from "@/lib/utils";
+import { getDisplayVersion } from "@/lib/version";
 
 export function Header() {
   const { data: session, status } = useSession();
@@ -26,9 +27,14 @@ export function Header() {
     <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
       <div className="container flex h-16 items-center">
         <div className="flex flex-1 items-center justify-between">
-          <Link href="/dashboard" className="font-semibold text-xl ml-4">
-            Retro AI
-          </Link>
+          <div className="flex flex-col ml-4">
+            <Link href="/dashboard" className="font-semibold text-xl">
+              Retro AI
+            </Link>
+            <span className="text-sm text-muted-foreground">
+              {getDisplayVersion()}
+            </span>
+          </div>
 
           <nav className="flex items-center gap-6">
             {status === "authenticated" && session?.user ? (
