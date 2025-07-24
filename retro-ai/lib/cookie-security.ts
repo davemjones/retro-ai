@@ -310,14 +310,8 @@ export function detectSessionHijacking(req: NextRequest): {
   // Check for suspicious headers (with environment-aware detection)
   const suspiciousHeaders = ['x-original-url', 'x-rewrite-url'];
   
-  // Only treat x-forwarded-host as suspicious in true production (not staging)
-  // Staging environments commonly use reverse proxies with this header
-  const isProduction = process.env.NODE_ENV === 'production';
-  const isStaging = req.url.includes('staging') || req.headers.get('host')?.includes('staging');
-  
-  if (isProduction && !isStaging) {
-    suspiciousHeaders.push('x-forwarded-host');
-  }
+  // Note: x-forwarded-host header is allowed in all environments
+  // as reverse proxies commonly use this header for legitimate routing
   
   for (const header of suspiciousHeaders) {
     if (req.headers.get(header)) {
