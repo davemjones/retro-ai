@@ -5,17 +5,21 @@ import packageJson from '../package.json';
  * 
  * Production: MAJOR.MINOR.PATCH (e.g., "1.2.3")
  * Staging/Dev: MAJOR.MINOR.PATCH-alpha.BUILD+COMMIT (e.g., "0.1.0-alpha.202507240930+a7c3e09")
+ * 
+ * Uses APP_ENV environment variable for application environment detection,
+ * separate from NODE_ENV which is used for Node.js runtime behavior.
  */
 export function getAppVersion(): string {
   const baseVersion = packageJson.version;
-  const environment = process.env.NODE_ENV;
+  const appEnv = process.env.APP_ENV || 'development';
   
-  // In production, return simple version
-  if (environment === 'production') {
+  // Show simple version only for true production environment
+  if (appEnv === 'production') {
     return baseVersion;
   }
   
-  // For staging/development, generate alpha version
+  // For staging, development, or any non-production APP_ENV, generate alpha version
+  // This includes: staging, development, qa, demo, etc.
   try {
     // Generate build timestamp (YYYYMMDDHHMM format)
     const now = new Date();
