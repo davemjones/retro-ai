@@ -55,8 +55,16 @@ const mockSticky = {
     id: 'user-1',
     name: 'Test User',
     email: 'test@example.com',
+    password: 'hashedpassword',
+    createdAt: new Date(),
+    updatedAt: new Date(),
   },
-  createdAt: '2023-01-01T00:00:00.000Z',
+  editedBy: [],
+  createdAt: new Date(),
+  updatedAt: new Date(),
+  boardId: 'board-1',
+  columnId: null,
+  authorId: 'user-1',
 };
 
 const mockBoard = {
@@ -99,6 +107,7 @@ describe.skip('Error Handling Improvements', () => {
         board={mockBoard} 
         columns={[]} 
         userId="user-1" 
+        isOwner={true}
       />
     );
 
@@ -118,6 +127,7 @@ describe.skip('Error Handling Improvements', () => {
         board={boardWithStickies} 
         columns={[]} 
         userId="user-1" 
+        isOwner={true}
       />
     );
 
@@ -136,7 +146,7 @@ describe.skip('Error Handling Improvements', () => {
     }).not.toThrow();
 
     expect(() => {
-      render(<BoardCanvas board={mockBoard} columns={[]} userId="user-1" />);
+      render(<BoardCanvas board={mockBoard} columns={[]} userId="user-1" isOwner={true} />);
     }).not.toThrow();
   });
 });
