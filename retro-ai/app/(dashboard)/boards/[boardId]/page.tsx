@@ -120,7 +120,7 @@ export default async function BoardPage({
   const session = await getServerSession(authOptions);
 
   if (!session?.user?.id) {
-    redirect("/login");
+    redirect("/");
   }
 
   const board = await getBoard(boardId, session.user.id);

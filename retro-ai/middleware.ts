@@ -9,7 +9,7 @@ import {
 export default withAuth(
   async function middleware(req) {
     // Skip security checks for auth pages
-    if (req.nextUrl.pathname.startsWith("/login") || 
+    if (req.nextUrl.pathname === "/" ||
         req.nextUrl.pathname.startsWith("/register") ||
         req.nextUrl.pathname.startsWith("/api/auth")) {
       return NextResponse.next();
@@ -41,8 +41,8 @@ export default withAuth(
             ip: req.headers.get('x-forwarded-for') || req.headers.get('x-real-ip') || 'unknown'
           });
 
-          // Clear cookies and redirect to login
-          const response = NextResponse.redirect(new URL('/login?error=SecurityThreat', req.url));
+          // Clear cookies and redirect to homepage
+          const response = NextResponse.redirect(new URL('/?error=SecurityThreat', req.url));
           return clearAuthCookies(response);
         }
 
@@ -93,7 +93,7 @@ export default withAuth(
         console.log('Token details:', token ? { id: token.id, email: token.email, sessionId: token.sessionId } : 'null');
         
         // Allow access to auth pages without token
-        if (req.nextUrl.pathname.startsWith("/login") || 
+        if (req.nextUrl.pathname === "/" || 
             req.nextUrl.pathname.startsWith("/register")) {
           console.log('Allowing access to auth page');
           return true;
@@ -114,7 +114,6 @@ export const config = {
     "/teams",
     "/boards/:path*", 
     "/boards",
-    "/login",
     "/register",
   ],
 };
