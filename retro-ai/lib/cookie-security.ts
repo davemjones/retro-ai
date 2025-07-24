@@ -163,7 +163,12 @@ export async function validateCookieSecurity(
 
     // Check for secure transmission
     if (process.env.NODE_ENV === 'production') {
-      if (!req.url.startsWith('https://')) {
+      // Check if request is over HTTPS (including behind proxies)
+      const isSecure = req.url.startsWith('https://') || 
+                      req.headers.get('x-forwarded-proto') === 'https' ||
+                      req.headers.get('x-forwarded-ssl') === 'on';
+      
+      if (!isSecure) {
         return {
           isValid: false,
           shouldRotateSession: false,
@@ -305,8 +310,12 @@ export function detectSessionHijacking(req: NextRequest): {
   // Check for suspicious headers (with environment-aware detection)
   const suspiciousHeaders = ['x-original-url', 'x-rewrite-url'];
   
-  // Only treat x-forwarded-host as suspicious in production environments
-  if (!isDevelopment) {
+  // Only treat x-forwarded-host as suspicious in true production (not staging)
+  // Staging environments commonly use reverse proxies with this header
+  const isProduction = process.env.NODE_ENV === 'production';
+  const isStaging = req.url.includes('staging') || req.headers.get('host')?.includes('staging');
+  
+  if (isProduction && !isStaging) {
     suspiciousHeaders.push('x-forwarded-host');
   }
   
