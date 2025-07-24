@@ -84,7 +84,7 @@ export function EditStickyDialog({
       const data = await response.json();
 
       if (!response.ok) {
-        throw new Error(data.error || "Failed to update sticky note");
+        throw new Error(data.error || "Failed to update note");
       }
 
       // Emit WebSocket event for real-time updates
@@ -97,7 +97,7 @@ export function EditStickyDialog({
         editors: data.sticky.editors || sticky.editors,
       });
 
-      toast.success("Sticky note updated!");
+      toast.success("Note updated!");
       onOpenChange(false);
       onStickyUpdated();
     } catch (error) {
@@ -111,9 +111,9 @@ export function EditStickyDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Edit Sticky Note</DialogTitle>
+          <DialogTitle>Edit Note</DialogTitle>
           <DialogDescription>
-            Update the content and color of your sticky note
+            Update the content and color of your note
           </DialogDescription>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4">
@@ -161,7 +161,7 @@ export function EditStickyDialog({
               Cancel
             </Button>
             <Button type="submit" disabled={isLoading}>
-              {isLoading ? "Updating..." : "Update Sticky"}
+              {isLoading ? "Updating..." : "Update Note"}
             </Button>
           </div>
         </form>

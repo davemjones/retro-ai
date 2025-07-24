@@ -43,7 +43,7 @@ export function DeleteStickyDialog({
 
       if (!response.ok) {
         const error = await response.json();
-        throw new Error(error.error || "Failed to delete sticky note");
+        throw new Error(error.error || "Failed to delete note");
       }
 
       // Emit WebSocket event for real-time updates
@@ -55,11 +55,11 @@ export function DeleteStickyDialog({
       // Update local state through callback
       onStickyDeleted();
 
-      toast.success("Sticky note deleted successfully");
+      toast.success("Note deleted successfully");
       onClose();
     } catch (error) {
-      console.error("Failed to delete sticky note:", error);
-      toast.error(error instanceof Error ? error.message : "Failed to delete sticky note");
+      console.error("Failed to delete note:", error);
+      toast.error(error instanceof Error ? error.message : "Failed to delete note");
     } finally {
       setIsDeleting(false);
     }
@@ -69,9 +69,9 @@ export function DeleteStickyDialog({
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Delete Sticky Note</DialogTitle>
+          <DialogTitle>Delete Note</DialogTitle>
           <DialogDescription>
-            Are you sure you want to delete this sticky note?
+            Are you sure you want to delete this note?
             <br />
             <br />
             This action cannot be undone.

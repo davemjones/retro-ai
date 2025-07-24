@@ -204,7 +204,7 @@ export function Column({ column, userId, boardId, isOwner, moveIndicators, onCol
         </SortableContext>
         {column.stickies.length === 0 && (
           <div className="text-center py-8 text-muted-foreground text-sm">
-            Drop sticky notes here
+            Drop notes here
           </div>
         )}
       </CardContent>

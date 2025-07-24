@@ -213,7 +213,7 @@ export function BoardCanvas({ board, columns: initialColumns, userId, isOwner }:
       
       // If we can't find the sticky, we need to refresh to get the latest data
       if (!movedSticky) {
-        console.log("Sticky not found locally, refreshing...");
+        console.log("Note not found locally, refreshing...");
         setTimeout(() => router.refresh(), 0);
         return;
       }
@@ -357,7 +357,7 @@ export function BoardCanvas({ board, columns: initialColumns, userId, isOwner }:
     }, []),
     onStickyCreated: useCallback((data: StickyCreateEvent) => {
       // Process all sticky creations (including our own) for consistency
-      console.log("Received sticky creation event:", data);
+      console.log("Received note creation event:", data);
 
       // Create the new sticky object from the event data
       const newSticky = {
@@ -689,7 +689,7 @@ export function BoardCanvas({ board, columns: initialColumns, userId, isOwner }:
       });
 
       if (!response.ok) {
-        throw new Error("Failed to update sticky note");
+        throw new Error("Failed to update note");
       }
 
       // Emit socket event after successful API call
@@ -704,8 +704,8 @@ export function BoardCanvas({ board, columns: initialColumns, userId, isOwner }:
       
       // No router.refresh() needed - WebSocket handles real-time UI updates
     } catch (error) {
-      console.error("Failed to move sticky note:", error);
-      toast.error("Failed to move sticky note");
+      console.error("Failed to move note:", error);
+      toast.error("Failed to move note");
       // Revert the change
       setColumns(initialColumns);
       setUnassignedStickies(board.stickies);
