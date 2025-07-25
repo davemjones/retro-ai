@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { emitColumnCreated } from "@/lib/socket-events.mjs";
 
 export async function POST(req: Request) {
   try {
@@ -76,6 +77,19 @@ export async function POST(req: Request) {
         color: color || null,
       },
     });
+
+    // Emit socket event for real-time updates
+    try {
+      emitColumnCreated(
+        boardId, 
+        column, 
+        session.user.id, 
+        session.user.name || session.user.email || 'Unknown User'
+      );
+    } catch (socketError) {
+      console.error('Failed to emit column:created socket event:', socketError);
+      // Don't fail the API call if socket emission fails
+    }
 
     return NextResponse.json({ column });
   } catch (error) {
