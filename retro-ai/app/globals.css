@@ -181,3 +181,8 @@
     transform: scale(1);
   }
 }
+
+/* DragOverlay z-index fix for issue #123 */
+.dnd-kit-drag-overlay {
+  z-index: 900;
+}

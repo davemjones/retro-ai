@@ -831,7 +831,7 @@ export function BoardCanvas({ board, columns: initialColumns, userId, isOwner }:
         />
       </div>
 
-      <DragOverlay>
+      <DragOverlay className="dnd-kit-drag-overlay">
         {activeSticky && (
           <StickyNote
             sticky={activeSticky}
