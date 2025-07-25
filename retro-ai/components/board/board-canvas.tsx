@@ -556,6 +556,64 @@ export function BoardCanvas({ board, columns: initialColumns, userId, isOwner }:
     setActiveId(event.active.id as string);
     // Add class to disable overflow clipping during drag
     document.body.classList.add('dragging-active');
+    // Add debug class for visual debugging
+    document.body.classList.add('debug-drag-overlay');
+    
+    // CSS Stacking Context Audit
+    const auditStackingContexts = () => {
+      const elements = document.querySelectorAll('*');
+      const stackingContexts: Array<{
+        element: string;
+        zIndex: string;
+        position: string;
+        transform: string;
+        opacity: string;
+        isolation: string;
+        overflow: string;
+        overflowX: string;
+        overflowY: string;
+      }> = [];
+      
+      elements.forEach((el) => {
+        const computed = window.getComputedStyle(el);
+        const hasStackingContext = 
+          computed.zIndex !== 'auto' ||
+          computed.position === 'fixed' ||
+          computed.position === 'sticky' ||
+          computed.transform !== 'none' ||
+          computed.opacity !== '1' ||
+          computed.isolation === 'isolate' ||
+          computed.mixBlendMode !== 'normal' ||
+          computed.filter !== 'none' ||
+          computed.contain?.includes('layout') ||
+          computed.contain?.includes('paint');
+          
+        if (hasStackingContext) {
+          stackingContexts.push({
+            element: el.tagName + (el.className ? '.' + el.className.split(' ').join('.') : ''),
+            zIndex: computed.zIndex,
+            position: computed.position,
+            transform: computed.transform,
+            opacity: computed.opacity,
+            isolation: computed.isolation,
+            overflow: computed.overflow,
+            overflowX: computed.overflowX,
+            overflowY: computed.overflowY
+          });
+        }
+      });
+      
+      return stackingContexts;
+    };
+    
+    console.log('🚀 DRAG START DEBUG:', {
+      activeId: event.active.id,
+      initialRect: event.active.rect,
+      clientRect: event.active.rect.current.translated,
+      documentBodyClasses: Array.from(document.body.classList),
+      viewport: { width: window.innerWidth, height: window.innerHeight },
+      stackingContexts: auditStackingContexts().slice(0, 10) // First 10 only
+    });
   }, []);
 
   const handleDragOver = useCallback((event: DragOverEvent) => {
@@ -667,9 +725,11 @@ export function BoardCanvas({ board, columns: initialColumns, userId, isOwner }:
     const { active, over } = event;
     
     if (!over) {
+      console.log('❌ DRAG CANCELLED - No drop target');
       setActiveId(null);
       // Remove class to restore normal overflow behavior
       document.body.classList.remove('dragging-active');
+      document.body.classList.remove('debug-drag-overlay');
       return;
     }
 
@@ -752,9 +812,18 @@ export function BoardCanvas({ board, columns: initialColumns, userId, isOwner }:
       }, 100);
     }
 
+    console.log('✅ DRAG END SUCCESS:', {
+      activeId,
+      overId,
+      activeContainer,
+      overContainer,
+      finalRect: active.rect
+    });
+    
     setActiveId(null);
     // Remove class to restore normal overflow behavior
     document.body.classList.remove('dragging-active');
+    document.body.classList.remove('debug-drag-overlay');
   }, [findContainer, getItemsForContainer, initialColumns, isConnected, emitStickyMoved, board.stickies, board.id]);
 
   const activeSticky = findActiveSticky();
@@ -839,15 +908,24 @@ export function BoardCanvas({ board, columns: initialColumns, userId, isOwner }:
       </div>
 
       {createPortal(
-        <DragOverlay className="dnd-kit-drag-overlay">
+        <DragOverlay 
+          className="dnd-kit-drag-overlay"
+          dropAnimation={null}
+        >
           {activeSticky && (
-            <StickyNote
-              sticky={activeSticky}
-              userId={userId}
-            />
+            <div style={{ 
+              background: 'rgba(255, 0, 0, 0.2)', 
+              border: '2px solid red',
+              padding: '4px'
+            }}>
+              <StickyNote
+                sticky={activeSticky}
+                userId={userId}
+              />
+            </div>
           )}
         </DragOverlay>,
-        document.body
+        document.documentElement
       )}
     </DndContext>
   );

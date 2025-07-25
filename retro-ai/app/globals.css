@@ -192,6 +192,17 @@
   will-change: transform;
 }
 
+/* Debug styles for DragOverlay - make it highly visible */
+.debug-drag-overlay .dnd-kit-drag-overlay {
+  border: 3px solid red !important;
+  background: rgba(255, 0, 0, 0.1) !important;
+  box-shadow: 0 0 20px rgba(255, 0, 0, 0.5) !important;
+}
+
+.debug-drag-overlay .dnd-kit-drag-overlay * {
+  border: 1px dashed blue !important;
+}
+
 /* Fix CSS containment issues that cause drag clipping */
 .dnd-kit-drag-overlay * {
   pointer-events: none;
