@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useCallback, useRef } from "react";
+import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import {
   DndContext,
@@ -831,14 +832,17 @@ export function BoardCanvas({ board, columns: initialColumns, userId, isOwner }:
         />
       </div>
 
-      <DragOverlay className="dnd-kit-drag-overlay">
-        {activeSticky && (
-          <StickyNote
-            sticky={activeSticky}
-            userId={userId}
-          />
-        )}
-      </DragOverlay>
+      {createPortal(
+        <DragOverlay className="dnd-kit-drag-overlay">
+          {activeSticky && (
+            <StickyNote
+              sticky={activeSticky}
+              userId={userId}
+            />
+          )}
+        </DragOverlay>,
+        document.body
+      )}
     </DndContext>
   );
 }
