@@ -184,5 +184,31 @@
 
 /* DragOverlay z-index fix for issue #123 */
 .dnd-kit-drag-overlay {
-  z-index: 900;
+  z-index: 9999 !important;
+  pointer-events: none;
+  position: fixed !important;
+  top: 0;
+  left: 0;
+  will-change: transform;
+}
+
+/* Fix CSS containment issues that cause drag clipping */
+.dnd-kit-drag-overlay * {
+  pointer-events: none;
+}
+
+/* Prevent overflow containers from clipping dragged elements */
+[data-column-id] {
+  isolation: isolate;
+}
+
+/* Ensure draggable elements can escape overflow bounds */
+[data-sticky-id] {
+  touch-action: none;
+}
+
+/* During drag operations, prevent containment issues */
+.dnd-kit-drag-overlay [data-sticky-id] {
+  position: relative !important;
+  transform-style: preserve-3d;
 }
