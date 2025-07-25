@@ -98,9 +98,15 @@ export async function animateStickyMovementFLIP(
     return;
   }
 
+  // When switching to position: fixed, we need to account for coordinate system change
+  const currentScrollX = window.scrollX || document.documentElement.scrollLeft;
+  const currentScrollY = window.scrollY || document.documentElement.scrollTop;
+  
   // Apply the inverted transform immediately (puts it back to start position visually)
   stickyElement.style.transition = 'none';
-  stickyElement.style.transform = `translate(${deltaX}px, ${deltaY}px)`;
+  stickyElement.style.left = `${fromPosition.left + currentScrollX}px`;
+  stickyElement.style.top = `${fromPosition.top + currentScrollY}px`;
+  stickyElement.style.transform = 'translate(0, 0)';
   stickyElement.classList.add('sticky-remote-moving');
 
   // Force a reflow to ensure the transform is applied
@@ -112,16 +118,20 @@ export async function animateStickyMovementFLIP(
       stickyElement.classList.remove('sticky-remote-moving');
       stickyElement.style.transition = '';
       stickyElement.style.transform = '';
+      stickyElement.style.left = '';
+      stickyElement.style.top = '';
+      stickyElement.style.position = '';
       resolve();
     };
 
     // Apply transition and animate to final position
-    stickyElement.style.transition = `transform ${duration}ms cubic-bezier(0.2, 0, 0.2, 1)`;
-    stickyElement.style.transform = 'translate(0, 0)';
+    stickyElement.style.transition = `left ${duration}ms cubic-bezier(0.2, 0, 0.2, 1), top ${duration}ms cubic-bezier(0.2, 0, 0.2, 1)`;
+    stickyElement.style.left = `${lastPosition.left + currentScrollX}px`;
+    stickyElement.style.top = `${lastPosition.top + currentScrollY}px`;
 
     // Listen for transition end
     const onTransitionEnd = (event: TransitionEvent) => {
-      if (event.target === stickyElement && event.propertyName === 'transform') {
+      if (event.target === stickyElement && (event.propertyName === 'left' || event.propertyName === 'top')) {
         cleanup();
         stickyElement.removeEventListener('transitionend', onTransitionEnd as EventListener);
       }
