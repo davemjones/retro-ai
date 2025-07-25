@@ -212,3 +212,21 @@
   position: relative !important;
   transform-style: preserve-3d;
 }
+
+/* Fix nested overflow container clipping during drag operations */
+.dragging-active .overflow-x-auto {
+  overflow-x: visible !important;
+}
+
+.dragging-active .overflow-hidden {
+  overflow: visible !important;
+}
+
+.dragging-active .overflow-y-auto {
+  overflow-y: visible !important;
+}
+
+/* Disable overflow on specific containers during drag */
+.dragging-active [class*="overflow-"] {
+  overflow: visible !important;
+}

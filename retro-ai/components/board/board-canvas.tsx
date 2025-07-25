@@ -554,6 +554,8 @@ export function BoardCanvas({ board, columns: initialColumns, userId, isOwner }:
 
   const handleDragStart = useCallback((event: DragStartEvent) => {
     setActiveId(event.active.id as string);
+    // Add class to disable overflow clipping during drag
+    document.body.classList.add('dragging-active');
   }, []);
 
   const handleDragOver = useCallback((event: DragOverEvent) => {
@@ -666,6 +668,8 @@ export function BoardCanvas({ board, columns: initialColumns, userId, isOwner }:
     
     if (!over) {
       setActiveId(null);
+      // Remove class to restore normal overflow behavior
+      document.body.classList.remove('dragging-active');
       return;
     }
 
@@ -749,6 +753,8 @@ export function BoardCanvas({ board, columns: initialColumns, userId, isOwner }:
     }
 
     setActiveId(null);
+    // Remove class to restore normal overflow behavior
+    document.body.classList.remove('dragging-active');
   }, [findContainer, getItemsForContainer, initialColumns, isConnected, emitStickyMoved, board.stickies, board.id]);
 
   const activeSticky = findActiveSticky();
