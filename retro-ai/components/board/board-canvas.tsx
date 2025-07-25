@@ -429,6 +429,37 @@ export function BoardCanvas({ board, columns: initialColumns, userId, isOwner }:
         prevStickies.filter(sticky => sticky.id !== data.stickyId)
       );
     }, []),
+    onColumnCreated: useCallback((data: {
+      columnId: string;
+      title: string;
+      boardId: string;
+      order: number;
+      color: string | null;
+      userId: string;
+      userName: string;
+      timestamp: number;
+    }) => {
+      // Add new column to the local state for real-time updates
+      const newColumn = {
+        id: data.columnId,
+        title: data.title,
+        boardId: data.boardId,
+        order: data.order,
+        color: data.color,
+        stickies: [], // New columns start empty
+      };
+      
+      setColumns(prevColumns => {
+        // Insert in the correct position based on order
+        const newColumns = [...prevColumns, newColumn];
+        return newColumns.sort((a, b) => a.order - b.order);
+      });
+      
+      // Show success message for other users (not the creator)
+      if (data.userId !== userId) {
+        toast.success(`${data.userName} created column "${data.title}"`);
+      }
+    }, [userId]),
   });
 
   const handleColumnRenamed = useCallback((columnId: string, newTitle: string) => {
@@ -795,7 +826,7 @@ export function BoardCanvas({ board, columns: initialColumns, userId, isOwner }:
           boardId={board.id}
           onColumnCreated={() => {
             setShowCreateColumnDialog(false);
-            router.refresh();
+            // No router.refresh() needed - socket events handle real-time updates
           }}
         />
       </div>

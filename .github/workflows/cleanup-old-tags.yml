@@ -1,0 +1,105 @@
+name: Cleanup Old Alpha Tags
+
+on:
+  schedule:
+    - cron: "0 3 * * *" # Daily at 3 AM UTC
+  workflow_dispatch: # Optional manual run
+    inputs:
+      dry_run:
+        description: 'Dry run mode (show what would be deleted without actually deleting)'
+        required: false
+        default: 'false'
+        type: choice
+        options:
+          - 'true'
+          - 'false'
+      days_to_keep:
+        description: 'Number of days to keep tags (default: 14)'
+        required: false
+        default: '14'
+        type: string
+
+permissions:
+  contents: write
+
+jobs:
+  clean-old-tags:
+    runs-on: self-hosted
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # Important: ensures all tags are available
+
+      - name: Clean old alpha tags
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          REMOTE=origin
+          TAG_PATTERN="v*-alpha.*"
+          DAYS_TO_KEEP=${{ github.event.inputs.days_to_keep || '14' }}
+          DRY_RUN=${{ github.event.inputs.dry_run || 'false' }}
+          NOW=$(date +%s)
+
+          echo "🔍 Finding tags matching '$TAG_PATTERN' older than $DAYS_TO_KEEP days..."
+
+          git fetch --tags
+          TAGS=$(git tag -l "$TAG_PATTERN")
+
+          for tag in $TAGS; do
+            if [[ "$tag" =~ ^v[0-9]+\.[0-9]+\.[0-9]+-alpha\.([0-9]{12}) ]]; then
+              timestamp="${BASH_REMATCH[1]}"
+
+              # Convert to UNIX timestamp (YYYY-MM-DD HH:mm format)
+              year="${timestamp:0:4}"
+              month="${timestamp:4:2}"
+              day="${timestamp:6:2}"
+              hour="${timestamp:8:2}"
+              minute="${timestamp:10:2}"
+              
+              # Platform-agnostic date parsing
+              if [[ "$OSTYPE" == "darwin"* ]]; then
+                # macOS
+                tag_date=$(date -j -f "%Y-%m-%d %H:%M" "$year-$month-$day $hour:$minute" +%s 2>/dev/null || echo "")
+              else
+                # Linux
+                tag_date=$(date -d "$year-$month-$day $hour:$minute" +%s 2>/dev/null || echo "")
+              fi
+              
+              if [ -z "$tag_date" ]; then
+                echo "⚠️  Invalid date in tag: $tag (timestamp: $timestamp)"
+                continue
+              fi
+
+              age_days=$(( (NOW - tag_date) / 86400 ))
+
+              if (( age_days > DAYS_TO_KEEP )); then
+                if [[ "$DRY_RUN" == "true" ]]; then
+                  echo "🔍 [DRY RUN] Would delete tag '$tag' (age: $age_days days)"
+                else
+                  echo "🗑️  Deleting tag '$tag' (age: $age_days days)..."
+                  # Delete local tag
+                  if git tag -d "$tag" 2>/dev/null; then
+                    # Delete remote tag
+                    if ! git push "$REMOTE" --delete "$tag" 2>&1; then
+                      echo "⚠️  Failed to delete remote tag '$tag'. It may have already been deleted."
+                    fi
+                  else
+                    echo "⚠️  Tag '$tag' not found locally. Skipping."
+                  fi
+                fi
+              else
+                echo "✅ Keeping tag '$tag' (age: $age_days days)"
+              fi
+            else
+              echo "⚠️  Skipping unmatched tag format: $tag"
+            fi
+          done
+          
+          echo ""
+          echo "✅ Tag cleanup completed!"
+          if [[ "$DRY_RUN" == "true" ]]; then
+            echo "ℹ️  This was a dry run. No tags were actually deleted."
+          fi
