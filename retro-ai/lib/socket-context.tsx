@@ -42,6 +42,17 @@ interface ColumnRenameEvent {
   timestamp: number;
 }
 
+interface ColumnCreateEvent {
+  columnId: string;
+  title: string;
+  boardId: string;
+  order: number;
+  color: string | null;
+  userId: string;
+  userName: string;
+  timestamp: number;
+}
+
 interface ColumnDeleteEvent {
   columnId: string;
   boardId: string;
@@ -110,6 +121,7 @@ interface SocketContextType {
   emitEditingStop: (stickyId: string, boardId?: string) => void;
   emitStickyUpdated: (data: Omit<StickyUpdateEvent, 'userId' | 'timestamp'>) => void;
   emitStickyCreated: (data: Omit<StickyCreateEvent, 'userId' | 'timestamp'>) => void;
+  emitColumnCreated: (data: Omit<ColumnCreateEvent, 'userId' | 'userName' | 'timestamp'>) => void;
   emitColumnRenamed: (data: Omit<ColumnRenameEvent, 'userId' | 'timestamp'>) => void;
   emitColumnDeleted: (data: Omit<ColumnDeleteEvent, 'userId' | 'timestamp'>) => void;
   emitStickyDeleted: (data: Omit<StickyDeleteEvent, 'userId' | 'timestamp'>) => void;
@@ -127,6 +139,7 @@ interface SocketContextType {
   onUserConnected: (callback: (data: UserEvent) => void) => () => void;
   onUserDisconnected: (callback: (data: UserEvent) => void) => () => void;
   onSessionEvent: (callback: (data: SessionEvent) => void) => () => void;
+  onColumnCreated: (callback: (data: ColumnCreateEvent) => void) => () => void;
   onColumnRenamed: (callback: (data: ColumnRenameEvent) => void) => () => void;
   onColumnDeleted: (callback: (data: ColumnDeleteEvent) => void) => () => void;
   onStickyDeleted: (callback: (data: StickyDeleteEvent) => void) => () => void;
@@ -293,6 +306,12 @@ export function SocketProvider({ children }: SocketProviderProps) {
     }
   };
 
+  const emitColumnCreated = (data: Omit<ColumnCreateEvent, 'userId' | 'userName' | 'timestamp'>) => {
+    if (socket && isConnected) {
+      socket.emit("column-created", data);
+    }
+  };
+
   const emitColumnRenamed = (data: Omit<ColumnRenameEvent, 'userId' | 'timestamp'>) => {
     if (socket && isConnected) {
       socket.emit("column-renamed", data);
@@ -431,6 +450,13 @@ export function SocketProvider({ children }: SocketProviderProps) {
     return () => socket.off("session-heartbeat-response", callback);
   };
 
+  const onColumnCreated = (callback: (data: ColumnCreateEvent) => void) => {
+    if (!socket) return () => {};
+    
+    socket.on("column:created", callback);
+    return () => socket.off("column:created", callback);
+  };
+
   const onColumnRenamed = (callback: (data: ColumnRenameEvent) => void) => {
     if (!socket) return () => {};
     
@@ -491,6 +517,7 @@ export function SocketProvider({ children }: SocketProviderProps) {
     emitStickyCreated,
     emitEditingStart,
     emitEditingStop,
+    emitColumnCreated,
     emitColumnRenamed,
     emitColumnDeleted,
     emitStickyDeleted,
@@ -508,6 +535,7 @@ export function SocketProvider({ children }: SocketProviderProps) {
     onUserConnected,
     onUserDisconnected,
     onSessionEvent,
+    onColumnCreated,
     onColumnRenamed,
     onColumnDeleted,
     onStickyDeleted,

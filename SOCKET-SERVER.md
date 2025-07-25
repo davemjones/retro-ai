@@ -74,6 +74,7 @@ const io = new Server(httpServer, {
 | `sticky-updated` | Edit sticky content | Team member | `io.to()` |
 | `sticky-created` | Create new sticky | Team member | `io.to()` |
 | `sticky-deleted` | Delete sticky | Team member | `io.to()` |
+| `column-created` | Create new column | Board owner | `io.to()` |
 | `column-renamed` | Rename column | Board owner | `io.to()` |
 | `column-deleted` | Delete column | Board owner | `io.to()` |
 | `editing-start` | Start editing | Team member | `socket.to()` |
@@ -98,6 +99,7 @@ const io = new Server(httpServer, {
 | `timer-started` | `{duration, startTime, userId, userName, timestamp}` | Timer countdown started |
 | `timer-paused` | `{userId, userName, timestamp}` | Timer countdown paused |
 | `timer-stopped` | `{userId, userName, timestamp}` | Timer stopped/reset |
+| `column:created` | `{columnId, title, boardId, order, color, userId, userName, timestamp}` | New column created |
 
 ## Standard Socket Event Template
 

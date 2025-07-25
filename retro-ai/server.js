@@ -467,6 +467,56 @@ app.prepare().then(() => {
       }
     });
 
+    // Handle column creation with authorization  
+    socket.on('column-created', async (data) => {
+      try {
+        const sessionValidation = await validateSocketSession(socket, session, 'column_create');
+        if (!sessionValidation.isValid) {
+          socket.emit('operation-failed', { 
+            operation: 'column-created', 
+            reason: sessionValidation.reason 
+          });
+          return;
+        }
+
+        const accessValidation = await boardAccess(data.boardId);
+        if (!accessValidation.canAccess) {
+          socket.emit('access-denied', { 
+            resource: 'board', 
+            boardId: data.boardId, 
+            reason: accessValidation.reason 
+          });
+          return;
+        }
+
+        // Only board owner can create columns
+        if (!accessValidation.isOwner) {
+          socket.emit('access-denied', { 
+            resource: 'column creation', 
+            boardId: data.boardId, 
+            reason: 'Only board owner can create columns' 
+          });
+          return;
+        }
+
+        const createData = {
+          ...data,
+          userId: session.userId,
+          timestamp: Date.now()
+        };
+        
+        // Broadcast to all users in the board (including sender)
+        io.to(`board:${data.boardId}`).emit('column:created', createData);
+        console.log(`📋 Column ${data.columnId} created by ${session.userId} (session: ${session.sessionId})`);
+      } catch (error) {
+        console.error('❌ Error in column-created:', error);
+        socket.emit('operation-failed', { 
+          operation: 'column-created', 
+          reason: 'Internal server error' 
+        });
+      }
+    });
+
     // Handle column deletion with authorization
     socket.on('column-deleted', async (data) => {
       try {

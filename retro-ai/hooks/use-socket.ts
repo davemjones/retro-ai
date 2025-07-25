@@ -34,6 +34,17 @@ interface ColumnRenameEvent {
   timestamp: number;
 }
 
+interface ColumnCreateEvent {
+  columnId: string;
+  title: string;
+  boardId: string;
+  order: number;
+  color: string | null;
+  userId: string;
+  userName: string;
+  timestamp: number;
+}
+
 interface ColumnDeleteEvent {
   columnId: string;
   boardId: string;
@@ -90,6 +101,7 @@ interface UseSocketOptions {
   onEditingStopped?: (data: EditingEvent) => void;
   onUserConnected?: (data: UserEvent) => void;
   onUserDisconnected?: (data: UserEvent) => void;
+  onColumnCreated?: (data: ColumnCreateEvent) => void;
   onColumnRenamed?: (data: ColumnRenameEvent) => void;
   onColumnDeleted?: (data: ColumnDeleteEvent) => void;
 }
@@ -106,6 +118,7 @@ export function useSocket(options: UseSocketOptions = {}) {
     onEditingStopped,
     onUserConnected,
     onUserDisconnected,
+    onColumnCreated,
     onColumnRenamed,
     onColumnDeleted,
   } = options;
@@ -178,6 +191,11 @@ export function useSocket(options: UseSocketOptions = {}) {
       unsubscribers.push(unsubscribe);
     }
 
+    if (onColumnCreated) {
+      const unsubscribe = socketContext.onColumnCreated(onColumnCreated);
+      unsubscribers.push(unsubscribe);
+    }
+
     if (onColumnRenamed) {
       const unsubscribe = socketContext.onColumnRenamed(onColumnRenamed);
       unsubscribers.push(unsubscribe);
@@ -201,6 +219,7 @@ export function useSocket(options: UseSocketOptions = {}) {
     onEditingStopped,
     onUserConnected,
     onUserDisconnected,
+    onColumnCreated,
     onColumnRenamed,
     onColumnDeleted,
   ]);
