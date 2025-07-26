@@ -67,7 +67,7 @@ export default async function DashboardPage() {
           <CardContent>
             <div className="text-2xl font-bold">{boardCount}</div>
             <p className="text-xs text-muted-foreground">
-              {boardCount === 0 ? "No boards created yet" : `${boardCount} board${boardCount === 1 ? '' : 's'} available`}
+              {boardCount === 0 ? "Create your first board" : "View all boards"}
             </p>
           </CardContent>
         </Card>
@@ -80,7 +80,7 @@ export default async function DashboardPage() {
           <CardContent>
             <div className="text-2xl font-bold">{teamCount}</div>
             <p className="text-xs text-muted-foreground">
-              {teamCount === 0 ? "Join or create a team" : `Member of ${teamCount} team${teamCount === 1 ? '' : 's'}`}
+              {teamCount === 0 ? "Join or create a team" : "Manage team settings"}
             </p>
           </CardContent>
         </Card>
