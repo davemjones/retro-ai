@@ -9,6 +9,7 @@ interface MovementEvent {
   columnId: string | null;
   positionX?: number;
   positionY?: number;
+  order?: number;
   boardId?: string;
   userId: string;
   timestamp: number;

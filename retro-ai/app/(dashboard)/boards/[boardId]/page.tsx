@@ -55,7 +55,7 @@ async function getBoard(boardId: string, userId: string): Promise<BoardWithRelat
             include: {
               author: true,
             },
-            orderBy: { createdAt: "asc" },
+            orderBy: { order: "asc" },
           },
         },
       },
@@ -64,7 +64,7 @@ async function getBoard(boardId: string, userId: string): Promise<BoardWithRelat
         include: {
           author: true,
         },
-        orderBy: { createdAt: "asc" },
+        orderBy: { order: "asc" },
       },
     },
   });
