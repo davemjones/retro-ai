@@ -9,7 +9,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { toast } from "sonner";
-import { ArrowLeft } from "lucide-react";
+import { SmartBackButton } from "@/components/navigation/smart-back-button";
 import Link from "next/link";
 
 interface Team {
@@ -135,11 +135,7 @@ function NewBoardForm() {
   return (
     <div className="max-w-2xl mx-auto space-y-6">
       <div className="flex items-center gap-4">
-        <Button variant="ghost" size="icon" asChild>
-          <Link href="/boards">
-            <ArrowLeft className="h-4 w-4" />
-          </Link>
-        </Button>
+        <SmartBackButton fallbackPath="/boards" />
         <div>
           <h2 className="text-3xl font-bold tracking-tight">Create Board</h2>
           <p className="text-muted-foreground">

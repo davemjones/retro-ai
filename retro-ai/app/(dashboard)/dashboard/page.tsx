@@ -115,7 +115,7 @@ export default async function DashboardPage() {
             </CardDescription>
           </div>
           <Button asChild>
-            <Link href="/boards/new">
+            <Link href="/boards/new?from=/dashboard">
               <Plus className="mr-2 h-4 w-4" />
               New Board
             </Link>
@@ -128,7 +128,7 @@ export default async function DashboardPage() {
                 No boards yet. Create your first board to get started!
               </p>
               <Button asChild>
-                <Link href="/boards/new">
+                <Link href="/boards/new?from=/dashboard">
                   <Plus className="mr-2 h-4 w-4" />
                   Create Your First Board
                 </Link>
@@ -171,7 +171,7 @@ export default async function DashboardPage() {
                             {board._count.stickies} sticky note{board._count.stickies !== 1 ? "s" : ""}
                           </p>
                           <Button asChild size="sm">
-                            <Link href={`/boards/${board.id}`}>Open Board</Link>
+                            <Link href={`/boards/${board.id}?from=/dashboard`}>Open Board</Link>
                           </Button>
                         </div>
                       </div>
@@ -208,12 +208,12 @@ export default async function DashboardPage() {
           </div>
           <div className="flex gap-2">
             <Button asChild variant="outline" size="sm">
-              <Link href="/teams/join">
+              <Link href="/teams/join?from=/dashboard">
                 Join Team
               </Link>
             </Button>
             <Button asChild size="sm">
-              <Link href="/teams/new">
+              <Link href="/teams/new?from=/dashboard">
                 <Plus className="mr-2 h-4 w-4" />
                 Create Team
               </Link>
@@ -228,13 +228,13 @@ export default async function DashboardPage() {
               </p>
               <div className="flex justify-center gap-2">
                 <Button asChild>
-                  <Link href="/teams/new">
+                  <Link href="/teams/new?from=/dashboard">
                     <Plus className="mr-2 h-4 w-4" />
                     Create Your First Team
                   </Link>
                 </Button>
                 <Button asChild variant="outline">
-                  <Link href="/teams/join">Join Team</Link>
+                  <Link href="/teams/join?from=/dashboard">Join Team</Link>
                 </Button>
               </div>
             </div>
@@ -269,7 +269,7 @@ export default async function DashboardPage() {
                               <Link href={`/teams/${team.id}`}>View Team</Link>
                             </Button>
                             <Button asChild size="sm" variant="outline" className="flex-1">
-                              <Link href={`/boards/new?teamId=${team.id}`}>New Board</Link>
+                              <Link href={`/boards/new?teamId=${team.id}&from=/dashboard`}>New Board</Link>
                             </Button>
                           </div>
                         </div>
@@ -277,13 +277,6 @@ export default async function DashboardPage() {
                     </Card>
                   );
                 })}
-              </div>
-              <div className="pt-4 border-t">
-                <Button asChild variant="outline" className="w-full">
-                  <Link href="/teams">
-                    View All Teams
-                  </Link>
-                </Button>
               </div>
             </>
           )}
