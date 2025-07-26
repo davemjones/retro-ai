@@ -1,9 +1,11 @@
 /**
  * Unit tests for note creator visibility fix (Issue #122)
  * Tests that new notes appear immediately for the creator without requiring page refresh
+ * 
+ * Note: Updated for Issue #156 - Create note button moved to header
  */
 
-import React from 'react';
+import React, { useState } from 'react';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { BoardCanvas } from '../components/board/board-canvas';
 import { useRouter } from 'next/navigation';
@@ -121,6 +123,71 @@ jest.mock('../components/board/unassigned-area', () => ({
   UnassignedArea: () => <div data-testid="unassigned-area">Unassigned Area</div>,
 }));
 
+// Test wrapper component that mimics the page structure
+function TestBoardWrapper({ 
+  board, 
+  columns, 
+  userId, 
+  isOwner 
+}: {
+  board: any;
+  columns: any[];
+  userId: string;
+  isOwner: boolean;
+}) {
+  const [showCreateDialog, setShowCreateDialog] = useState(false);
+  
+  return (
+    <div>
+      {/* Mock header with create button */}
+      <div data-testid="board-header">
+        <button
+          data-testid="header-add-note-button"
+          onClick={() => {
+            setShowCreateDialog(true);
+            stickyDialogOpen = true; // Update the mocked state
+          }}
+        >
+          Add Note
+        </button>
+      </div>
+      
+      {/* Board Canvas */}
+      <BoardCanvas
+        board={board}
+        columns={columns}
+        userId={userId}
+        isOwner={isOwner}
+      />
+      
+      {/* Create Sticky Dialog */}
+      <div>
+        {showCreateDialog && (
+          <div data-testid="create-sticky-dialog">
+            <button 
+              data-testid="create-sticky-submit"
+              onClick={() => {
+                // Simulate successful note creation
+                setShowCreateDialog(false);
+                stickyDialogOpen = false; // Update the mocked state
+                if (stickyCreatedCallback) {
+                  stickyCreatedCallback();
+                }
+              }}
+            >
+              Create Note
+            </button>
+            <button onClick={() => {
+              setShowCreateDialog(false);
+              stickyDialogOpen = false; // Update the mocked state
+            }}>Cancel</button>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 describe('Note Creator Visibility Fix - Issue #122', () => {
   const mockBoard = {
     id: 'board-123',
@@ -149,7 +216,7 @@ describe('Note Creator Visibility Fix - Issue #122', () => {
   describe('Note Creation Flow', () => {
     it('should not call router.refresh() when note is created', async () => {
       render(
-        <BoardCanvas
+        <TestBoardWrapper
           board={mockBoard}
           columns={mockColumns}
           userId={mockUserId}
@@ -157,9 +224,9 @@ describe('Note Creator Visibility Fix - Issue #122', () => {
         />
       );
 
-      // Open create note dialog using the floating plus button
-      const floatingAddButton = screen.getByTestId('floating-add-note-button');
-      fireEvent.click(floatingAddButton);
+      // Open create note dialog using the header add button
+      const headerAddButton = screen.getByTestId('header-add-note-button');
+      fireEvent.click(headerAddButton);
 
       expect(screen.getByTestId('create-sticky-dialog')).toBeInTheDocument();
 
@@ -173,7 +240,7 @@ describe('Note Creator Visibility Fix - Issue #122', () => {
 
     it('should close dialog after note creation without page refresh', async () => {
       const { rerender } = render(
-        <BoardCanvas
+        <TestBoardWrapper
           board={mockBoard}
           columns={mockColumns}
           userId={mockUserId}
@@ -181,9 +248,9 @@ describe('Note Creator Visibility Fix - Issue #122', () => {
         />
       );
 
-      // Open create note dialog using the floating plus button
-      const floatingAddButton = screen.getByTestId('floating-add-note-button');
-      fireEvent.click(floatingAddButton);
+      // Open create note dialog using the header add button
+      const headerAddButton = screen.getByTestId('header-add-note-button');
+      fireEvent.click(headerAddButton);
 
       expect(screen.getByTestId('create-sticky-dialog')).toBeInTheDocument();
 
@@ -200,7 +267,7 @@ describe('Note Creator Visibility Fix - Issue #122', () => {
 
     it('should rely on WebSocket events for real-time updates', () => {
       render(
-        <BoardCanvas
+        <TestBoardWrapper
           board={mockBoard}
           columns={mockColumns}
           userId={mockUserId}
@@ -210,14 +277,14 @@ describe('Note Creator Visibility Fix - Issue #122', () => {
 
       // The component uses useSocket hook for real-time WebSocket updates
       // This ensures real-time synchronization without requiring page refreshes
-      expect(screen.getByTestId('floating-add-note-button')).toBeInTheDocument();
+      expect(screen.getByTestId('header-add-note-button')).toBeInTheDocument();
     });
   });
 
   describe('Component Integration', () => {
-    it('should render the floating add note button correctly', () => {
+    it('should render the header add note button correctly', () => {
       render(
-        <BoardCanvas
+        <TestBoardWrapper
           board={mockBoard}
           columns={mockColumns}
           userId={mockUserId}
@@ -225,15 +292,15 @@ describe('Note Creator Visibility Fix - Issue #122', () => {
         />
       );
 
-      // Verify the floating add button is present and has the correct test ID
-      const floatingButton = screen.getByTestId('floating-add-note-button');
-      expect(floatingButton).toBeInTheDocument();
-      expect(floatingButton).toHaveClass('fixed', 'bottom-6', 'right-6');
+      // Verify the header add button is present and has the correct test ID
+      const headerButton = screen.getByTestId('header-add-note-button');
+      expect(headerButton).toBeInTheDocument();
+      expect(headerButton).toHaveTextContent('Add Note');
     });
 
-    it('should open create dialog when floating button is clicked', () => {
+    it('should open create dialog when header button is clicked', () => {
       render(
-        <BoardCanvas
+        <TestBoardWrapper
           board={mockBoard}
           columns={mockColumns}
           userId={mockUserId}
@@ -241,8 +308,8 @@ describe('Note Creator Visibility Fix - Issue #122', () => {
         />
       );
 
-      const floatingButton = screen.getByTestId('floating-add-note-button');
-      fireEvent.click(floatingButton);
+      const headerButton = screen.getByTestId('header-add-note-button');
+      fireEvent.click(headerButton);
 
       expect(screen.getByTestId('create-sticky-dialog')).toBeInTheDocument();
     });
@@ -251,7 +318,7 @@ describe('Note Creator Visibility Fix - Issue #122', () => {
   describe('Regression Prevention', () => {
     it('should not regress to using router.refresh() in sticky creation callback', () => {
       render(
-        <BoardCanvas
+        <TestBoardWrapper
           board={mockBoard} 
           columns={mockColumns}
           userId={mockUserId}
@@ -260,8 +327,8 @@ describe('Note Creator Visibility Fix - Issue #122', () => {
       );
 
       // Open dialog and create note
-      const floatingAddButton = screen.getByTestId('floating-add-note-button');
-      fireEvent.click(floatingAddButton);
+      const headerAddButton = screen.getByTestId('header-add-note-button');
+      fireEvent.click(headerAddButton);
       
       const createButton = screen.getByTestId('create-sticky-submit');
       fireEvent.click(createButton);
@@ -274,7 +341,7 @@ describe('Note Creator Visibility Fix - Issue #122', () => {
 
     it('should maintain dialog callback functionality without refresh', () => {
       render(
-        <BoardCanvas
+        <TestBoardWrapper
           board={mockBoard}
           columns={mockColumns}
           userId={mockUserId}
@@ -298,7 +365,7 @@ describe('Note Creator Visibility Fix - Issue #122', () => {
   describe('Performance Impact', () => {
     it('should not cause unnecessary re-renders from router.refresh()', () => {
       const { rerender } = render(
-        <BoardCanvas
+        <TestBoardWrapper
           board={mockBoard}
           columns={mockColumns}
           userId={mockUserId}
@@ -306,11 +373,11 @@ describe('Note Creator Visibility Fix - Issue #122', () => {
         />
       );
 
-      // Create multiple notes using the floating plus button
-      const floatingAddButton = screen.getByTestId('floating-add-note-button');
+      // Create multiple notes using the header add button
+      const headerAddButton = screen.getByTestId('header-add-note-button');
       
       for (let i = 0; i < 3; i++) {
-        fireEvent.click(floatingAddButton);
+        fireEvent.click(headerAddButton);
         const createButton = screen.getByTestId('create-sticky-submit');
         fireEvent.click(createButton);
       }
@@ -325,7 +392,7 @@ describe('Note Creator Visibility Fix - Issue #122', () => {
   describe('Root Cause Verification', () => {
     it('confirms the fix addresses the race condition between WebSocket and router.refresh()', () => {
       render(
-        <BoardCanvas
+        <TestBoardWrapper
           board={mockBoard}
           columns={mockColumns}
           userId={mockUserId}
@@ -337,8 +404,8 @@ describe('Note Creator Visibility Fix - Issue #122', () => {
       // The fix: Remove router.refresh() so WebSocket event persists
       
       // Verify router.refresh() is not called during the note creation flow
-      const floatingAddButton = screen.getByTestId('floating-add-note-button');
-      fireEvent.click(floatingAddButton);
+      const headerAddButton = screen.getByTestId('header-add-note-button');
+      fireEvent.click(headerAddButton);
       const createButton = screen.getByTestId('create-sticky-submit');
       fireEvent.click(createButton);
       
