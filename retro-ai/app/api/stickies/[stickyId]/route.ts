@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { calculateStickyOrder, type MoveIntent } from "@/lib/lexicographic-order";
 
 export async function PATCH(
   req: Request,
@@ -18,7 +19,17 @@ export async function PATCH(
       );
     }
 
-    const { content, color, columnId, positionX, positionY } = await req.json();
+    const { 
+      content, 
+      color, 
+      columnId, 
+      positionX, 
+      positionY,
+      // New order-related fields
+      insertAfterStickyId,
+      insertBeforeStickyId,
+      insertAtPosition
+    } = await req.json();
 
     // Find the sticky note
     const sticky = await prisma.sticky.findUnique({
@@ -58,6 +69,30 @@ export async function PATCH(
     const isEditingContent = content !== undefined || color !== undefined;
     const isNonAuthorEdit = isEditingContent && sticky.authorId !== session.user.id;
     
+    // Calculate new order if this is a move operation
+    let newOrder: number | undefined = undefined;
+    
+    if (columnId !== undefined && (insertAfterStickyId || insertBeforeStickyId || insertAtPosition)) {
+      // Get existing stickies in the target column
+      const existingStickies = await prisma.sticky.findMany({
+        where: { 
+          columnId: columnId,
+          id: { not: stickyId } // Exclude the sticky being moved
+        },
+        select: { id: true, order: true },
+        orderBy: { order: 'asc' }
+      });
+
+      const moveIntent: MoveIntent = {
+        targetColumnId: columnId,
+        ...(insertAfterStickyId && { insertAfterStickyId }),
+        ...(insertBeforeStickyId && { insertBeforeStickyId }),
+        ...(insertAtPosition && { insertAtPosition })
+      };
+
+      newOrder = calculateStickyOrder(existingStickies, moveIntent);
+    }
+    
     // Update sticky note
     const updatedSticky = await prisma.sticky.update({
       where: { id: stickyId },
@@ -67,6 +102,7 @@ export async function PATCH(
         ...(columnId !== undefined && { columnId }),
         ...(positionX !== undefined && { positionX }),
         ...(positionY !== undefined && { positionY }),
+        ...(newOrder !== undefined && { order: newOrder }),
         // Add editor to editedBy array if they're not the original author
         // and not already in the array
         ...(isNonAuthorEdit && !sticky.editedBy.includes(session.user.id) && {

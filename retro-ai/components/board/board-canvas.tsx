@@ -30,6 +30,7 @@ interface MovementEvent {
   columnId: string | null;
   positionX?: number;
   positionY?: number;
+  order?: number;
   boardId?: string;
   userId: string;
   userName?: string;
@@ -104,6 +105,7 @@ interface BoardData {
       color: string;
       positionX: number;
       positionY: number;
+      order: number;
       author: {
         id: string;
         name: string | null;
@@ -131,6 +133,7 @@ interface BoardData {
     color: string;
     positionX: number;
     positionY: number;
+    order: number;
     author: {
       id: string;
       name: string | null;
@@ -195,7 +198,7 @@ export function BoardCanvas({ board, columns: initialColumns, userId, isOwner }:
       console.log("Received movement event:", data);
 
       // Find the sticky note that's being moved
-      let movedSticky = null;
+      let movedSticky: BoardData["stickies"][0] | null = null;
       
       // Check columns first
       for (const column of columns) {
@@ -208,7 +211,7 @@ export function BoardCanvas({ board, columns: initialColumns, userId, isOwner }:
       
       // Check unassigned if not found in columns
       if (!movedSticky) {
-        movedSticky = unassignedStickies.find(s => s.id === data.stickyId);
+        movedSticky = unassignedStickies.find(s => s.id === data.stickyId) || null;
       }
       
       // If we can't find the sticky, we need to refresh to get the latest data
@@ -232,6 +235,11 @@ export function BoardCanvas({ board, columns: initialColumns, userId, isOwner }:
       // FLIP Animation: Record position, update state, then animate
       flipAnimation.animateMovement(data.stickyId, () => {
         // Update state immediately (FLIP pattern)
+        // Update the sticky's order if provided
+        if (data.order !== undefined && movedSticky) {
+          movedSticky = { ...movedSticky, order: data.order };
+        }
+        
         if (data.columnId === null) {
           // Moving to unassigned area
           setColumns(prevColumns => 
@@ -243,8 +251,8 @@ export function BoardCanvas({ board, columns: initialColumns, userId, isOwner }:
           
           // Add to unassigned
           setUnassignedStickies(prev => {
-            // Don't add if already exists
-            if (prev.some(s => s.id === data.stickyId)) {
+            // Don't add if already exists or if movedSticky is null
+            if (prev.some(s => s.id === data.stickyId) || !movedSticky) {
               return prev;
             }
             return [...prev, movedSticky];
@@ -258,13 +266,21 @@ export function BoardCanvas({ board, columns: initialColumns, userId, isOwner }:
           setColumns(prevColumns => 
             prevColumns.map(column => {
               if (column.id === data.columnId) {
-                // Add to target column if not already there
-                if (column.stickies.some(s => s.id === data.stickyId)) {
-                  return column;
+                // Don't add if movedSticky is null
+                if (!movedSticky) return column;
+                
+                // Remove sticky if already exists, then add with new order
+                const existingStickies = column.stickies.filter(s => s.id !== data.stickyId);
+                const newStickies = [...existingStickies, movedSticky];
+                
+                // Sort by order if order information is available
+                if (data.order !== undefined) {
+                  newStickies.sort((a, b) => a.order - b.order);
                 }
+                
                 return {
                   ...column,
-                  stickies: [...column.stickies, movedSticky],
+                  stickies: newStickies,
                 };
               }
               // Remove from other columns
@@ -366,6 +382,7 @@ export function BoardCanvas({ board, columns: initialColumns, userId, isOwner }:
         color: data.color,
         positionX: data.positionX,
         positionY: data.positionY,
+        order: 0, // Default order, will be updated by server if needed
         author: {
           ...data.author,
           password: '', // Not needed for display
@@ -709,28 +726,70 @@ export function BoardCanvas({ board, columns: initialColumns, userId, isOwner }:
       isLocalMovement.current = true;
       
       const targetColumnId = overContainer === "unassigned" ? null : overContainer;
+      
+      // Calculate move intent for server-side order calculation
+      const overItems = getItemsForContainer(overContainer);
+      const moveIntent: {
+        columnId: string | null;
+        insertAfterStickyId?: string;
+        insertBeforeStickyId?: string;
+        insertAtPosition?: 'start' | 'end';
+      } = { columnId: targetColumnId };
+      
+      if (activeContainer === overContainer) {
+        // Moving within the same container - determine position relative to other items
+        if (overIndex > activeIndex) {
+          // Moving down - insert after the item that was originally at overIndex
+          const targetSticky = overItems[overIndex];
+          if (targetSticky) {
+            moveIntent.insertAfterStickyId = targetSticky.id;
+          } else {
+            moveIntent.insertAtPosition = 'end';
+          }
+        } else if (overIndex < activeIndex) {
+          // Moving up - insert before the item at overIndex
+          const targetSticky = overItems[overIndex];
+          if (targetSticky) {
+            moveIntent.insertBeforeStickyId = targetSticky.id;
+          } else {
+            moveIntent.insertAtPosition = 'start';
+          }
+        }
+      } else {
+        // Moving between different containers
+        if (overId === overContainer) {
+          // Dropped on the container itself - append to end
+          moveIntent.insertAtPosition = 'end';
+        } else {
+          // Dropped on a specific sticky - insert after it
+          moveIntent.insertAfterStickyId = overId;
+        }
+      }
+
       const response = await fetch(`/api/stickies/${activeId}`, {
         method: "PATCH",
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({
-          columnId: targetColumnId,
-        }),
+        body: JSON.stringify(moveIntent),
       });
 
       if (!response.ok) {
         throw new Error("Failed to update note");
       }
 
-      // Emit socket event after successful API call
+      const result = await response.json();
+      const calculatedOrder = result.sticky.order;
+
+      // Emit socket event with server-calculated order
       if (isConnected) {
         emitStickyMoved({
           stickyId: activeId,
           columnId: targetColumnId,
+          order: calculatedOrder,
           boardId: board.id,
         });
-        console.log("Emitted movement event:", { stickyId: activeId, columnId: targetColumnId, boardId: board.id });
+        console.log("Emitted movement event:", { stickyId: activeId, columnId: targetColumnId, order: calculatedOrder, boardId: board.id });
       }
       
       // No router.refresh() needed - WebSocket handles real-time UI updates

@@ -94,6 +94,7 @@ model Sticky {
   column    Column?  @relation(fields: [columnId], references: [id])
   positionX Float
   positionY Float
+  order     Float    @default(0.0)
   authorId  String
   author    User     @relation(fields: [authorId], references: [id])
   editedBy  String[] @default([])
