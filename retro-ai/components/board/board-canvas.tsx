@@ -184,17 +184,13 @@ export function BoardCanvas({ board, columns: initialColumns, userId, isOwner }:
     onStickyMoved: useCallback((data: MovementEvent) => {
       // Only update if this movement wasn't initiated by us
       if (isLocalMovement.current || data.userId === userId) {
-        console.log(`[MULTI-USER] Skipping movement for ${data.stickyId} - local movement or same user`);
         return;
       }
 
       // Skip if already animating this sticky to prevent conflicts
       if (flipAnimation.isAnimating(data.stickyId)) {
-        console.log(`[MULTI-USER] Skipping animation for ${data.stickyId} - already in progress`);
         return;
       }
-
-      console.log(`[MULTI-USER] Processing remote movement from ${data.userName}:`, data);
 
       // Set move indicator for this sticky
       if (data.userName) {
@@ -225,16 +221,12 @@ export function BoardCanvas({ board, columns: initialColumns, userId, isOwner }:
               if (data.order !== undefined) {
                 stickyToReorder.order = data.order;
               }
-              console.log(`[MULTI-USER] Reordering sticky ${data.stickyId} within unassigned area`);
-              
               // Remove from current position and add with new order
               const filtered = prevUnassigned.filter(s => s.id !== data.stickyId);
               const result = [...filtered, stickyToReorder];
               
               // Sort by order to maintain consistent positioning
               result.sort((a, b) => a.order - b.order);
-              
-              console.log(`[MULTI-USER] Updated unassigned area with sticky ${data.stickyId} at order ${stickyToReorder.order}`);
               return result;
             } else {
               // Sticky is not in unassigned, so it must be coming from a column
@@ -256,8 +248,6 @@ export function BoardCanvas({ board, columns: initialColumns, userId, isOwner }:
                 if (data.order !== undefined) {
                   stickyFromColumn.order = data.order;
                 }
-                console.log(`[MULTI-USER] Found sticky ${data.stickyId} in column ${column.id}, moving to unassigned`);
-                
                 // Add to unassigned area immediately
                 setUnassignedStickies(prevUnassigned => {
                   // Double-check it's not already there
@@ -268,7 +258,6 @@ export function BoardCanvas({ board, columns: initialColumns, userId, isOwner }:
                   const result = [...prevUnassigned, stickyFromColumn!];
                   result.sort((a, b) => a.order - b.order);
                   
-                  console.log(`[MULTI-USER] Added sticky ${data.stickyId} to unassigned with order ${stickyFromColumn!.order}`);
                   return result;
                 });
                 
@@ -295,8 +284,6 @@ export function BoardCanvas({ board, columns: initialColumns, userId, isOwner }:
               if (data.order !== undefined) {
                 stickyFromUnassigned.order = data.order;
               }
-              console.log(`[MULTI-USER] Found sticky ${data.stickyId} in unassigned area, moving to column ${data.columnId}`);
-              
               // Add to target column immediately
               setColumns(prevColumns => {
                 return prevColumns.map(column => {
@@ -311,8 +298,6 @@ export function BoardCanvas({ board, columns: initialColumns, userId, isOwner }:
                     
                     // Sort by order
                     newStickies.sort((a, b) => a.order - b.order);
-                    
-                    console.log(`[MULTI-USER] Added sticky ${data.stickyId} to column ${data.columnId} with order ${stickyFromUnassigned.order}`);
                     
                     return {
                       ...column,
@@ -344,7 +329,6 @@ export function BoardCanvas({ board, columns: initialColumns, userId, isOwner }:
                 if (data.order !== undefined) {
                   stickyFromColumn.order = data.order;
                 }
-                console.log(`[MULTI-USER] Found sticky ${data.stickyId} in column ${column.id}, moving to column ${data.columnId}`);
                 // Remove from source column
                 return {
                   ...column,
@@ -369,8 +353,6 @@ export function BoardCanvas({ board, columns: initialColumns, userId, isOwner }:
                 // Sort by order
                 newStickies.sort((a, b) => a.order - b.order);
                 
-                console.log(`[MULTI-USER] Added sticky ${data.stickyId} to column ${data.columnId} with order ${stickyFromColumn.order}`);
-                
                 return {
                   ...column,
                   stickies: newStickies,
@@ -388,7 +370,6 @@ export function BoardCanvas({ board, columns: initialColumns, userId, isOwner }:
         return;
       }
 
-      console.log("Received column rename event:", data);
 
       // Update the column title in local state
       setColumns(prevColumns =>
@@ -405,7 +386,6 @@ export function BoardCanvas({ board, columns: initialColumns, userId, isOwner }:
         return;
       }
 
-      console.log("Received column delete event:", data);
 
       // For remote users, we need to move the stickies to unassigned and remove the column
       setColumns(prevColumns => {
@@ -462,7 +442,6 @@ export function BoardCanvas({ board, columns: initialColumns, userId, isOwner }:
     }, []),
     onStickyCreated: useCallback((data: StickyCreateEvent) => {
       // Process all sticky creations (including our own) for consistency
-      console.log("Received note creation event:", data);
 
       // Create the new sticky object from the event data
       const newSticky = {
@@ -819,12 +798,10 @@ export function BoardCanvas({ board, columns: initialColumns, userId, isOwner }:
           // AFTER the active item is removed. Since activeIndex < overIndex, removing activeIndex
           // shifts everything after it down by 1, so the item we want is currently at overIndex
           insertAfterIndex = overIndex;
-          console.log(`[LOCAL-USER] Moving down: activeIndex=${activeIndex}, overIndex=${overIndex}, insertAfterIndex=${insertAfterIndex}`);
         } else {
           // Moving up: insert after the item that's currently at overIndex-1
           // (since we remove activeIndex which is after overIndex, overIndex-1 stays in place)
           insertAfterIndex = overIndex - 1;
-          console.log(`[LOCAL-USER] Moving up: activeIndex=${activeIndex}, overIndex=${overIndex}, insertAfterIndex=${insertAfterIndex}`);
         }
         
         if (insertAfterIndex >= 0 && insertAfterIndex < originalOverItems.length) {
@@ -832,21 +809,17 @@ export function BoardCanvas({ board, columns: initialColumns, userId, isOwner }:
           // Make sure we're not trying to insert after ourselves
           if (targetSticky.id !== activeId) {
             moveIntent.insertAfterStickyId = targetSticky.id;
-            console.log(`[LOCAL-USER] Moving ${activeId}: insert after ${targetSticky.id} (index ${insertAfterIndex})`);
           } else {
             // If we're trying to insert after ourselves, we need to adjust
             if (insertAfterIndex > 0) {
               const alternativeSticky = originalOverItems[insertAfterIndex - 1];
               moveIntent.insertAfterStickyId = alternativeSticky.id;
-              console.log(`[LOCAL-USER] Moving ${activeId}: adjusted to insert after ${alternativeSticky.id}`);
             } else {
               moveIntent.insertAtPosition = 'start';
-              console.log(`[LOCAL-USER] Moving ${activeId}: adjusted to start position`);
             }
           }
         } else {
           moveIntent.insertAtPosition = insertAfterIndex < 0 ? 'start' : 'end';
-          console.log(`[LOCAL-USER] Moving ${activeId}: using position ${moveIntent.insertAtPosition}`);
         }
       }
     } else {
@@ -883,8 +856,6 @@ export function BoardCanvas({ board, columns: initialColumns, userId, isOwner }:
       // Mark this as a local movement to prevent echo
       isLocalMovement.current = true;
       
-      console.log(`[LOCAL-USER] Sending move intent for ${activeId}:`, moveIntent);
-      
       const response = await fetch(`/api/stickies/${activeId}`, {
         method: "PATCH",
         headers: {
@@ -900,8 +871,6 @@ export function BoardCanvas({ board, columns: initialColumns, userId, isOwner }:
       const result = await response.json();
       const calculatedOrder = result.sticky.order;
 
-      console.log(`[LOCAL-USER] Server calculated order ${calculatedOrder} for sticky ${activeId}`);
-
       // Update local state with server-calculated order
       if (targetColumnId === null) {
         // Update unassigned stickies with correct order
@@ -912,7 +881,6 @@ export function BoardCanvas({ board, columns: initialColumns, userId, isOwner }:
               : sticky
           ).sort((a, b) => a.order - b.order)
         );
-        console.log(`[LOCAL-USER] Updated local unassigned sticky ${activeId} with order ${calculatedOrder}`);
       } else {
         // Update column stickies with correct order
         setColumns(prevColumns => 
@@ -929,7 +897,6 @@ export function BoardCanvas({ board, columns: initialColumns, userId, isOwner }:
               : column
           )
         );
-        console.log(`[LOCAL-USER] Updated local column sticky ${activeId} with order ${calculatedOrder}`);
       }
 
       // Emit socket event with server-calculated order
@@ -940,7 +907,6 @@ export function BoardCanvas({ board, columns: initialColumns, userId, isOwner }:
           order: calculatedOrder,
           boardId: board.id,
         });
-        console.log(`[LOCAL-USER] Emitted movement event to other users:`, { stickyId: activeId, columnId: targetColumnId, order: calculatedOrder, boardId: board.id });
       }
       
       // No router.refresh() needed - WebSocket handles real-time UI updates
@@ -953,7 +919,6 @@ export function BoardCanvas({ board, columns: initialColumns, userId, isOwner }:
     } finally {
       // Reset the local movement flag after a short delay
       setTimeout(() => {
-        console.log(`[LOCAL-USER] Resetting local movement flag for ${activeId}`);
         isLocalMovement.current = false;
       }, 100);
     }
