@@ -3,15 +3,91 @@ import { authOptions } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import Link from "next/link";
-import { Plus, Users, Presentation } from "lucide-react";
+import { Plus, Users, Presentation, Calendar } from "lucide-react";
+import { prisma } from "@/lib/prisma";
+
+async function getUserStats(userId: string) {
+  const [recentBoards, userTeams] = await Promise.all([
+    // Get recent boards where user is a team member
+    prisma.board.findMany({
+      where: {
+        team: {
+          members: {
+            some: {
+              userId: userId,
+            },
+          },
+        },
+        isArchived: false,
+      },
+      include: {
+        team: true,
+        template: true,
+        _count: {
+          select: {
+            stickies: true,
+          },
+        },
+      },
+      orderBy: {
+        updatedAt: "desc",
+      },
+      take: 3, // Only get the 3 most recent
+    }),
+    // Get teams where user is a member with details
+    prisma.team.findMany({
+      where: {
+        members: {
+          some: {
+            userId: userId,
+          },
+        },
+      },
+      include: {
+        members: {
+          include: {
+            user: true,
+          },
+        },
+        _count: {
+          select: {
+            boards: true,
+          },
+        },
+      },
+      orderBy: {
+        createdAt: "desc",
+      },
+    }),
+  ]);
+
+  // Get the total board count from a separate query
+  const boardCount = await prisma.board.count({
+    where: {
+      team: {
+        members: {
+          some: {
+            userId: userId,
+          },
+        },
+      },
+      isArchived: false,
+    },
+  });
+
+  return { recentBoards, boardCount, userTeams, teamCount: userTeams.length };
+}
 
 export default async function DashboardPage() {
   const session = await getServerSession(authOptions);
 
-  if (!session) {
+  if (!session?.user?.id) {
     redirect("/");
   }
+
+  const { recentBoards, boardCount, userTeams, teamCount } = await getUserStats(session.user.id);
 
   return (
     <div className="h-full overflow-y-auto">
@@ -25,99 +101,187 @@ export default async function DashboardPage() {
         </p>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Boards</CardTitle>
-            <Presentation className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">0</div>
-            <p className="text-xs text-muted-foreground">
-              No boards created yet
-            </p>
-          </CardContent>
-        </Card>
-        
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Teams</CardTitle>
-            <Users className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">0</div>
-            <p className="text-xs text-muted-foreground">
-              Join or create a team
-            </p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Quick Actions</CardTitle>
-            <Plus className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="flex flex-col gap-2">
-              <Button asChild size="sm" className="w-full">
-                <Link href="/boards/new">New Board</Link>
-              </Button>
-              <Button asChild size="sm" variant="outline" className="w-full">
-                <Link href="/teams/new">Create Team</Link>
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
-      <div className="grid gap-4 md:grid-cols-2">
-        <Card>
-          <CardHeader>
-            <CardTitle>Recent Boards</CardTitle>
+      {/* Unified Boards Section */}
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between">
+          <div>
+            <CardTitle className="flex items-center gap-2">
+              <Presentation className="h-5 w-5" />
+              Boards
+              <span className="text-lg font-normal text-muted-foreground">({boardCount})</span>
+            </CardTitle>
             <CardDescription>
-              Your recently accessed retrospective boards
+              Your retrospective boards
             </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <p className="text-sm text-muted-foreground text-center py-6">
-              No boards yet. Create your first board to get started!
-            </p>
-            <div className="flex justify-center">
+          </div>
+          <Button asChild>
+            <Link href="/boards/new?from=/dashboard">
+              <Plus className="mr-2 h-4 w-4" />
+              New Board
+            </Link>
+          </Button>
+        </CardHeader>
+        <CardContent>
+          {recentBoards.length === 0 ? (
+            <div className="text-center py-8">
+              <p className="text-sm text-muted-foreground mb-4">
+                No boards yet. Create your first board to get started!
+              </p>
               <Button asChild>
-                <Link href="/boards/new">
+                <Link href="/boards/new?from=/dashboard">
                   <Plus className="mr-2 h-4 w-4" />
-                  Create Board
+                  Create Your First Board
                 </Link>
               </Button>
             </div>
-          </CardContent>
-        </Card>
+          ) : (
+            <>
+              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                {recentBoards.map((board) => (
+                  <Card key={board.id} className="hover:shadow-lg transition-shadow">
+                    <CardHeader>
+                      <div className="flex items-start justify-between">
+                        <div className="space-y-1">
+                          <CardTitle className="line-clamp-1">{board.title}</CardTitle>
+                          <CardDescription className="line-clamp-2">
+                            {board.description || "No description"}
+                          </CardDescription>
+                        </div>
+                        {board.template && (
+                          <Badge variant="secondary" className="ml-2 shrink-0">
+                            {board.template.name}
+                          </Badge>
+                        )}
+                      </div>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="space-y-3">
+                        <div className="flex items-center gap-4 text-sm text-muted-foreground">
+                          <div className="flex items-center">
+                            <Users className="mr-1 h-3 w-3" />
+                            {board.team.name}
+                          </div>
+                          <div className="flex items-center">
+                            <Calendar className="mr-1 h-3 w-3" />
+                            {new Date(board.updatedAt).toLocaleDateString()}
+                          </div>
+                        </div>
+                        <div className="flex items-center justify-between">
+                          <p className="text-sm text-muted-foreground">
+                            {board._count.stickies} sticky note{board._count.stickies !== 1 ? "s" : ""}
+                          </p>
+                          <Button asChild size="sm">
+                            <Link href={`/boards/${board.id}?from=/dashboard`}>Open Board</Link>
+                          </Button>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+              {boardCount > 3 && (
+                <div className="pt-4 border-t">
+                  <Button asChild variant="outline" className="w-full">
+                    <Link href="/boards">
+                      View All {boardCount} Boards
+                    </Link>
+                  </Button>
+                </div>
+              )}
+            </>
+          )}
+        </CardContent>
+      </Card>
 
-        <Card>
-          <CardHeader>
-            <CardTitle>Your Teams</CardTitle>
+      {/* Unified Teams Section */}
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between">
+          <div>
+            <CardTitle className="flex items-center gap-2">
+              <Users className="h-5 w-5" />
+              Teams
+              <span className="text-lg font-normal text-muted-foreground">({teamCount})</span>
+            </CardTitle>
             <CardDescription>
-              Teams you&apos;re a member of
+              Your team memberships
             </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <p className="text-sm text-muted-foreground text-center py-6">
-              You&apos;re not part of any teams yet.
-            </p>
-            <div className="flex justify-center gap-2">
-              <Button asChild>
-                <Link href="/teams/new">
-                  <Plus className="mr-2 h-4 w-4" />
-                  Create Team
-                </Link>
-              </Button>
-              <Button asChild variant="outline">
-                <Link href="/teams/join">Join Team</Link>
-              </Button>
+          </div>
+          <div className="flex gap-2">
+            <Button asChild variant="outline" size="sm">
+              <Link href="/teams/join?from=/dashboard">
+                Join Team
+              </Link>
+            </Button>
+            <Button asChild size="sm">
+              <Link href="/teams/new?from=/dashboard">
+                <Plus className="mr-2 h-4 w-4" />
+                Create Team
+              </Link>
+            </Button>
+          </div>
+        </CardHeader>
+        <CardContent>
+          {userTeams.length === 0 ? (
+            <div className="text-center py-8">
+              <p className="text-sm text-muted-foreground mb-4">
+                You&apos;re not part of any teams yet.
+              </p>
+              <div className="flex justify-center gap-2">
+                <Button asChild>
+                  <Link href="/teams/new?from=/dashboard">
+                    <Plus className="mr-2 h-4 w-4" />
+                    Create Your First Team
+                  </Link>
+                </Button>
+                <Button asChild variant="outline">
+                  <Link href="/teams/join?from=/dashboard">Join Team</Link>
+                </Button>
+              </div>
             </div>
-          </CardContent>
-        </Card>
-      </div>
+          ) : (
+            <>
+              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                {userTeams.map((team) => {
+                  const userMember = team.members.find((m) => m.userId === session.user?.id);
+                  return (
+                    <Card key={team.id}>
+                      <CardHeader>
+                        <div className="flex items-start justify-between">
+                          <div>
+                            <CardTitle>{team.name}</CardTitle>
+                            <CardDescription>
+                              {team.members.length} member{team.members.length !== 1 ? "s" : ""}
+                            </CardDescription>
+                          </div>
+                          <Badge variant={userMember?.role === "OWNER" ? "default" : "secondary"}>
+                            {userMember?.role}
+                          </Badge>
+                        </div>
+                      </CardHeader>
+                      <CardContent>
+                        <div className="space-y-4">
+                          <div className="flex items-center text-sm text-muted-foreground">
+                            <Presentation className="mr-2 h-4 w-4" />
+                            {team._count.boards} board{team._count.boards !== 1 ? "s" : ""}
+                          </div>
+                          <div className="flex gap-2">
+                            <Button asChild size="sm" className="flex-1">
+                              <Link href={`/teams/${team.id}`}>View Team</Link>
+                            </Button>
+                            <Button asChild size="sm" variant="outline" className="flex-1">
+                              <Link href={`/boards/new?teamId=${team.id}&from=/dashboard`}>New Board</Link>
+                            </Button>
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  );
+                })}
+              </div>
+            </>
+          )}
+        </CardContent>
+      </Card>
       </div>
     </div>
   );

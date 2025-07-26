@@ -4,8 +4,8 @@ import { redirect, notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import Link from "next/link";
-import { ArrowLeft, Settings, Users, Calendar } from "lucide-react";
+import { Settings, Users, Calendar } from "lucide-react";
+import { SmartBackButton } from "@/components/navigation/smart-back-button";
 import { BoardCanvas } from "@/components/board/board-canvas";
 import { BoardPresence } from "@/components/board/board-presence";
 import { BoardTimer } from "@/components/board/timer-component";
@@ -134,11 +134,7 @@ export default async function BoardPage({
       {/* Header */}
       <div className="flex items-center justify-between p-4 border-b bg-background">
         <div className="flex items-center gap-4">
-          <Button variant="ghost" size="icon" asChild>
-            <Link href="/boards">
-              <ArrowLeft className="h-4 w-4" />
-            </Link>
-          </Button>
+          <SmartBackButton fallbackPath="/boards" />
           <div>
             <h1 className="text-2xl font-bold">{board.title}</h1>
             <div className="flex items-center gap-4 text-sm text-muted-foreground">
