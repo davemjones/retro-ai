@@ -19,6 +19,7 @@ export async function PATCH(
       );
     }
 
+    const requestBody = await req.json();
     const { 
       content, 
       color, 
@@ -29,7 +30,18 @@ export async function PATCH(
       insertAfterStickyId,
       insertBeforeStickyId,
       insertAtPosition
-    } = await req.json();
+    } = requestBody;
+
+    // Debug logging for move intent
+    if (columnId !== undefined) {
+      console.log(`[STICKY-MOVE] ${stickyId} -> Column: ${columnId || 'unassigned'}`);
+      console.log(`[STICKY-MOVE] Move intent:`, {
+        insertAfterStickyId,
+        insertBeforeStickyId,
+        insertAtPosition
+      });
+      console.log(`[STICKY-MOVE] Full request body:`, requestBody);
+    }
 
     // Find the sticky note
     const sticky = await prisma.sticky.findUnique({
@@ -90,7 +102,12 @@ export async function PATCH(
         ...(insertAtPosition && { insertAtPosition })
       };
 
+      console.log(`[STICKY-MOVE] Existing stickies in column:`, existingStickies.length);
+      console.log(`[STICKY-MOVE] Calculated move intent:`, moveIntent);
+
       newOrder = calculateStickyOrder(existingStickies, moveIntent);
+      
+      console.log(`[STICKY-MOVE] Calculated new order:`, newOrder);
     }
     
     // Update sticky note

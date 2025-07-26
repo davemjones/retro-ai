@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { calculateStickyOrder } from "@/lib/lexicographic-order";
 
 export async function POST(req: Request) {
   try {
@@ -51,6 +52,39 @@ export async function POST(req: Request) {
       );
     }
 
+    // Calculate order for new sticky
+    let order = 1000.0; // Default for empty columns
+    
+    if (columnId) {
+      // Get existing stickies in the target column
+      const existingStickies = await prisma.sticky.findMany({
+        where: { columnId },
+        select: { id: true, order: true },
+        orderBy: { order: 'asc' }
+      });
+      
+      // Append to end of column
+      order = calculateStickyOrder(existingStickies, {
+        targetColumnId: columnId,
+        insertAtPosition: 'end'
+      });
+    } else {
+      // For unassigned stickies, get existing unassigned stickies
+      const existingUnassigned = await prisma.sticky.findMany({
+        where: { boardId, columnId: null },
+        select: { id: true, order: true },
+        orderBy: { order: 'asc' }
+      });
+      
+      // Append to end of unassigned area
+      if (existingUnassigned.length > 0) {
+        order = calculateStickyOrder(existingUnassigned, {
+          targetColumnId: null,
+          insertAtPosition: 'end'
+        });
+      }
+    }
+
     // Create sticky note
     const sticky = await prisma.sticky.create({
       data: {
@@ -60,6 +94,7 @@ export async function POST(req: Request) {
         columnId: columnId || null,
         positionX: positionX || 0,
         positionY: positionY || 0,
+        order,
         authorId: session.user.id,
       },
       include: {

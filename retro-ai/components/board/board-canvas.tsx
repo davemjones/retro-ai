@@ -703,6 +703,51 @@ export function BoardCanvas({ board, columns: initialColumns, userId, isOwner }:
       (item) => item.id === overId
     );
 
+    // Calculate move intent BEFORE updating local state for server-side order calculation
+    const targetColumnId = overContainer === "unassigned" ? null : overContainer;
+    
+    // Get original items before any state changes
+    const originalOverItems = getItemsForContainer(overContainer);
+    const moveIntent: {
+      columnId: string | null;
+      insertAfterStickyId?: string;
+      insertBeforeStickyId?: string;
+      insertAtPosition?: 'start' | 'end';
+    } = { columnId: targetColumnId };
+    
+    if (activeContainer === overContainer) {
+      // Moving within the same container - use original items to calculate position
+      if (overIndex === 0) {
+        moveIntent.insertAtPosition = 'start';
+      } else if (overIndex >= originalOverItems.length) {
+        moveIntent.insertAtPosition = 'end';
+      } else {
+        // Insert after the item that will be at overIndex-1 after removal
+        let targetIndex = overIndex;
+        if (overIndex > activeIndex) {
+          // When moving down, the target position shifts because we remove the active item first
+          targetIndex = overIndex - 1;
+        }
+        
+        if (targetIndex > 0) {
+          const targetSticky = originalOverItems[targetIndex - 1];
+          moveIntent.insertAfterStickyId = targetSticky.id;
+        } else {
+          moveIntent.insertAtPosition = 'start';
+        }
+      }
+    } else {
+      // Moving between different containers
+      if (overId === overContainer) {
+        // Dropped on the container itself - append to end
+        moveIntent.insertAtPosition = 'end';
+      } else {
+        // Dropped on a specific sticky - insert after it
+        moveIntent.insertAfterStickyId = overId;
+      }
+    }
+
+    // Now update the local state for immediate UI feedback
     if (activeContainer === overContainer) {
       // Moving within the same container
       setColumns((columns) => {
@@ -725,47 +770,8 @@ export function BoardCanvas({ board, columns: initialColumns, userId, isOwner }:
       // Mark this as a local movement to prevent echo
       isLocalMovement.current = true;
       
-      const targetColumnId = overContainer === "unassigned" ? null : overContainer;
+      console.log("Sending move intent:", moveIntent);
       
-      // Calculate move intent for server-side order calculation
-      const overItems = getItemsForContainer(overContainer);
-      const moveIntent: {
-        columnId: string | null;
-        insertAfterStickyId?: string;
-        insertBeforeStickyId?: string;
-        insertAtPosition?: 'start' | 'end';
-      } = { columnId: targetColumnId };
-      
-      if (activeContainer === overContainer) {
-        // Moving within the same container - determine position relative to other items
-        if (overIndex > activeIndex) {
-          // Moving down - insert after the item that was originally at overIndex
-          const targetSticky = overItems[overIndex];
-          if (targetSticky) {
-            moveIntent.insertAfterStickyId = targetSticky.id;
-          } else {
-            moveIntent.insertAtPosition = 'end';
-          }
-        } else if (overIndex < activeIndex) {
-          // Moving up - insert before the item at overIndex
-          const targetSticky = overItems[overIndex];
-          if (targetSticky) {
-            moveIntent.insertBeforeStickyId = targetSticky.id;
-          } else {
-            moveIntent.insertAtPosition = 'start';
-          }
-        }
-      } else {
-        // Moving between different containers
-        if (overId === overContainer) {
-          // Dropped on the container itself - append to end
-          moveIntent.insertAtPosition = 'end';
-        } else {
-          // Dropped on a specific sticky - insert after it
-          moveIntent.insertAfterStickyId = overId;
-        }
-      }
-
       const response = await fetch(`/api/stickies/${activeId}`, {
         method: "PATCH",
         headers: {
