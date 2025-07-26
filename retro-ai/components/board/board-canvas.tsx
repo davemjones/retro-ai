@@ -842,6 +842,36 @@ export function BoardCanvas({ board, columns: initialColumns, userId, isOwner }:
 
       console.log(`[LOCAL-USER] Server calculated order ${calculatedOrder} for sticky ${activeId}`);
 
+      // Update local state with server-calculated order
+      if (targetColumnId === null) {
+        // Update unassigned stickies with correct order
+        setUnassignedStickies(prev => 
+          prev.map(sticky => 
+            sticky.id === activeId 
+              ? { ...sticky, order: calculatedOrder }
+              : sticky
+          ).sort((a, b) => a.order - b.order)
+        );
+        console.log(`[LOCAL-USER] Updated local unassigned sticky ${activeId} with order ${calculatedOrder}`);
+      } else {
+        // Update column stickies with correct order
+        setColumns(prevColumns => 
+          prevColumns.map(column => 
+            column.id === targetColumnId
+              ? {
+                  ...column,
+                  stickies: column.stickies.map(sticky =>
+                    sticky.id === activeId
+                      ? { ...sticky, order: calculatedOrder }
+                      : sticky
+                  ).sort((a, b) => a.order - b.order)
+                }
+              : column
+          )
+        );
+        console.log(`[LOCAL-USER] Updated local column sticky ${activeId} with order ${calculatedOrder}`);
+      }
+
       // Emit socket event with server-calculated order
       if (isConnected) {
         emitStickyMoved({
