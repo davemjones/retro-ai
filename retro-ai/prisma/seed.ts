@@ -119,9 +119,9 @@ async function main() {
         name: team.name,
         code: team.code,
         members: {
-          create: team.members.map(index => ({
+          create: team.members.map((index, memberIndex) => ({
             userId: createdUsers[index].id,
-            role: "MEMBER"
+            role: memberIndex === 0 ? "OWNER" : "MEMBER"
           }))
         }
       },
