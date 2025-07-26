@@ -8,7 +8,7 @@ import { Plus, Users, Presentation } from "lucide-react";
 import { prisma } from "@/lib/prisma";
 
 async function getUserStats(userId: string) {
-  const [recentBoards, teamCount] = await Promise.all([
+  const [recentBoards, userTeams] = await Promise.all([
     // Get recent boards where user is a team member
     prisma.board.findMany({
       where: {
@@ -35,8 +35,8 @@ async function getUserStats(userId: string) {
       },
       take: 3, // Only get the 3 most recent
     }),
-    // Count teams where user is a member
-    prisma.team.count({
+    // Get teams where user is a member with details
+    prisma.team.findMany({
       where: {
         members: {
           some: {
@@ -44,10 +44,25 @@ async function getUserStats(userId: string) {
           },
         },
       },
+      include: {
+        members: {
+          include: {
+            user: true,
+          },
+        },
+        _count: {
+          select: {
+            boards: true,
+          },
+        },
+      },
+      orderBy: {
+        createdAt: "desc",
+      },
     }),
   ]);
 
-  // We'll also get the total count from a separate query
+  // Get the total board count from a separate query
   const boardCount = await prisma.board.count({
     where: {
       team: {
@@ -61,7 +76,7 @@ async function getUserStats(userId: string) {
     },
   });
 
-  return { recentBoards, boardCount, teamCount };
+  return { recentBoards, boardCount, userTeams, teamCount: userTeams.length };
 }
 
 export default async function DashboardPage() {
@@ -71,7 +86,7 @@ export default async function DashboardPage() {
     redirect("/");
   }
 
-  const { recentBoards, boardCount, teamCount } = await getUserStats(session.user.id);
+  const { recentBoards, boardCount, userTeams, teamCount } = await getUserStats(session.user.id);
 
   return (
     <div className="h-full overflow-y-auto">
@@ -85,21 +100,8 @@ export default async function DashboardPage() {
         </p>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-2">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Teams</CardTitle>
-            <Users className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{teamCount}</div>
-            <p className="text-xs text-muted-foreground">
-              {teamCount === 0 ? "Join or create a team" : "Manage team settings"}
-            </p>
-          </CardContent>
-        </Card>
-
-        <Card>
+      <div className="flex justify-center">
+        <Card className="w-full max-w-md">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Quick Actions</CardTitle>
             <Plus className="h-4 w-4 text-muted-foreground" />
@@ -185,29 +187,81 @@ export default async function DashboardPage() {
         </CardContent>
       </Card>
 
-      {/* Teams Section */}
+      {/* Unified Teams Section */}
       <Card>
-        <CardHeader>
-          <CardTitle>Your Teams</CardTitle>
-          <CardDescription>
-            Teams you&apos;re a member of
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <p className="text-sm text-muted-foreground text-center py-6">
-            You&apos;re not part of any teams yet.
-          </p>
-          <div className="flex justify-center gap-2">
-            <Button asChild>
+        <CardHeader className="flex flex-row items-center justify-between">
+          <div>
+            <CardTitle className="flex items-center gap-2">
+              <Users className="h-5 w-5" />
+              Teams
+              <span className="text-lg font-normal text-muted-foreground">({teamCount})</span>
+            </CardTitle>
+            <CardDescription>
+              Your team memberships
+            </CardDescription>
+          </div>
+          <div className="flex gap-2">
+            <Button asChild variant="outline" size="sm">
+              <Link href="/teams/join">
+                Join Team
+              </Link>
+            </Button>
+            <Button asChild size="sm">
               <Link href="/teams/new">
                 <Plus className="mr-2 h-4 w-4" />
                 Create Team
               </Link>
             </Button>
-            <Button asChild variant="outline">
-              <Link href="/teams/join">Join Team</Link>
-            </Button>
           </div>
+        </CardHeader>
+        <CardContent>
+          {userTeams.length === 0 ? (
+            <div className="text-center py-8">
+              <p className="text-sm text-muted-foreground mb-4">
+                You&apos;re not part of any teams yet.
+              </p>
+              <div className="flex justify-center gap-2">
+                <Button asChild>
+                  <Link href="/teams/new">
+                    <Plus className="mr-2 h-4 w-4" />
+                    Create Your First Team
+                  </Link>
+                </Button>
+                <Button asChild variant="outline">
+                  <Link href="/teams/join">Join Team</Link>
+                </Button>
+              </div>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {userTeams.map((team) => (
+                <div key={team.id} className="flex items-center justify-between p-3 rounded-lg border hover:bg-muted/50 transition-colors">
+                  <div className="flex-1">
+                    <Link href={`/teams/${team.id}`} className="block">
+                      <h4 className="font-medium hover:text-primary transition-colors">{team.name}</h4>
+                      <div className="flex items-center gap-4 text-xs text-muted-foreground mt-1">
+                        <span>{team.members.length} member{team.members.length !== 1 ? 's' : ''}</span>
+                        <span>{team._count.boards} board{team._count.boards !== 1 ? 's' : ''}</span>
+                        <span>Created {new Date(team.createdAt).toLocaleDateString()}</span>
+                      </div>
+                    </Link>
+                  </div>
+                  <Button asChild variant="ghost" size="sm">
+                    <Link href={`/teams/${team.id}`}>
+                      View
+                    </Link>
+                  </Button>
+                </div>
+              ))}
+              <div className="pt-2 border-t">
+                <Button asChild variant="outline" className="w-full">
+                  <Link href="/teams">
+                    View All Teams
+                  </Link>
+                </Button>
+              </div>
+            </div>
+          )}
         </CardContent>
       </Card>
       </div>
