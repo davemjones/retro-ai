@@ -111,22 +111,44 @@ async function main() {
 
   const createdTeams = [];
 
-  for (const team of teamData) {
-    const createdTeam = await prisma.team.upsert({
-      where: { code: team.code },
-      update: {},
+  for (const teamInfo of teamData) {
+    // First, create or find the team (without members)
+    const team = await prisma.team.upsert({
+      where: { code: teamInfo.code },
+      update: {
+        name: teamInfo.name, // Update name in case it changed
+      },
       create: {
-        name: team.name,
-        code: team.code,
-        members: {
-          create: team.members.map((index, memberIndex) => ({
-            userId: createdUsers[index].id,
-            role: memberIndex === 0 ? "OWNER" : "MEMBER"
-          }))
-        }
+        name: teamInfo.name,
+        code: teamInfo.code,
       },
     });
-    createdTeams.push(createdTeam);
+
+    // Then handle each team member individually to ensure proper role assignment
+    for (let memberIndex = 0; memberIndex < teamInfo.members.length; memberIndex++) {
+      const userIndex = teamInfo.members[memberIndex];
+      const userId = createdUsers[userIndex].id;
+      const role = memberIndex === 0 ? "OWNER" : "MEMBER";
+
+      await prisma.teamMember.upsert({
+        where: {
+          userId_teamId: {
+            userId: userId,
+            teamId: team.id
+          }
+        },
+        update: {
+          role: role // Update the role even if the member already exists
+        },
+        create: {
+          userId: userId,
+          teamId: team.id,
+          role: role
+        }
+      });
+    }
+
+    createdTeams.push(team);
   }
 
   console.log(`Created ${createdTeams.length} teams`);
