@@ -156,8 +156,8 @@ export function StickyNote({ sticky, userId, moveIndicator: propMoveIndicator }:
                 <span className="text-xs text-muted-foreground">
                   {sticky.author.name || sticky.author.email}
                 </span>
-                <Avatar className="h-5 w-5">
-                  <AvatarFallback className="text-xs">
+                <Avatar className="h-7 w-7">
+                  <AvatarFallback className="text-sm">
                     {getInitials(sticky.author.name || '') || 
                      getInitials(sticky.author.email) || "U"}
                   </AvatarFallback>
@@ -180,8 +180,8 @@ export function StickyNote({ sticky, userId, moveIndicator: propMoveIndicator }:
                   <span className="text-xs text-muted-foreground">Edited by</span>
                   <div className="flex items-center gap-1">
                     {sticky.editors!.map((editor) => (
-                      <Avatar key={editor.id} className="h-5 w-5">
-                        <AvatarFallback className="text-xs">
+                      <Avatar key={editor.id} className="h-7 w-7">
+                        <AvatarFallback className="text-sm">
                           {getInitials(editor.name || '') || 
                            getInitials(editor.email) || "U"}
                         </AvatarFallback>
