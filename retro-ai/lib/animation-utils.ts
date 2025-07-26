@@ -9,7 +9,7 @@ export interface AnimationOptions {
 
 export const DEFAULT_ANIMATION_OPTIONS: AnimationOptions = {
   duration: 300,
-  easing: 'cubic-bezier(0.2, 0, 0.2, 1)',
+  easing: "cubic-bezier(0.2, 0, 0.2, 1)",
 };
 
 /**
@@ -23,27 +23,29 @@ export function calculateTargetTransform(
   if (!targetColumnId) {
     // Moving to unassigned area
     const unassignedArea = document.querySelector('[data-area="unassigned"]');
-    if (!unassignedArea) return 'translate(0, 0)';
-    
+    if (!unassignedArea) return "translate(0, 0)";
+
     const targetRect = unassignedArea.getBoundingClientRect();
     const currentRect = stickyElement.getBoundingClientRect();
-    
+
     const deltaX = targetRect.left - currentRect.left + 20; // Add some padding
     const deltaY = targetRect.top - currentRect.top + 20;
-    
+
     return `translate(${deltaX}px, ${deltaY}px)`;
   }
-  
+
   // Moving to a specific column
-  const targetColumn = document.querySelector(`[data-column-id="${targetColumnId}"]`);
-  if (!targetColumn) return 'translate(0, 0)';
-  
+  const targetColumn = document.querySelector(
+    `[data-column-id="${targetColumnId}"]`
+  );
+  if (!targetColumn) return "translate(0, 0)";
+
   const targetRect = targetColumn.getBoundingClientRect();
   const currentRect = stickyElement.getBoundingClientRect();
-  
+
   const deltaX = targetRect.left - currentRect.left + 20; // Add padding to avoid edge
   const deltaY = targetRect.top - currentRect.top + 60; // Account for column header
-  
+
   return `translate(${deltaX}px, ${deltaY}px)`;
 }
 
@@ -66,13 +68,15 @@ export async function animateStickyMovementFLIP(
   options: AnimationOptions = {}
 ): Promise<void> {
   const { duration } = { ...DEFAULT_ANIMATION_OPTIONS, ...options };
-  
+
   // Check if user prefers reduced motion
-  if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+  if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
     return; // Skip animation
   }
 
-  const stickyElement = document.querySelector(`[data-sticky-id="${stickyId}"]`) as HTMLElement;
+  const stickyElement = document.querySelector(
+    `[data-sticky-id="${stickyId}"]`
+  ) as HTMLElement;
   if (!stickyElement) {
     console.warn(`Sticky element not found for FLIP animation: ${stickyId}`);
     return;
@@ -80,19 +84,21 @@ export async function animateStickyMovementFLIP(
 
   // Additional safety check - ensure element is still in DOM
   if (!document.body.contains(stickyElement)) {
-    console.warn(`Sticky element ${stickyId} is not in DOM, skipping animation`);
+    console.warn(
+      `Sticky element ${stickyId} is not in DOM, skipping animation`
+    );
     return;
   }
 
   // FLIP: First, Last, Invert, Play
-  
+
   // LAST: Get the final position (after React state update)
   const lastPosition = stickyElement.getBoundingClientRect();
-  
+
   // INVERT: Calculate the difference and apply reverse transform
   const deltaX = fromPosition.left - lastPosition.left;
   const deltaY = fromPosition.top - lastPosition.top;
-  
+
   // Don't animate if there's no movement
   if (Math.abs(deltaX) < 1 && Math.abs(deltaY) < 1) {
     return;
@@ -101,13 +107,13 @@ export async function animateStickyMovementFLIP(
   // When switching to position: fixed, we need to account for coordinate system change
   const currentScrollX = window.scrollX || document.documentElement.scrollLeft;
   const currentScrollY = window.scrollY || document.documentElement.scrollTop;
-  
+
   // Apply the inverted transform immediately (puts it back to start position visually)
-  stickyElement.style.transition = 'none';
+  stickyElement.style.transition = "none";
   stickyElement.style.left = `${fromPosition.left + currentScrollX}px`;
   stickyElement.style.top = `${fromPosition.top + currentScrollY}px`;
-  stickyElement.style.transform = 'translate(0, 0)';
-  stickyElement.classList.add('sticky-remote-moving');
+  stickyElement.style.transform = "translate(0, 0)";
+  stickyElement.classList.add("sticky-remote-moving");
 
   // Force a reflow to ensure the transform is applied
   void stickyElement.offsetHeight;
@@ -115,12 +121,15 @@ export async function animateStickyMovementFLIP(
   // PLAY: Animate to the final position (transform: none)
   return new Promise((resolve) => {
     const cleanup = () => {
-      stickyElement.classList.remove('sticky-remote-moving');
-      stickyElement.style.transition = '';
-      stickyElement.style.transform = '';
-      stickyElement.style.left = '';
-      stickyElement.style.top = '';
-      stickyElement.style.position = '';
+      stickyElement.classList.remove(
+        "sticky-remote-moving",
+        "sticky-remote-settling"
+      );
+      stickyElement.style.transition = "";
+      stickyElement.style.transform = "";
+      stickyElement.style.left = "";
+      stickyElement.style.top = "";
+      stickyElement.style.position = "";
       resolve();
     };
 
@@ -129,18 +138,40 @@ export async function animateStickyMovementFLIP(
     stickyElement.style.left = `${lastPosition.left + currentScrollX}px`;
     stickyElement.style.top = `${lastPosition.top + currentScrollY}px`;
 
-    // Listen for transition end
+    // Listen for transition end to apply settling animation
     const onTransitionEnd = (event: TransitionEvent) => {
-      if (event.target === stickyElement && (event.propertyName === 'left' || event.propertyName === 'top')) {
-        cleanup();
-        stickyElement.removeEventListener('transitionend', onTransitionEnd as EventListener);
+      if (
+        event.target === stickyElement &&
+        (event.propertyName === "left" || event.propertyName === "top")
+      ) {
+        // Remove positioning properties immediately to avoid layout conflicts
+        stickyElement.style.left = "";
+        stickyElement.style.top = "";
+        stickyElement.style.position = "";
+        
+        // Switch to settling class for smooth scale transition
+        stickyElement.classList.remove("sticky-remote-moving");
+        stickyElement.classList.add("sticky-remote-settling");
+
+        // Clean up after settling animation completes
+        setTimeout(() => {
+          cleanup();
+        }, 400); // Matches the settling transition duration
+
+        stickyElement.removeEventListener(
+          "transitionend",
+          onTransitionEnd as EventListener
+        );
       }
     };
 
-    stickyElement.addEventListener('transitionend', onTransitionEnd as EventListener);
+    stickyElement.addEventListener(
+      "transitionend",
+      onTransitionEnd as EventListener
+    );
 
     // Fallback timeout
-    setTimeout(cleanup, (duration || 300) + 50);
+    setTimeout(cleanup, (duration || 300) + 450); // Extra time for settling
   });
 }
 
@@ -149,7 +180,7 @@ export async function animateStickyMovementFLIP(
  * @deprecated Use animateStickyMovementFLIP instead
  */
 export async function animateStickyMovement(): Promise<void> {
-  console.warn('animateStickyMovement is deprecated, use FLIP pattern instead');
+  console.warn("animateStickyMovement is deprecated, use FLIP pattern instead");
   // For now, just skip the animation to prevent conflicts
   return Promise.resolve();
 }
@@ -158,19 +189,21 @@ export async function animateStickyMovement(): Promise<void> {
  * Applies entering animation to a newly created sticky note
  */
 export function animateStickyEntering(stickyId: string): void {
-  const stickyElement = document.querySelector(`[data-sticky-id="${stickyId}"]`) as HTMLElement;
+  const stickyElement = document.querySelector(
+    `[data-sticky-id="${stickyId}"]`
+  ) as HTMLElement;
   if (!stickyElement) return;
 
   // Check if user prefers reduced motion
-  if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+  if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
     return; // Skip animation
   }
 
-  stickyElement.classList.add('sticky-remote-entering');
-  
+  stickyElement.classList.add("sticky-remote-entering");
+
   // Remove the class after animation completes
   setTimeout(() => {
-    stickyElement.classList.remove('sticky-remote-entering');
+    stickyElement.classList.remove("sticky-remote-entering");
   }, 250);
 }
 
@@ -178,20 +211,22 @@ export function animateStickyEntering(stickyId: string): void {
  * Applies leaving animation before removing a sticky note
  */
 export async function animateStickyLeaving(stickyId: string): Promise<void> {
-  const stickyElement = document.querySelector(`[data-sticky-id="${stickyId}"]`) as HTMLElement;
+  const stickyElement = document.querySelector(
+    `[data-sticky-id="${stickyId}"]`
+  ) as HTMLElement;
   if (!stickyElement) return;
 
   // Check if user prefers reduced motion
-  if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+  if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
     return; // Skip animation
   }
 
-  stickyElement.classList.add('sticky-remote-leaving');
-  
+  stickyElement.classList.add("sticky-remote-leaving");
+
   // Return promise that resolves when animation completes
   return new Promise((resolve) => {
     setTimeout(() => {
-      stickyElement.classList.remove('sticky-remote-leaving');
+      stickyElement.classList.remove("sticky-remote-leaving");
       resolve();
     }, 200);
   });
@@ -201,12 +236,16 @@ export async function animateStickyLeaving(stickyId: string): Promise<void> {
  * Utility to check if an element is currently animating
  */
 export function isElementAnimating(stickyId: string): boolean {
-  const stickyElement = document.querySelector(`[data-sticky-id="${stickyId}"]`);
+  const stickyElement = document.querySelector(
+    `[data-sticky-id="${stickyId}"]`
+  );
   if (!stickyElement) return false;
-  
-  return stickyElement.classList.contains('sticky-remote-moving') ||
-         stickyElement.classList.contains('sticky-remote-entering') ||
-         stickyElement.classList.contains('sticky-remote-leaving');
+
+  return (
+    stickyElement.classList.contains("sticky-remote-moving") ||
+    stickyElement.classList.contains("sticky-remote-entering") ||
+    stickyElement.classList.contains("sticky-remote-leaving")
+  );
 }
 
 /**
@@ -226,27 +265,27 @@ class AnimationQueue {
           reject(error);
         }
       });
-      
+
       this.process();
     });
   }
 
   private async process(): Promise<void> {
     if (this.processing || this.queue.length === 0) return;
-    
+
     this.processing = true;
-    
+
     while (this.queue.length > 0) {
       const animation = this.queue.shift();
       if (animation) {
         try {
           await animation();
         } catch (error) {
-          console.error('Animation error:', error);
+          console.error("Animation error:", error);
         }
       }
     }
-    
+
     this.processing = false;
   }
 }
