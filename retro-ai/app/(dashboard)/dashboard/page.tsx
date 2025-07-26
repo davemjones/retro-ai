@@ -8,9 +8,9 @@ import { Plus, Users, Presentation } from "lucide-react";
 import { prisma } from "@/lib/prisma";
 
 async function getUserStats(userId: string) {
-  const [boardCount, teamCount] = await Promise.all([
-    // Count boards where user is a team member
-    prisma.board.count({
+  const [recentBoards, teamCount] = await Promise.all([
+    // Get recent boards where user is a team member
+    prisma.board.findMany({
       where: {
         team: {
           members: {
@@ -21,6 +21,19 @@ async function getUserStats(userId: string) {
         },
         isArchived: false,
       },
+      include: {
+        team: true,
+        template: true,
+        _count: {
+          select: {
+            stickies: true,
+          },
+        },
+      },
+      orderBy: {
+        updatedAt: "desc",
+      },
+      take: 3, // Only get the 3 most recent
     }),
     // Count teams where user is a member
     prisma.team.count({
@@ -34,7 +47,21 @@ async function getUserStats(userId: string) {
     }),
   ]);
 
-  return { boardCount, teamCount };
+  // We'll also get the total count from a separate query
+  const boardCount = await prisma.board.count({
+    where: {
+      team: {
+        members: {
+          some: {
+            userId: userId,
+          },
+        },
+      },
+      isArchived: false,
+    },
+  });
+
+  return { recentBoards, boardCount, teamCount };
 }
 
 export default async function DashboardPage() {
@@ -44,7 +71,7 @@ export default async function DashboardPage() {
     redirect("/");
   }
 
-  const { boardCount, teamCount } = await getUserStats(session.user.id);
+  const { recentBoards, boardCount, teamCount } = await getUserStats(session.user.id);
 
   return (
     <div className="h-full overflow-y-auto">
@@ -58,20 +85,7 @@ export default async function DashboardPage() {
         </p>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Boards</CardTitle>
-            <Presentation className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{boardCount}</div>
-            <p className="text-xs text-muted-foreground">
-              {boardCount === 0 ? "Create your first board" : "View all boards"}
-            </p>
-          </CardContent>
-        </Card>
-        
+      <div className="grid gap-4 md:grid-cols-2">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Teams</CardTitle>
@@ -103,54 +117,99 @@ export default async function DashboardPage() {
         </Card>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-2">
-        <Card>
-          <CardHeader>
-            <CardTitle>Recent Boards</CardTitle>
+      {/* Unified Boards Section */}
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between">
+          <div>
+            <CardTitle className="flex items-center gap-2">
+              <Presentation className="h-5 w-5" />
+              Boards
+              <span className="text-lg font-normal text-muted-foreground">({boardCount})</span>
+            </CardTitle>
             <CardDescription>
-              Your recently accessed retrospective boards
+              Your retrospective boards
             </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <p className="text-sm text-muted-foreground text-center py-6">
-              No boards yet. Create your first board to get started!
-            </p>
-            <div className="flex justify-center">
+          </div>
+          <Button asChild>
+            <Link href="/boards/new">
+              <Plus className="mr-2 h-4 w-4" />
+              New Board
+            </Link>
+          </Button>
+        </CardHeader>
+        <CardContent>
+          {recentBoards.length === 0 ? (
+            <div className="text-center py-8">
+              <p className="text-sm text-muted-foreground mb-4">
+                No boards yet. Create your first board to get started!
+              </p>
               <Button asChild>
                 <Link href="/boards/new">
                   <Plus className="mr-2 h-4 w-4" />
-                  Create Board
+                  Create Your First Board
                 </Link>
               </Button>
             </div>
-          </CardContent>
-        </Card>
+          ) : (
+            <div className="space-y-3">
+              {recentBoards.map((board) => (
+                <div key={board.id} className="flex items-center justify-between p-3 rounded-lg border hover:bg-muted/50 transition-colors">
+                  <div className="flex-1">
+                    <Link href={`/boards/${board.id}`} className="block">
+                      <h4 className="font-medium hover:text-primary transition-colors">{board.title}</h4>
+                      <div className="flex items-center gap-4 text-xs text-muted-foreground mt-1">
+                        <span>{board.team.name}</span>
+                        <span>{board._count.stickies} sticky note{board._count.stickies !== 1 ? 's' : ''}</span>
+                        <span>Updated {new Date(board.updatedAt).toLocaleDateString()}</span>
+                      </div>
+                    </Link>
+                  </div>
+                  <Button asChild variant="ghost" size="sm">
+                    <Link href={`/boards/${board.id}`}>
+                      Open
+                    </Link>
+                  </Button>
+                </div>
+              ))}
+              {boardCount > 3 && (
+                <div className="pt-2 border-t">
+                  <Button asChild variant="outline" className="w-full">
+                    <Link href="/boards">
+                      View All {boardCount} Boards
+                    </Link>
+                  </Button>
+                </div>
+              )}
+            </div>
+          )}
+        </CardContent>
+      </Card>
 
-        <Card>
-          <CardHeader>
-            <CardTitle>Your Teams</CardTitle>
-            <CardDescription>
-              Teams you&apos;re a member of
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <p className="text-sm text-muted-foreground text-center py-6">
-              You&apos;re not part of any teams yet.
-            </p>
-            <div className="flex justify-center gap-2">
-              <Button asChild>
-                <Link href="/teams/new">
-                  <Plus className="mr-2 h-4 w-4" />
-                  Create Team
-                </Link>
-              </Button>
-              <Button asChild variant="outline">
-                <Link href="/teams/join">Join Team</Link>
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
+      {/* Teams Section */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Your Teams</CardTitle>
+          <CardDescription>
+            Teams you&apos;re a member of
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <p className="text-sm text-muted-foreground text-center py-6">
+            You&apos;re not part of any teams yet.
+          </p>
+          <div className="flex justify-center gap-2">
+            <Button asChild>
+              <Link href="/teams/new">
+                <Plus className="mr-2 h-4 w-4" />
+                Create Team
+              </Link>
+            </Button>
+            <Button asChild variant="outline">
+              <Link href="/teams/join">Join Team</Link>
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
       </div>
     </div>
   );
