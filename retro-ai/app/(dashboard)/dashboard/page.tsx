@@ -5,13 +5,46 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
 import { Plus, Users, Presentation } from "lucide-react";
+import { prisma } from "@/lib/prisma";
+
+async function getUserStats(userId: string) {
+  const [boardCount, teamCount] = await Promise.all([
+    // Count boards where user is a team member
+    prisma.board.count({
+      where: {
+        team: {
+          members: {
+            some: {
+              userId: userId,
+            },
+          },
+        },
+        isArchived: false,
+      },
+    }),
+    // Count teams where user is a member
+    prisma.team.count({
+      where: {
+        members: {
+          some: {
+            userId: userId,
+          },
+        },
+      },
+    }),
+  ]);
+
+  return { boardCount, teamCount };
+}
 
 export default async function DashboardPage() {
   const session = await getServerSession(authOptions);
 
-  if (!session) {
+  if (!session?.user?.id) {
     redirect("/");
   }
+
+  const { boardCount, teamCount } = await getUserStats(session.user.id);
 
   return (
     <div className="h-full overflow-y-auto">
@@ -32,9 +65,9 @@ export default async function DashboardPage() {
             <Presentation className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">0</div>
+            <div className="text-2xl font-bold">{boardCount}</div>
             <p className="text-xs text-muted-foreground">
-              No boards created yet
+              {boardCount === 0 ? "No boards created yet" : `${boardCount} board${boardCount === 1 ? '' : 's'} available`}
             </p>
           </CardContent>
         </Card>
@@ -45,9 +78,9 @@ export default async function DashboardPage() {
             <Users className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">0</div>
+            <div className="text-2xl font-bold">{teamCount}</div>
             <p className="text-xs text-muted-foreground">
-              Join or create a team
+              {teamCount === 0 ? "Join or create a team" : `Member of ${teamCount} team${teamCount === 1 ? '' : 's'}`}
             </p>
           </CardContent>
         </Card>
