@@ -14,7 +14,8 @@ export default async function DashboardPage() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="h-full overflow-y-auto">
+      <div className="container mx-auto p-6 space-y-6">
       <div>
         <h2 className="text-3xl font-bold tracking-tight">
           Welcome back, {session.user?.name || "User"}!
@@ -129,6 +130,7 @@ export default async function DashboardPage() {
             </div>
           </CardContent>
         </Card>
+      </div>
       </div>
     </div>
   );
