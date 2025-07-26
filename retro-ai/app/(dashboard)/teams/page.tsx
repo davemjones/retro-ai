@@ -44,7 +44,8 @@ export default async function TeamsPage() {
   const teams = await getUserTeams(session.user.id);
 
   return (
-    <div className="space-y-6">
+    <div className="h-full overflow-y-auto">
+      <div className="container mx-auto p-6 space-y-6">
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-3xl font-bold tracking-tight">Teams</h2>
@@ -125,6 +126,7 @@ export default async function TeamsPage() {
           })}
         </div>
       )}
+      </div>
     </div>
   );
 }

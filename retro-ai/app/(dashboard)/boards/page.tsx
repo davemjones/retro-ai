@@ -47,7 +47,8 @@ export default async function BoardsPage() {
   const boards = await getUserBoards(session.user.id);
 
   return (
-    <div className="space-y-6">
+    <div className="h-full overflow-y-auto">
+      <div className="container mx-auto p-6 space-y-6">
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-3xl font-bold tracking-tight">Boards</h2>
@@ -136,6 +137,7 @@ export default async function BoardsPage() {
             View Archived Boards
           </Link>
         </Button>
+      </div>
       </div>
     </div>
   );

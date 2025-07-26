@@ -935,8 +935,8 @@ export function BoardCanvas({ board, columns: initialColumns, userId, isOwner }:
       onDragOver={handleDragOver}
       onDragEnd={handleDragEnd}
     >
-      <div className="h-full p-6 bg-gradient-to-br from-background to-muted/20">
-        <div className="h-full flex gap-6 overflow-x-auto">
+      <div className="h-full p-6 bg-gradient-to-br from-background to-muted/20 overflow-auto">
+        <div className="min-h-full flex gap-6" style={{ minWidth: 'max-content' }}>
           {/* Unassigned Area */}
           <UnassignedArea
             stickies={unassignedStickies}
