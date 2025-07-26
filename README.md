@@ -178,6 +178,25 @@ npx prisma migrate dev # Run migrations
 npx prisma db seed    # Seed database
 ```
 
+### Test Accounts (Development/Staging Only)
+
+The following test accounts are automatically created when seeding the database:
+
+| Email | Password | Team Memberships |
+|-------|----------|------------------|
+| TestUser1@example.com | password | Alpha Team |
+| TestUser2@example.com | password | Alpha Team, Gamma Team |
+| TestUser3@example.com | password | Alpha Team, Gamma Team |
+| TestUser4@example.com | password | Alpha Team, Gamma Team |
+| TestUser5@example.com | password | Alpha Team |
+| TestUser6@example.com | password | Beta Team |
+| TestUser7@example.com | password | Beta Team, Gamma Team |
+| TestUser8@example.com | password | Beta Team |
+| TestUser9@example.com | password | Beta Team, Gamma Team |
+| TestUser10@example.com | password | Beta Team |
+
+**Note**: These accounts are only created in development and staging environments. Each team has a pre-populated retrospective board using the 4Ls template with sample sticky notes.
+
 ### Project Structure
 
 ```
