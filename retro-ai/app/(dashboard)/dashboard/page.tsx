@@ -3,8 +3,9 @@ import { authOptions } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import Link from "next/link";
-import { Plus, Users, Presentation } from "lucide-react";
+import { Plus, Users, Presentation, Calendar } from "lucide-react";
 import { prisma } from "@/lib/prisma";
 
 async function getUserStats(userId: string) {
@@ -134,28 +135,52 @@ export default async function DashboardPage() {
               </Button>
             </div>
           ) : (
-            <div className="space-y-3">
-              {recentBoards.map((board) => (
-                <div key={board.id} className="flex items-center justify-between p-3 rounded-lg border hover:bg-muted/50 transition-colors">
-                  <div className="flex-1">
-                    <Link href={`/boards/${board.id}`} className="block">
-                      <h4 className="font-medium hover:text-primary transition-colors">{board.title}</h4>
-                      <div className="flex items-center gap-4 text-xs text-muted-foreground mt-1">
-                        <span>{board.team.name}</span>
-                        <span>{board._count.stickies} sticky note{board._count.stickies !== 1 ? 's' : ''}</span>
-                        <span>Updated {new Date(board.updatedAt).toLocaleDateString()}</span>
+            <>
+              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                {recentBoards.map((board) => (
+                  <Card key={board.id} className="hover:shadow-lg transition-shadow">
+                    <CardHeader>
+                      <div className="flex items-start justify-between">
+                        <div className="space-y-1">
+                          <CardTitle className="line-clamp-1">{board.title}</CardTitle>
+                          <CardDescription className="line-clamp-2">
+                            {board.description || "No description"}
+                          </CardDescription>
+                        </div>
+                        {board.template && (
+                          <Badge variant="secondary" className="ml-2 shrink-0">
+                            {board.template.name}
+                          </Badge>
+                        )}
                       </div>
-                    </Link>
-                  </div>
-                  <Button asChild variant="ghost" size="sm">
-                    <Link href={`/boards/${board.id}`}>
-                      Open
-                    </Link>
-                  </Button>
-                </div>
-              ))}
+                    </CardHeader>
+                    <CardContent>
+                      <div className="space-y-3">
+                        <div className="flex items-center gap-4 text-sm text-muted-foreground">
+                          <div className="flex items-center">
+                            <Users className="mr-1 h-3 w-3" />
+                            {board.team.name}
+                          </div>
+                          <div className="flex items-center">
+                            <Calendar className="mr-1 h-3 w-3" />
+                            {new Date(board.updatedAt).toLocaleDateString()}
+                          </div>
+                        </div>
+                        <div className="flex items-center justify-between">
+                          <p className="text-sm text-muted-foreground">
+                            {board._count.stickies} sticky note{board._count.stickies !== 1 ? "s" : ""}
+                          </p>
+                          <Button asChild size="sm">
+                            <Link href={`/boards/${board.id}`}>Open Board</Link>
+                          </Button>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
               {boardCount > 3 && (
-                <div className="pt-2 border-t">
+                <div className="pt-4 border-t">
                   <Button asChild variant="outline" className="w-full">
                     <Link href="/boards">
                       View All {boardCount} Boards
@@ -163,7 +188,7 @@ export default async function DashboardPage() {
                   </Button>
                 </div>
               )}
-            </div>
+            </>
           )}
         </CardContent>
       </Card>
@@ -214,34 +239,53 @@ export default async function DashboardPage() {
               </div>
             </div>
           ) : (
-            <div className="space-y-3">
-              {userTeams.map((team) => (
-                <div key={team.id} className="flex items-center justify-between p-3 rounded-lg border hover:bg-muted/50 transition-colors">
-                  <div className="flex-1">
-                    <Link href={`/teams/${team.id}`} className="block">
-                      <h4 className="font-medium hover:text-primary transition-colors">{team.name}</h4>
-                      <div className="flex items-center gap-4 text-xs text-muted-foreground mt-1">
-                        <span>{team.members.length} member{team.members.length !== 1 ? 's' : ''}</span>
-                        <span>{team._count.boards} board{team._count.boards !== 1 ? 's' : ''}</span>
-                        <span>Created {new Date(team.createdAt).toLocaleDateString()}</span>
-                      </div>
-                    </Link>
-                  </div>
-                  <Button asChild variant="ghost" size="sm">
-                    <Link href={`/teams/${team.id}`}>
-                      View
-                    </Link>
-                  </Button>
-                </div>
-              ))}
-              <div className="pt-2 border-t">
+            <>
+              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                {userTeams.map((team) => {
+                  const userMember = team.members.find((m) => m.userId === session.user?.id);
+                  return (
+                    <Card key={team.id}>
+                      <CardHeader>
+                        <div className="flex items-start justify-between">
+                          <div>
+                            <CardTitle>{team.name}</CardTitle>
+                            <CardDescription>
+                              {team.members.length} member{team.members.length !== 1 ? "s" : ""}
+                            </CardDescription>
+                          </div>
+                          <Badge variant={userMember?.role === "OWNER" ? "default" : "secondary"}>
+                            {userMember?.role}
+                          </Badge>
+                        </div>
+                      </CardHeader>
+                      <CardContent>
+                        <div className="space-y-4">
+                          <div className="flex items-center text-sm text-muted-foreground">
+                            <Presentation className="mr-2 h-4 w-4" />
+                            {team._count.boards} board{team._count.boards !== 1 ? "s" : ""}
+                          </div>
+                          <div className="flex gap-2">
+                            <Button asChild size="sm" className="flex-1">
+                              <Link href={`/teams/${team.id}`}>View Team</Link>
+                            </Button>
+                            <Button asChild size="sm" variant="outline" className="flex-1">
+                              <Link href={`/boards/new?teamId=${team.id}`}>New Board</Link>
+                            </Button>
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  );
+                })}
+              </div>
+              <div className="pt-4 border-t">
                 <Button asChild variant="outline" className="w-full">
                   <Link href="/teams">
                     View All Teams
                   </Link>
                 </Button>
               </div>
-            </div>
+            </>
           )}
         </CardContent>
       </Card>
