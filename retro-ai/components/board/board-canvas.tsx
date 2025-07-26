@@ -13,7 +13,6 @@ import {
 } from "@dnd-kit/core";
 import { arrayMove, SortableContext } from "@dnd-kit/sortable";
 import { Column } from "./column";
-import { CreateStickyDialog } from "./create-sticky-dialog";
 import { CreateColumnDialog } from "./create-column-dialog";
 import { StickyNote } from "./sticky-note";
 import { UnassignedArea } from "./unassigned-area";
@@ -166,7 +165,6 @@ export function BoardCanvas({ board, columns: initialColumns, userId, isOwner }:
   const [columns, setColumns] = useState(initialColumns);
   const [unassignedStickies, setUnassignedStickies] = useState(board.stickies);
   const [activeId, setActiveId] = useState<string | null>(null);
-  const [showCreateDialog, setShowCreateDialog] = useState(false);
   const [showCreateColumnDialog, setShowCreateColumnDialog] = useState(false);
   const [moveIndicators, setMoveIndicators] = useState<Record<string, { movedBy: string; timestamp: number }>>({});
   
@@ -975,26 +973,7 @@ export function BoardCanvas({ board, columns: initialColumns, userId, isOwner }:
           )}
         </div>
 
-        {/* Floating Add Button */}
-        <Button
-          className="fixed bottom-6 right-6 h-14 w-14 rounded-full shadow-lg"
-          size="icon"
-          onClick={() => setShowCreateDialog(true)}
-          data-testid="floating-add-note-button"
-        >
-          <Plus className="h-6 w-6" />
-        </Button>
-
-        <CreateStickyDialog
-          open={showCreateDialog}
-          onOpenChange={setShowCreateDialog}
-          boardId={board.id}
-          columns={columns}
-          onStickyCreated={() => {
-            setShowCreateDialog(false);
-            // No router.refresh() needed - WebSocket handles real-time UI updates for all users including creator
-          }}
-        />
+        {/* Removed floating button - now in header */}
 
         <CreateColumnDialog
           open={showCreateColumnDialog}

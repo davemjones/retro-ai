@@ -245,9 +245,9 @@ describe('Column Creation Restrictions - Integration Tests', () => {
       // - Unassigned area
       expect(screen.getByTestId('unassigned-area')).toBeInTheDocument();
       
-      // - Floating add note button (should exist but we don't test specific implementation)
-      const allButtons = screen.getAllByRole('button');
-      expect(allButtons.length).toBeGreaterThan(0); // Should have some buttons
+      // Note: Create note button has been moved to header (Issue #156)
+      // BoardCanvas no longer contains the floating add note button
+      // Non-owners can still interact with all board content
     });
   });
 
@@ -263,7 +263,6 @@ describe('Column Creation Restrictions - Integration Tests', () => {
       );
 
       // Get initial layout with Add Column button
-      const initialButtons = screen.getAllByRole('button');
       const hasAddColumnButton = screen.queryByRole('button', { name: /add column/i });
       expect(hasAddColumnButton).toBeInTheDocument();
 
