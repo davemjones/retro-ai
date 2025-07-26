@@ -210,26 +210,69 @@ export function BoardCanvas({ board, columns: initialColumns, userId, isOwner }:
       // FLIP Animation: Record position, update state, then animate
       flipAnimation.animateMovement(data.stickyId, () => {
         // Find and update the sticky using functional setState to avoid stale closures
-        let foundSticky: BoardData["stickies"][0] | null = null;
         
         if (data.columnId === null) {
           // Moving to unassigned area (could be from column or within unassigned)
           
-          // First check if sticky is moving from a column to unassigned
-          setColumns(prevColumns => {
-            let stickyToMove: BoardData["stickies"][0] | null = null;
+          // Check if it's already in unassigned (reordering) or if we need to move from column
+          setUnassignedStickies(prevUnassigned => {
+            const existingIndex = prevUnassigned.findIndex(s => s.id === data.stickyId);
             
-            // Find the sticky in columns and remove it (if it exists there)
+            if (existingIndex !== -1) {
+              // Sticky is already in unassigned - this is a reorder within unassigned
+              const stickyToReorder = { ...prevUnassigned[existingIndex] };
+              // Update order if provided
+              if (data.order !== undefined) {
+                stickyToReorder.order = data.order;
+              }
+              console.log(`[MULTI-USER] Reordering sticky ${data.stickyId} within unassigned area`);
+              
+              // Remove from current position and add with new order
+              const filtered = prevUnassigned.filter(s => s.id !== data.stickyId);
+              const result = [...filtered, stickyToReorder];
+              
+              // Sort by order to maintain consistent positioning
+              result.sort((a, b) => a.order - b.order);
+              
+              console.log(`[MULTI-USER] Updated unassigned area with sticky ${data.stickyId} at order ${stickyToReorder.order}`);
+              return result;
+            } else {
+              // Sticky is not in unassigned, so it must be coming from a column
+              // We'll handle this after we remove it from columns
+              return prevUnassigned;
+            }
+          });
+          
+          // Remove from columns and add to unassigned (only if not already in unassigned)
+          setColumns(prevColumns => {
+            let stickyFromColumn: BoardData["stickies"][0] | null = null;
+            
+            // First pass: find and extract the sticky from any column
             const updatedColumns = prevColumns.map(column => {
               const stickyIndex = column.stickies.findIndex(s => s.id === data.stickyId);
               if (stickyIndex !== -1) {
-                stickyToMove = { ...column.stickies[stickyIndex] };
+                stickyFromColumn = { ...column.stickies[stickyIndex] };
                 // Update order if provided
                 if (data.order !== undefined) {
-                  stickyToMove.order = data.order;
+                  stickyFromColumn.order = data.order;
                 }
-                foundSticky = stickyToMove;
                 console.log(`[MULTI-USER] Found sticky ${data.stickyId} in column ${column.id}, moving to unassigned`);
+                
+                // Add to unassigned area immediately
+                setUnassignedStickies(prevUnassigned => {
+                  // Double-check it's not already there
+                  if (prevUnassigned.some(s => s.id === data.stickyId)) {
+                    return prevUnassigned;
+                  }
+                  
+                  const result = [...prevUnassigned, stickyFromColumn!];
+                  result.sort((a, b) => a.order - b.order);
+                  
+                  console.log(`[MULTI-USER] Added sticky ${data.stickyId} to unassigned with order ${stickyFromColumn!.order}`);
+                  return result;
+                });
+                
+                // Remove from this column
                 return {
                   ...column,
                   stickies: column.stickies.filter(s => s.id !== data.stickyId),
@@ -240,109 +283,102 @@ export function BoardCanvas({ board, columns: initialColumns, userId, isOwner }:
             
             return updatedColumns;
           });
-          
-          // Handle unassigned area (either adding from column or reordering within unassigned)
-          setUnassignedStickies(prev => {
-            // Find sticky in current unassigned state
-            const existingIndex = prev.findIndex(s => s.id === data.stickyId);
-            
-            let stickyToAdd: BoardData["stickies"][0] | null = null;
-            
-            if (existingIndex !== -1) {
-              // Sticky is already in unassigned - this is a reorder within unassigned
-              stickyToAdd = { ...prev[existingIndex] };
-              console.log(`[MULTI-USER] Reordering sticky ${data.stickyId} within unassigned area`);
-            } else if (foundSticky) {
-              // Sticky was moved from a column to unassigned
-              stickyToAdd = foundSticky;
-              console.log(`[MULTI-USER] Moving sticky ${data.stickyId} from column to unassigned`);
-            }
-            
-            if (!stickyToAdd) {
-              console.warn(`[MULTI-USER] Could not find sticky ${data.stickyId} for unassigned movement`);
-              return prev;
-            }
-            
-            // Update order if provided
-            if (data.order !== undefined) {
-              stickyToAdd.order = data.order;
-            }
-            
-            // Remove from current position and add with new order
-            const filtered = prev.filter(s => s.id !== data.stickyId);
-            const result = [...filtered, stickyToAdd];
-            
-            // Sort by order to maintain consistent positioning
-            result.sort((a, b) => a.order - b.order);
-            
-            console.log(`[MULTI-USER] Updated unassigned area with sticky ${data.stickyId} at order ${stickyToAdd.order}`);
-            return result;
-          });
         } else {
           // Moving to a column
-          let stickyToMove: BoardData["stickies"][0] | null = null;
           
-          // Remove from unassigned first
+          // Remove from unassigned and add to target column
           setUnassignedStickies(prev => {
             const stickyIndex = prev.findIndex(s => s.id === data.stickyId);
             if (stickyIndex !== -1) {
-              stickyToMove = { ...prev[stickyIndex] };
+              const stickyFromUnassigned = { ...prev[stickyIndex] };
               // Update order if provided
               if (data.order !== undefined) {
-                stickyToMove.order = data.order;
+                stickyFromUnassigned.order = data.order;
               }
-              foundSticky = stickyToMove;
+              console.log(`[MULTI-USER] Found sticky ${data.stickyId} in unassigned area, moving to column ${data.columnId}`);
+              
+              // Add to target column immediately
+              setColumns(prevColumns => {
+                return prevColumns.map(column => {
+                  if (column.id === data.columnId) {
+                    // Target column - add the sticky
+                    // Double-check it's not already there
+                    if (column.stickies.some(s => s.id === data.stickyId)) {
+                      return column;
+                    }
+                    
+                    const newStickies = [...column.stickies, stickyFromUnassigned];
+                    
+                    // Sort by order
+                    newStickies.sort((a, b) => a.order - b.order);
+                    
+                    console.log(`[MULTI-USER] Added sticky ${data.stickyId} to column ${data.columnId} with order ${stickyFromUnassigned.order}`);
+                    
+                    return {
+                      ...column,
+                      stickies: newStickies,
+                    };
+                  }
+                  return column;
+                });
+              });
+              
+              // Remove from unassigned
+              return prev.filter(s => s.id !== data.stickyId);
+            } else {
+              // Sticky is not in unassigned, so it must be a column-to-column move
+              return prev;
             }
-            return prev.filter(s => s.id !== data.stickyId);
           });
           
-          // Update columns
-          setColumns(prevColumns => 
-            prevColumns.map(column => {
-              // Find and remove from source column
+          // Handle column-to-column moves
+          setColumns(prevColumns => {
+            let stickyFromColumn: BoardData["stickies"][0] | null = null;
+            
+            // First pass: find and extract the sticky from source column
+            const updatedColumns = prevColumns.map(column => {
               const stickyIndex = column.stickies.findIndex(s => s.id === data.stickyId);
-              if (stickyIndex !== -1 && !stickyToMove) {
-                stickyToMove = { ...column.stickies[stickyIndex] };
+              if (stickyIndex !== -1) {
+                stickyFromColumn = { ...column.stickies[stickyIndex] };
                 // Update order if provided
                 if (data.order !== undefined) {
-                  stickyToMove.order = data.order;
+                  stickyFromColumn.order = data.order;
                 }
-                foundSticky = stickyToMove;
-              }
-              
-              if (column.id === data.columnId) {
-                // Target column - add the sticky
-                if (!stickyToMove) {
-                  console.warn(`[MULTI-USER] Could not find sticky ${data.stickyId} to move to column ${data.columnId}`);
-                  return column;
-                }
-                
-                // Remove if already exists, then add with new order
-                const existingStickies = column.stickies.filter(s => s.id !== data.stickyId);
-                const newStickies = [...existingStickies, stickyToMove];
-                
-                // Sort by order
-                newStickies.sort((a, b) => a.order - b.order);
-                
-                console.log(`[MULTI-USER] Added sticky ${data.stickyId} to column ${data.columnId} with order ${stickyToMove.order}`);
-                
-                return {
-                  ...column,
-                  stickies: newStickies,
-                };
-              } else {
-                // Other columns - just remove the sticky
+                console.log(`[MULTI-USER] Found sticky ${data.stickyId} in column ${column.id}, moving to column ${data.columnId}`);
+                // Remove from source column
                 return {
                   ...column,
                   stickies: column.stickies.filter(s => s.id !== data.stickyId),
                 };
               }
-            })
-          );
-        }
-        
-        if (!foundSticky) {
-          console.warn(`[MULTI-USER] Failed to find sticky ${data.stickyId} for remote movement`);
+              return column;
+            });
+            
+            if (!stickyFromColumn) {
+              // No sticky found in columns - it was probably moved from unassigned (handled above)
+              return updatedColumns;
+            }
+            
+            // Second pass: add to target column
+            return updatedColumns.map(column => {
+              if (column.id === data.columnId && stickyFromColumn) {
+                // Target column - add the sticky
+                const existingStickies = column.stickies.filter(s => s.id !== data.stickyId);
+                const newStickies = [...existingStickies, stickyFromColumn];
+                
+                // Sort by order
+                newStickies.sort((a, b) => a.order - b.order);
+                
+                console.log(`[MULTI-USER] Added sticky ${data.stickyId} to column ${data.columnId} with order ${stickyFromColumn.order}`);
+                
+                return {
+                  ...column,
+                  stickies: newStickies,
+                };
+              }
+              return column;
+            });
+          });
         }
       });
     }, [userId, flipAnimation]),
@@ -775,18 +811,42 @@ export function BoardCanvas({ board, columns: initialColumns, userId, isOwner }:
       } else if (overIndex >= originalOverItems.length) {
         moveIntent.insertAtPosition = 'end';
       } else {
-        // Insert after the item that will be at overIndex-1 after removal
-        let targetIndex = overIndex;
+        // Calculate which item to insert after
+        let insertAfterIndex: number;
+        
         if (overIndex > activeIndex) {
-          // When moving down, the target position shifts because we remove the active item first
-          targetIndex = overIndex - 1;
+          // Moving down: we want to insert after the item that will be at position overIndex-1 
+          // AFTER the active item is removed. Since activeIndex < overIndex, removing activeIndex
+          // shifts everything after it down by 1, so the item we want is currently at overIndex
+          insertAfterIndex = overIndex;
+          console.log(`[LOCAL-USER] Moving down: activeIndex=${activeIndex}, overIndex=${overIndex}, insertAfterIndex=${insertAfterIndex}`);
+        } else {
+          // Moving up: insert after the item that's currently at overIndex-1
+          // (since we remove activeIndex which is after overIndex, overIndex-1 stays in place)
+          insertAfterIndex = overIndex - 1;
+          console.log(`[LOCAL-USER] Moving up: activeIndex=${activeIndex}, overIndex=${overIndex}, insertAfterIndex=${insertAfterIndex}`);
         }
         
-        if (targetIndex > 0) {
-          const targetSticky = originalOverItems[targetIndex - 1];
-          moveIntent.insertAfterStickyId = targetSticky.id;
+        if (insertAfterIndex >= 0 && insertAfterIndex < originalOverItems.length) {
+          const targetSticky = originalOverItems[insertAfterIndex];
+          // Make sure we're not trying to insert after ourselves
+          if (targetSticky.id !== activeId) {
+            moveIntent.insertAfterStickyId = targetSticky.id;
+            console.log(`[LOCAL-USER] Moving ${activeId}: insert after ${targetSticky.id} (index ${insertAfterIndex})`);
+          } else {
+            // If we're trying to insert after ourselves, we need to adjust
+            if (insertAfterIndex > 0) {
+              const alternativeSticky = originalOverItems[insertAfterIndex - 1];
+              moveIntent.insertAfterStickyId = alternativeSticky.id;
+              console.log(`[LOCAL-USER] Moving ${activeId}: adjusted to insert after ${alternativeSticky.id}`);
+            } else {
+              moveIntent.insertAtPosition = 'start';
+              console.log(`[LOCAL-USER] Moving ${activeId}: adjusted to start position`);
+            }
+          }
         } else {
-          moveIntent.insertAtPosition = 'start';
+          moveIntent.insertAtPosition = insertAfterIndex < 0 ? 'start' : 'end';
+          console.log(`[LOCAL-USER] Moving ${activeId}: using position ${moveIntent.insertAtPosition}`);
         }
       }
     } else {
