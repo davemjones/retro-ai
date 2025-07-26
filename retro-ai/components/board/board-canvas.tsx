@@ -213,11 +213,13 @@ export function BoardCanvas({ board, columns: initialColumns, userId, isOwner }:
         let foundSticky: BoardData["stickies"][0] | null = null;
         
         if (data.columnId === null) {
-          // Moving to unassigned area
+          // Moving to unassigned area (could be from column or within unassigned)
+          
+          // First check if sticky is moving from a column to unassigned
           setColumns(prevColumns => {
             let stickyToMove: BoardData["stickies"][0] | null = null;
             
-            // Find the sticky in columns and remove it
+            // Find the sticky in columns and remove it (if it exists there)
             const updatedColumns = prevColumns.map(column => {
               const stickyIndex = column.stickies.findIndex(s => s.id === data.stickyId);
               if (stickyIndex !== -1) {
@@ -227,6 +229,7 @@ export function BoardCanvas({ board, columns: initialColumns, userId, isOwner }:
                   stickyToMove.order = data.order;
                 }
                 foundSticky = stickyToMove;
+                console.log(`[MULTI-USER] Found sticky ${data.stickyId} in column ${column.id}, moving to unassigned`);
                 return {
                   ...column,
                   stickies: column.stickies.filter(s => s.id !== data.stickyId),
@@ -238,29 +241,42 @@ export function BoardCanvas({ board, columns: initialColumns, userId, isOwner }:
             return updatedColumns;
           });
           
-          // Add to unassigned area
+          // Handle unassigned area (either adding from column or reordering within unassigned)
           setUnassignedStickies(prev => {
-            // Find sticky in current unassigned or use the one we found in columns
-            let stickyToAdd = foundSticky;
-            if (!stickyToAdd) {
-              const existingIndex = prev.findIndex(s => s.id === data.stickyId);
-              if (existingIndex !== -1) {
-                stickyToAdd = { ...prev[existingIndex] };
-                // Update order if provided
-                if (data.order !== undefined) {
-                  stickyToAdd.order = data.order;
-                }
-              }
+            // Find sticky in current unassigned state
+            const existingIndex = prev.findIndex(s => s.id === data.stickyId);
+            
+            let stickyToAdd: BoardData["stickies"][0] | null = null;
+            
+            if (existingIndex !== -1) {
+              // Sticky is already in unassigned - this is a reorder within unassigned
+              stickyToAdd = { ...prev[existingIndex] };
+              console.log(`[MULTI-USER] Reordering sticky ${data.stickyId} within unassigned area`);
+            } else if (foundSticky) {
+              // Sticky was moved from a column to unassigned
+              stickyToAdd = foundSticky;
+              console.log(`[MULTI-USER] Moving sticky ${data.stickyId} from column to unassigned`);
             }
             
             if (!stickyToAdd) {
-              console.warn(`[MULTI-USER] Could not find sticky ${data.stickyId} to move to unassigned`);
+              console.warn(`[MULTI-USER] Could not find sticky ${data.stickyId} for unassigned movement`);
               return prev;
             }
             
-            // Remove if already exists, then add with updated order
+            // Update order if provided
+            if (data.order !== undefined) {
+              stickyToAdd.order = data.order;
+            }
+            
+            // Remove from current position and add with new order
             const filtered = prev.filter(s => s.id !== data.stickyId);
-            return [...filtered, stickyToAdd];
+            const result = [...filtered, stickyToAdd];
+            
+            // Sort by order to maintain consistent positioning
+            result.sort((a, b) => a.order - b.order);
+            
+            console.log(`[MULTI-USER] Updated unassigned area with sticky ${data.stickyId} at order ${stickyToAdd.order}`);
+            return result;
           });
         } else {
           // Moving to a column
