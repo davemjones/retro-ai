@@ -2,13 +2,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { redirect, notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import Link from "next/link";
-import { ArrowLeft, Settings, Users, Calendar } from "lucide-react";
-import { BoardCanvas } from "@/components/board/board-canvas";
-import { BoardPresence } from "@/components/board/board-presence";
-import { BoardTimer } from "@/components/board/timer-component";
+import { BoardPageClient } from "@/components/board/board-page-client";
 import { Prisma } from "@prisma/client";
 
 type BoardWithRelations = Prisma.BoardGetPayload<{
@@ -55,7 +49,7 @@ async function getBoard(boardId: string, userId: string): Promise<BoardWithRelat
             include: {
               author: true,
             },
-            orderBy: { createdAt: "asc" },
+            orderBy: { order: "asc" },
           },
         },
       },
@@ -64,7 +58,7 @@ async function getBoard(boardId: string, userId: string): Promise<BoardWithRelat
         include: {
           author: true,
         },
-        orderBy: { createdAt: "asc" },
+        orderBy: { order: "asc" },
       },
     },
   });
@@ -129,60 +123,5 @@ export default async function BoardPage({
     notFound();
   }
 
-  return (
-    <div className="h-full flex flex-col">
-      {/* Header */}
-      <div className="flex items-center justify-between p-4 border-b bg-background">
-        <div className="flex items-center gap-4">
-          <Button variant="ghost" size="icon" asChild>
-            <Link href="/boards">
-              <ArrowLeft className="h-4 w-4" />
-            </Link>
-          </Button>
-          <div>
-            <h1 className="text-2xl font-bold">{board.title}</h1>
-            <div className="flex items-center gap-4 text-sm text-muted-foreground">
-              <div className="flex items-center">
-                <Users className="mr-1 h-3 w-3" />
-                {board.team.name}
-              </div>
-              <div className="flex items-center">
-                <Calendar className="mr-1 h-3 w-3" />
-                {new Date(board.createdAt).toLocaleDateString()}
-              </div>
-              {board.template && (
-                <Badge variant="secondary">{board.template.name}</Badge>
-              )}
-            </div>
-          </div>
-        </div>
-        <div className="flex items-center gap-2">
-          <BoardPresence 
-            boardId={board.id} 
-            currentUserId={session.user.id}
-          />
-          <div className="h-4 w-px bg-border" />
-          <BoardTimer 
-            boardId={board.id}
-            userId={session.user.id}
-          />
-          <div className="h-4 w-px bg-border" />
-          <Button variant="outline" size="sm">
-            <Settings className="mr-2 h-4 w-4" />
-            Settings
-          </Button>
-        </div>
-      </div>
-
-      {/* Board Canvas */}
-      <div className="flex-1 overflow-hidden">
-        <BoardCanvas
-          board={board}
-          columns={board.columns}
-          userId={session.user.id}
-          isOwner={board.createdById === session.user.id}
-        />
-      </div>
-    </div>
-  );
+  return <BoardPageClient board={board} userId={session.user.id} />;
 }

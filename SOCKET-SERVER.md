@@ -70,7 +70,7 @@ const io = new Server(httpServer, {
 | Event | Purpose | Auth Level | Broadcast |
 |-------|---------|------------|-----------|
 | `join-board` | Join board room | Team member | N/A |
-| `sticky-moved` | Move sticky note | Team member | `io.to()` |
+| `sticky-moved` | Move sticky note with ordering | Team member | `io.to()` |
 | `sticky-updated` | Edit sticky content | Team member | `io.to()` |
 | `sticky-created` | Create new sticky | Team member | `io.to()` |
 | `sticky-deleted` | Delete sticky | Team member | `io.to()` |
@@ -100,6 +100,7 @@ const io = new Server(httpServer, {
 | `timer-paused` | `{userId, userName, timestamp}` | Timer countdown paused |
 | `timer-stopped` | `{userId, userName, timestamp}` | Timer stopped/reset |
 | `column:created` | `{columnId, title, boardId, order, color, userId, userName, timestamp}` | New column created |
+| `sticky-moved` | `{stickyId, columnId, order, boardId, userId, userName, timestamp}` | Sticky note moved with calculated order |
 
 ## Standard Socket Event Template
 
@@ -140,6 +141,63 @@ socket.on('event-name', async (data) => {
   }
 });
 ```
+
+### Sticky Note Ordering (Server-Authoritative)
+
+**New in Issue #80**: Sticky notes now use server-calculated order values for consistent positioning across all clients.
+
+**Frontend Move Intent (board-canvas.tsx):**
+```javascript
+// Client sends move description, not calculated order
+const moveIntent = {
+  columnId: targetColumnId,
+  insertAfterStickyId: 'sticky123', // OR
+  insertBeforeStickyId: 'sticky456', // OR
+  insertAtPosition: 'start' | 'end'
+};
+
+// API calculates order using lexicographic ordering
+const response = await fetch(`/api/stickies/${stickyId}`, {
+  method: "PATCH",
+  body: JSON.stringify(moveIntent)
+});
+
+// Socket event includes server-calculated order
+emitStickyMoved({
+  stickyId,
+  columnId: targetColumnId,
+  order: response.sticky.order, // Server-calculated value
+  boardId
+});
+```
+
+**Server-Side Order Calculation (API endpoint):**
+```javascript
+// Import lexicographic ordering utility
+import { calculateStickyOrder } from '@/lib/lexicographic-order';
+
+// Get existing stickies in target column (excluding moved sticky)
+const existingStickies = await prisma.sticky.findMany({
+  where: { columnId: targetColumnId, id: { not: stickyId } },
+  select: { id: true, order: true },
+  orderBy: { order: 'asc' }
+});
+
+// Calculate new order based on move intent
+const newOrder = calculateStickyOrder(existingStickies, moveIntent);
+
+// Update database with calculated order
+await prisma.sticky.update({
+  where: { id: stickyId },
+  data: { columnId: targetColumnId, order: newOrder }
+});
+```
+
+**Benefits:**
+- **Consistency**: All clients receive same order value from server
+- **Conflict Resolution**: Server is single source of truth for positioning
+- **Lexicographic Ordering**: Enables insertion between any two items without renumbering
+- **Real-time Sync**: Socket broadcasts server-calculated order to all users
 
 ### Key Event Variations
 

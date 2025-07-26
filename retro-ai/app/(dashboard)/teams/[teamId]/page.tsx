@@ -7,8 +7,9 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import Link from "next/link";
-import { ArrowLeft, Plus, Shield, Crown, User } from "lucide-react";
+import { Plus, Shield, Crown, User } from "lucide-react";
 import { TeamInviteDialog } from "@/components/teams/team-invite-dialog";
+import { SmartBackButton } from "@/components/navigation/smart-back-button";
 
 async function getTeam(teamId: string, userId: string) {
   const team = await prisma.team.findUnique({
@@ -85,11 +86,7 @@ export default async function TeamPage({
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-4">
-          <Button variant="ghost" size="icon" asChild>
-            <Link href="/teams">
-              <ArrowLeft className="h-4 w-4" />
-            </Link>
-          </Button>
+          <SmartBackButton fallbackPath="/teams" />
           <div>
             <h2 className="text-3xl font-bold tracking-tight">{team.name}</h2>
             <p className="text-muted-foreground">

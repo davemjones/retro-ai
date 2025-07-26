@@ -116,6 +116,7 @@
   * {
     @apply border-border outline-ring/50;
   }
+
   body {
     @apply bg-background text-foreground;
   }
@@ -123,13 +124,16 @@
 
 /* Pulsating animation for move indicator */
 @keyframes pulse-move {
-  0%, 100% { 
-    opacity: 1; 
-    transform: scale(1); 
+
+  0%,
+  100% {
+    opacity: 1;
+    transform: scale(1);
   }
-  50% { 
-    opacity: 0.7; 
-    transform: scale(1.02); 
+
+  50% {
+    opacity: 0.7;
+    transform: scale(1.02);
   }
 }
 
@@ -142,8 +146,18 @@
   position: fixed !important;
   z-index: 40 !important;
   pointer-events: none;
-  transition: transform 300ms cubic-bezier(0.2, 0, 0.2, 1);
+  transition: left 300ms cubic-bezier(0.2, 0, 0.2, 1), top 300ms cubic-bezier(0.2, 0, 0.2, 1);
   box-shadow: 0 8px 25px -5px rgba(0, 0, 0, 0.15), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
+  transform: scale(0.4) !important;
+  width: 200px !important;
+  height: 200px !important;
+  overflow: hidden !important;
+  border-radius: var(--radius) !important;
+}
+
+.sticky-remote-settling {
+  transition: transform 400ms cubic-bezier(0.25, 0.1, 0.25, 1) !important;
+  transform: scale(1) !important;
 }
 
 .sticky-remote-entering {
@@ -170,12 +184,15 @@
   }
 }
 
+
 /* Respect user's motion preferences */
 @media (prefers-reduced-motion: reduce) {
-  .sticky-remote-moving {
+  .sticky-remote-moving,
+  .sticky-remote-settling {
     transition: none;
+    transform: scale(1) !important;
   }
-  
+
   .sticky-remote-entering,
   .sticky-remote-leaving {
     animation: none;

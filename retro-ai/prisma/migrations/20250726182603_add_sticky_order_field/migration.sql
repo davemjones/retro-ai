@@ -1,0 +1,2 @@
+-- AlterTable
+ALTER TABLE "Sticky" ADD COLUMN     "order" DOUBLE PRECISION NOT NULL DEFAULT 0.0;
