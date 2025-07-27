@@ -11,9 +11,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { LogOut, Settings, User } from "lucide-react";
-import { getInitials } from "@/lib/utils";
 import { getDisplayVersion } from "@/lib/version";
 
 export function Header() {
@@ -41,13 +39,10 @@ export function Header() {
             {status === "authenticated" && session?.user ? (
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" className="relative h-9 w-9 rounded-full">
-                    <Avatar className="h-9 w-9">
-                      <AvatarFallback>
-                        {getInitials(session.user.name || '') || 
-                         getInitials(session.user.email || '') || "U"}
-                      </AvatarFallback>
-                    </Avatar>
+                  <Button variant="outline" size="sm" className="text-sm max-w-[200px]">
+                    <span className="truncate">
+                      {session.user.name || session.user.email || "User"}
+                    </span>
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent className="w-56" align="end" forceMount>
