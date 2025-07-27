@@ -304,24 +304,41 @@ export function BoardCanvas({ board, columns: initialColumns, userId, isOwner }:
               })
             );
           } else if (sourceColumnId) {
-            // Moving between columns
-            setColumns(prevColumns => 
-              prevColumns.map(column => {
-                if (column.id === sourceColumnId) {
-                  // Remove from source
-                  return {
-                    ...column,
-                    stickies: column.stickies.filter(s => s.id !== data.stickyId)
-                  };
-                } else if (column.id === data.columnId) {
-                  // Add to target
-                  const newStickies = [...column.stickies, stickyToMove!];
-                  newStickies.sort((a, b) => a.order - b.order);
-                  return { ...column, stickies: newStickies };
-                }
-                return column;
-              })
-            );
+            // Check if reordering within the same column
+            if (sourceColumnId === data.columnId) {
+              // Reordering within the same column
+              setColumns(prevColumns => 
+                prevColumns.map(column => {
+                  if (column.id === sourceColumnId) {
+                    // Remove and re-add with new order
+                    const filtered = column.stickies.filter(s => s.id !== data.stickyId);
+                    const newStickies = [...filtered, stickyToMove!];
+                    newStickies.sort((a, b) => a.order - b.order);
+                    return { ...column, stickies: newStickies };
+                  }
+                  return column;
+                })
+              );
+            } else {
+              // Moving between different columns
+              setColumns(prevColumns => 
+                prevColumns.map(column => {
+                  if (column.id === sourceColumnId) {
+                    // Remove from source
+                    return {
+                      ...column,
+                      stickies: column.stickies.filter(s => s.id !== data.stickyId)
+                    };
+                  } else if (column.id === data.columnId) {
+                    // Add to target
+                    const newStickies = [...column.stickies, stickyToMove!];
+                    newStickies.sort((a, b) => a.order - b.order);
+                    return { ...column, stickies: newStickies };
+                  }
+                  return column;
+                })
+              );
+            }
           }
         }
       });
