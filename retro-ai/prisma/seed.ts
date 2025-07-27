@@ -1,5 +1,6 @@
 import { PrismaClient, User } from "@prisma/client";
 import bcrypt from "bcryptjs";
+import { generateInitialOrders } from "../lib/lexicographic-order";
 
 const prisma = new PrismaClient();
 
@@ -285,6 +286,14 @@ async function main() {
       }
     });
 
+    // Track stickies per column for proper ordering
+    const stickiesPerColumn: Map<string, number> = new Map();
+    board.columns!.forEach(col => stickiesPerColumn.set(col.id, 0));
+    
+    // Create a shuffled array of content to avoid duplicates
+    const shuffledContent = [...stickyNoteContent].sort(() => Math.random() - 0.5);
+    let contentIndex = 0;
+    
     // Each user creates 3 sticky notes
     for (const user of teamMembers) {
       const userIndex = createdUsers.findIndex(u => u.id === user.id);
@@ -292,12 +301,19 @@ async function main() {
       
       for (let noteCount = 0; noteCount < 3; noteCount++) {
         const column = board.columns![noteCount % board.columns!.length];
-        const content = stickyNoteContent[stickyNoteIndex % stickyNoteContent.length];
-        stickyNoteIndex++;
+        const content = shuffledContent[contentIndex % shuffledContent.length];
+        contentIndex++;
+        
+        // Get current sticky count for this column
+        const currentCount = stickiesPerColumn.get(column.id) || 0;
+        
+        // Calculate proper order value
+        const orderValues = generateInitialOrders(currentCount + 1);
+        const order = orderValues[currentCount];
         
         // Calculate position within column (distribute notes)
         const positionX = column.order * 300 + 50 + (noteCount * 20); // Spread horizontally
-        const positionY = 100 + (stickyNoteIndex * 30) % 400; // Spread vertically
+        const positionY = 100 + (currentCount * 80) + 50; // Spread vertically based on column count
         
         await prisma.sticky.create({
           data: {
@@ -308,8 +324,12 @@ async function main() {
             authorId: user.id,
             positionX,
             positionY,
+            order,
           }
         });
+        
+        // Update the count for this column
+        stickiesPerColumn.set(column.id, currentCount + 1);
         totalStickies++;
       }
     }
