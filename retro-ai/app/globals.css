@@ -203,26 +203,23 @@
 
 /* Custom scrollbar styling for board canvas only */
 .board-canvas-scrollable {
-  scrollbar-width: thick; /* Firefox */
+  scrollbar-width: thick; /* Firefox - make scrollbar thicker */
 }
 
-/* Webkit browsers (Chrome, Safari, Edge) - Canvas specific */
+/* Webkit browsers (Chrome, Safari, Edge) - Simple thick scrollbar */
 .board-canvas-scrollable::-webkit-scrollbar {
-  height: 16px; /* Increase horizontal scrollbar thickness */
+  height: 14px; /* Make horizontal scrollbar thicker */
 }
 
 .board-canvas-scrollable::-webkit-scrollbar-thumb {
-  background: hsl(var(--border));
-  border-radius: 8px;
-  min-width: 50px; /* Ensure minimum thumb size for easy grabbing */
-  border: 2px solid hsl(var(--background)); /* Add border for visual separation */
+  background: #888; /* Simple gray color that will always be visible */
+  border-radius: 4px;
 }
 
 .board-canvas-scrollable::-webkit-scrollbar-thumb:hover {
-  background: hsl(var(--muted-foreground));
+  background: #555; /* Darker on hover */
 }
 
 .board-canvas-scrollable::-webkit-scrollbar-track {
-  background: hsl(var(--muted));
-  border-radius: 8px;
+  background: #f1f1f1; /* Light background for contrast */
 }
