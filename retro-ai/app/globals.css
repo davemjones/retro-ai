@@ -212,8 +212,8 @@
 .board-canvas-scrollable::-webkit-scrollbar-thumb {
   background: #b5b5b5;
   /* Simple gray color that will always be visible */
-  border-radius: 4px;
-  transition: background-color 0.2s ease-in-out; /* Smooth hover transition */
+  border-radius: 10px;
+  /* Note: Chrome doesn't support transitions on scrollbar pseudo-elements */
 }
 
 .board-canvas-scrollable::-webkit-scrollbar-thumb:hover {
