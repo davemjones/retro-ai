@@ -187,6 +187,7 @@
 
 /* Respect user's motion preferences */
 @media (prefers-reduced-motion: reduce) {
+
   .sticky-remote-moving,
   .sticky-remote-settling {
     transition: none;
@@ -202,24 +203,25 @@
 }
 
 /* Custom scrollbar styling for board canvas only */
-.board-canvas-scrollable {
-  scrollbar-width: thick; /* Firefox - make scrollbar thicker */
-}
-
 /* Webkit browsers (Chrome, Safari, Edge) - Simple thick scrollbar */
 .board-canvas-scrollable::-webkit-scrollbar {
-  height: 14px; /* Make horizontal scrollbar thicker */
+  height: 10px;
+  width: 10px;
 }
 
 .board-canvas-scrollable::-webkit-scrollbar-thumb {
-  background: #888; /* Simple gray color that will always be visible */
+  background: #b5b5b5;
+  /* Simple gray color that will always be visible */
   border-radius: 4px;
+  transition: background-color 0.2s ease-in-out; /* Smooth hover transition */
 }
 
 .board-canvas-scrollable::-webkit-scrollbar-thumb:hover {
-  background: #555; /* Darker on hover */
+  background: #555;
+  /* Darker on hover */
 }
 
 .board-canvas-scrollable::-webkit-scrollbar-track {
-  background: #f1f1f1; /* Light background for contrast */
+  background: #f1f1f1;
+  /* Light background for contrast */
 }
