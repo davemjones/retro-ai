@@ -100,7 +100,7 @@ export function BoardPageClient({ board, userId }: BoardPageClientProps) {
       </div>
 
       {/* Board Canvas */}
-      <div className="flex-1 overflow-hidden">
+      <div className="flex-1 overflow-y-hidden overflow-x-auto">
         <BoardCanvas
           board={board}
           columns={board.columns}
