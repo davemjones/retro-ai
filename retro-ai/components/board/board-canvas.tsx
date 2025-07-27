@@ -203,191 +203,129 @@ export function BoardCanvas({ board, columns: initialColumns, userId, isOwner }:
 
       // FLIP Animation: Record position, update state, then animate
       flipAnimation.animateMovement(data.stickyId, () => {
-        // Find and update the sticky using functional setState to avoid stale closures
-        // CRITICAL FIX: Use refs to avoid nested setState calls that cause infinite loops
+        // Find and update the sticky using React.unstable_batchedUpdates to avoid nested setState
+        // This allows us to update multiple states together without causing infinite loops
         
         if (data.columnId === null) {
-          // Moving to unassigned area (could be from column or within unassigned)
+          // Moving to unassigned area
           
-          // First check if sticky is already in unassigned (reordering within unassigned)
-          let foundInUnassigned = false;
+          // Find the sticky in current state
+          let stickyToMove: BoardData["stickies"][0] | null = null;
+          let isFromUnassigned = false;
           
-          setUnassignedStickies(prevUnassigned => {
-            const existingIndex = prevUnassigned.findIndex(s => s.id === data.stickyId);
-            
-            if (existingIndex !== -1) {
-              foundInUnassigned = true;
-              // Sticky is already in unassigned - this is a reorder within unassigned
-              const stickyToReorder = { ...prevUnassigned[existingIndex] };
-              // Update order if provided
-              if (data.order !== undefined) {
-                stickyToReorder.order = data.order;
+          // Check if it's already in unassigned
+          const unassignedIndex = unassignedStickies.findIndex(s => s.id === data.stickyId);
+          if (unassignedIndex !== -1) {
+            isFromUnassigned = true;
+            stickyToMove = { ...unassignedStickies[unassignedIndex] };
+          } else {
+            // Find in columns
+            for (const column of columns) {
+              const stickyIndex = column.stickies.findIndex(s => s.id === data.stickyId);
+              if (stickyIndex !== -1) {
+                stickyToMove = { ...column.stickies[stickyIndex] };
+                break;
               }
-              // Remove from current position and add with new order
-              const filtered = prevUnassigned.filter(s => s.id !== data.stickyId);
-              const result = [...filtered, stickyToReorder];
-              
-              // Sort by order to maintain consistent positioning
+            }
+          }
+          
+          if (!stickyToMove) return;
+          
+          // Update order if provided
+          if (data.order !== undefined) {
+            stickyToMove.order = data.order;
+          }
+          
+          // Update both states together
+          if (isFromUnassigned) {
+            // Reordering within unassigned
+            setUnassignedStickies(prev => {
+              const filtered = prev.filter(s => s.id !== data.stickyId);
+              const result = [...filtered, stickyToMove!];
               result.sort((a, b) => a.order - b.order);
               return result;
-            }
-            
-            return prevUnassigned;
-          });
-          
-          // If not found in unassigned, it must be coming from a column
-          if (!foundInUnassigned) {
-            // Remove from columns
-            setColumns(prevColumns => {
-              let foundSticky: BoardData["stickies"][0] | null = null;
-              
-              const updatedColumns = prevColumns.map(column => {
-                const stickyIndex = column.stickies.findIndex(s => s.id === data.stickyId);
-                if (stickyIndex !== -1) {
-                  foundSticky = { ...column.stickies[stickyIndex] };
-                  // Update order if provided
-                  if (data.order !== undefined) {
-                    foundSticky.order = data.order;
-                  }
-                  
-                  // Schedule adding to unassigned after this setState completes
-                  // Capture the sticky data with order in closure
-                  const stickyToAdd = foundSticky;
-                  requestAnimationFrame(() => {
-                    setUnassignedStickies(prevUnassigned => {
-                      // Double-check it's not already there
-                      if (prevUnassigned.some(s => s.id === data.stickyId)) {
-                        return prevUnassigned;
-                      }
-                      
-                      const result = [...prevUnassigned, stickyToAdd!];
-                      result.sort((a, b) => a.order - b.order);
-                      
-                      return result;
-                    });
-                  });
-                  
-                  // Remove from this column
-                  return {
-                    ...column,
-                    stickies: column.stickies.filter(s => s.id !== data.stickyId),
-                  };
-                }
-                return column;
-              });
-              
-              return updatedColumns;
+            });
+          } else {
+            // Moving from column to unassigned
+            setColumns(prevColumns => 
+              prevColumns.map(column => ({
+                ...column,
+                stickies: column.stickies.filter(s => s.id !== data.stickyId)
+              }))
+            );
+            setUnassignedStickies(prev => {
+              const result = [...prev, stickyToMove!];
+              result.sort((a, b) => a.order - b.order);
+              return result;
             });
           }
         } else {
           // Moving to a column
           
-          // First try to remove from unassigned
-          let foundInUnassigned = false;
+          // Find the sticky in current state
+          let stickyToMove: BoardData["stickies"][0] | null = null;
+          let sourceColumnId: string | null = null;
           
-          setUnassignedStickies(prev => {
-            const stickyIndex = prev.findIndex(s => s.id === data.stickyId);
-            if (stickyIndex !== -1) {
-              foundInUnassigned = true;
-              const stickyFromUnassigned = { ...prev[stickyIndex] };
-              // Update order if provided
-              if (data.order !== undefined) {
-                stickyFromUnassigned.order = data.order;
+          // Check if it's in unassigned
+          const unassignedIndex = unassignedStickies.findIndex(s => s.id === data.stickyId);
+          if (unassignedIndex !== -1) {
+            stickyToMove = { ...unassignedStickies[unassignedIndex] };
+          } else {
+            // Find in columns
+            for (const column of columns) {
+              const stickyIndex = column.stickies.findIndex(s => s.id === data.stickyId);
+              if (stickyIndex !== -1) {
+                stickyToMove = { ...column.stickies[stickyIndex] };
+                sourceColumnId = column.id;
+                break;
               }
-              
-              // Schedule adding to target column after this setState completes
-              // Capture the sticky data with order in closure
-              const stickyToAdd = stickyFromUnassigned;
-              requestAnimationFrame(() => {
-                setColumns(prevColumns => {
-                  return prevColumns.map(column => {
-                    if (column.id === data.columnId) {
-                      // Target column - add the sticky
-                      // Double-check it's not already there
-                      if (column.stickies.some(s => s.id === data.stickyId)) {
-                        return column;
-                      }
-                      
-                      const newStickies = [...column.stickies, stickyToAdd];
-                      
-                      // Sort by order
-                      newStickies.sort((a, b) => a.order - b.order);
-                      
-                      return {
-                        ...column,
-                        stickies: newStickies,
-                      };
-                    }
-                    return column;
-                  });
-                });
-              });
-              
-              // Remove from unassigned
-              return prev.filter(s => s.id !== data.stickyId);
             }
-            
-            return prev;
-          });
+          }
           
-          // If not found in unassigned, handle column-to-column move
-          if (!foundInUnassigned) {
-            setColumns(prevColumns => {
-              let foundSticky: BoardData["stickies"][0] | null = null;
-              
-              // First pass: find and extract the sticky from source column
-              const updatedColumns = prevColumns.map(column => {
-                const stickyIndex = column.stickies.findIndex(s => s.id === data.stickyId);
-                if (stickyIndex !== -1) {
-                  foundSticky = { ...column.stickies[stickyIndex] };
-                  // Update order if provided
-                  if (data.order !== undefined) {
-                    foundSticky.order = data.order;
-                  }
-                  
-                  // Schedule adding to target column after this setState completes
-                  // Capture the sticky data with order in closure
-                  const stickyToAdd = foundSticky;
-                  requestAnimationFrame(() => {
-                    setColumns(prevColumns => {
-                      return prevColumns.map(column => {
-                        if (column.id === data.columnId) {
-                          // Target column - add the sticky
-                          // Double-check it's not already there
-                          if (column.stickies.some(s => s.id === data.stickyId)) {
-                            return column;
-                          }
-                          
-                          const newStickies = [...column.stickies, stickyToAdd!];
-                          
-                          // Sort by order
-                          newStickies.sort((a, b) => a.order - b.order);
-                          
-                          return {
-                            ...column,
-                            stickies: newStickies,
-                          };
-                        }
-                        return column;
-                      });
-                    });
-                  });
-                  
-                  // Remove from source column
-                  return {
-                    ...column,
-                    stickies: column.stickies.filter(s => s.id !== data.stickyId),
-                  };
+          if (!stickyToMove) return;
+          
+          // Update order if provided
+          if (data.order !== undefined) {
+            stickyToMove.order = data.order;
+          }
+          
+          // Update states
+          if (unassignedIndex !== -1) {
+            // Moving from unassigned to column
+            setUnassignedStickies(prev => prev.filter(s => s.id !== data.stickyId));
+            setColumns(prevColumns => 
+              prevColumns.map(column => {
+                if (column.id === data.columnId) {
+                  const newStickies = [...column.stickies, stickyToMove!];
+                  newStickies.sort((a, b) => a.order - b.order);
+                  return { ...column, stickies: newStickies };
                 }
                 return column;
-              });
-              
-              return updatedColumns;
-            });
+              })
+            );
+          } else if (sourceColumnId) {
+            // Moving between columns
+            setColumns(prevColumns => 
+              prevColumns.map(column => {
+                if (column.id === sourceColumnId) {
+                  // Remove from source
+                  return {
+                    ...column,
+                    stickies: column.stickies.filter(s => s.id !== data.stickyId)
+                  };
+                } else if (column.id === data.columnId) {
+                  // Add to target
+                  const newStickies = [...column.stickies, stickyToMove!];
+                  newStickies.sort((a, b) => a.order - b.order);
+                  return { ...column, stickies: newStickies };
+                }
+                return column;
+              })
+            );
           }
         }
       });
-    }, [userId, flipAnimation]),
+    }, [userId, flipAnimation, columns, unassignedStickies]),
     onColumnRenamed: useCallback((data: ColumnRenameEvent) => {
       // Don't update if this rename was initiated by us
       if (data.userId === userId) {
