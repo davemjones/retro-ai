@@ -10,8 +10,10 @@ services:
       - NEXTAUTH_URL=http://localhost:3000
       - NEXTAUTH_SECRET=${NEXTAUTH_SECRET:-your-secret-key-change-this}
       - DATABASE_URL=postgresql://retroai:password@db:5432/retroai
+    command: sh -c "npx prisma migrate deploy && node server.js"
     depends_on:
-      - db
+      db:
+        condition: service_healthy
     volumes:
       - .env:/app/.env  # Mount environment file
     networks:
@@ -28,6 +30,11 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql/data
       - ./prisma/schema.prisma:/docker-entrypoint-initdb.d/schema.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U retroai -d retroai"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
     networks:
       - retro-network
 
