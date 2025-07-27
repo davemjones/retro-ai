@@ -5,6 +5,7 @@ const prisma = new PrismaClient();
 
 async function main() {
   // Check environment - only seed test data in development or staging
+
   // Use APP_ENV if available, otherwise fall back to NODE_ENV
   const appEnv = process.env.APP_ENV || process.env.NODE_ENV || 'development';
   // For now, we'll consider any non-production environment as suitable for test data
