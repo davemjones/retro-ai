@@ -1,5 +1,6 @@
 import { PrismaClient, User } from "@prisma/client";
 import bcrypt from "bcryptjs";
+import { generateInitialOrders } from "../lib/lexicographic-order";
 
 const prisma = new PrismaClient();
 
@@ -7,18 +8,19 @@ async function main() {
   // Check environment - only seed test data in development or staging
 
   // Use APP_ENV if available, otherwise fall back to NODE_ENV
-  const appEnv = process.env.APP_ENV || process.env.NODE_ENV || 'development';
+  const appEnv = process.env.APP_ENV || process.env.NODE_ENV || "development";
   // For now, we'll consider any non-production environment as suitable for test data
-  const isNonProduction = appEnv !== 'production';
-  
-  console.log('Current environment:', appEnv);
+  const isNonProduction = appEnv !== "production";
+
+  console.log("Current environment:", appEnv);
 
   // Always seed templates regardless of environment
   // Create default templates
   const templates = [
     {
       name: "Start/Stop/Continue",
-      description: "Classic retrospective format to identify what to start doing, stop doing, and continue doing",
+      description:
+        "Classic retrospective format to identify what to start doing, stop doing, and continue doing",
       columns: [
         { title: "Start", order: 0, color: "#10B981" },
         { title: "Stop", order: 1, color: "#EF4444" },
@@ -28,7 +30,8 @@ async function main() {
     },
     {
       name: "Mad/Sad/Glad",
-      description: "Emotional retrospective to express feelings about the sprint",
+      description:
+        "Emotional retrospective to express feelings about the sprint",
       columns: [
         { title: "Mad", order: 0, color: "#EF4444" },
         { title: "Sad", order: 1, color: "#F59E0B" },
@@ -66,11 +69,11 @@ async function main() {
 
   // Seed test data only in non-production environments
   if (!isNonProduction) {
-    console.log('Skipping test data seeding in production environment');
+    console.log("Skipping test data seeding in production environment");
     return;
   }
 
-  console.log('Seeding test data for development/staging environment...');
+  console.log("Seeding test data for development/staging environment...");
 
   // Create test users
   const testUsers = [
@@ -83,7 +86,11 @@ async function main() {
     { name: "George Wilson", email: "TestUser7@example.com", color: "#FFE066" },
     { name: "Hannah Lee", email: "TestUser8@example.com", color: "#FF6B9D" },
     { name: "Ian Malcolm", email: "TestUser9@example.com", color: "#4ECDC4" },
-    { name: "Julia Roberts", email: "TestUser10@example.com", color: "#95E1D3" },
+    {
+      name: "Julia Roberts",
+      email: "TestUser10@example.com",
+      color: "#95E1D3",
+    },
   ];
 
   const hashedPassword = await bcrypt.hash("password", 10);
@@ -107,7 +114,7 @@ async function main() {
   // Create teams
   const teamData = [
     { name: "Alpha Team", code: "ALPHA001", members: [0, 1, 2, 3, 4] }, // Users 1-5
-    { name: "Beta Team", code: "BETA001", members: [5, 6, 7, 8, 9] },  // Users 6-10
+    { name: "Beta Team", code: "BETA001", members: [5, 6, 7, 8, 9] }, // Users 6-10
     { name: "Gamma Team", code: "GAMMA001", members: [1, 2, 3, 6, 8] }, // Users 2,3,4,7,9
   ];
 
@@ -127,7 +134,11 @@ async function main() {
     });
 
     // Then handle each team member individually to ensure proper role assignment
-    for (let memberIndex = 0; memberIndex < teamInfo.members.length; memberIndex++) {
+    for (
+      let memberIndex = 0;
+      memberIndex < teamInfo.members.length;
+      memberIndex++
+    ) {
       const userIndex = teamInfo.members[memberIndex];
       const userId = createdUsers[userIndex].id;
       const role = memberIndex === 0 ? "OWNER" : "MEMBER";
@@ -136,17 +147,17 @@ async function main() {
         where: {
           userId_teamId: {
             userId: userId,
-            teamId: team.id
-          }
+            teamId: team.id,
+          },
         },
         update: {
-          role: role // Update the role even if the member already exists
+          role: role, // Update the role even if the member already exists
         },
         create: {
           userId: userId,
           teamId: team.id,
-          role: role
-        }
+          role: role,
+        },
       });
     }
 
@@ -157,7 +168,7 @@ async function main() {
 
   // Create boards with 4Ls template
   const fourLsTemplate = await prisma.template.findUnique({
-    where: { name: "4Ls" }
+    where: { name: "4Ls" },
   });
 
   if (!fourLsTemplate) {
@@ -174,19 +185,19 @@ async function main() {
 
   for (let i = 0; i < boardData.length; i++) {
     const board = boardData[i];
-    
+
     // Check if board already exists
     const existingBoard = await prisma.board.findFirst({
       where: {
         title: board.title,
-        teamId: board.teamId
-      }
+        teamId: board.teamId,
+      },
     });
 
     if (existingBoard) {
       const boardWithColumns = await prisma.board.findUnique({
         where: { id: existingBoard.id },
-        include: { columns: true }
+        include: { columns: true },
       });
       if (boardWithColumns) {
         createdBoards.push(boardWithColumns);
@@ -204,12 +215,12 @@ async function main() {
               { title: "Learned", order: 1, color: "#3B82F6" },
               { title: "Lacked", order: 2, color: "#F59E0B" },
               { title: "Longed For", order: 3, color: "#8B5CF6" },
-            ]
-          }
+            ],
+          },
         },
         include: {
-          columns: true
-        }
+          columns: true,
+        },
       });
       createdBoards.push(createdBoard);
     }
@@ -267,38 +278,54 @@ async function main() {
   ];
 
   // Create sticky notes
-  let stickyNoteIndex = 0;
   let totalStickies = 0;
 
   for (let boardIndex = 0; boardIndex < createdBoards.length; boardIndex++) {
     const board = createdBoards[boardIndex];
     const team = createdTeams[boardIndex];
-    
+
     // Get team members for this board
     const teamMembers = await prisma.user.findMany({
       where: {
         teams: {
           some: {
-            teamId: team.id
-          }
-        }
-      }
+            teamId: team.id,
+          },
+        },
+      },
     });
+
+    // Track stickies per column for proper ordering
+    const stickiesPerColumn: Map<string, number> = new Map();
+    board.columns!.forEach((col) => stickiesPerColumn.set(col.id, 0));
+
+    // Create a shuffled array of content to avoid duplicates
+    const shuffledContent = [...stickyNoteContent].sort(
+      () => Math.random() - 0.5
+    );
+    let contentIndex = 0;
 
     // Each user creates 3 sticky notes
     for (const user of teamMembers) {
-      const userIndex = createdUsers.findIndex(u => u.id === user.id);
+      const userIndex = createdUsers.findIndex((u) => u.id === user.id);
       const userColor = testUsers[userIndex].color;
-      
+
       for (let noteCount = 0; noteCount < 3; noteCount++) {
         const column = board.columns![noteCount % board.columns!.length];
-        const content = stickyNoteContent[stickyNoteIndex % stickyNoteContent.length];
-        stickyNoteIndex++;
-        
+        const content = shuffledContent[contentIndex % shuffledContent.length];
+        contentIndex++;
+
+        // Get current sticky count for this column
+        const currentCount = stickiesPerColumn.get(column.id) || 0;
+
+        // Calculate proper order value
+        const orderValues = generateInitialOrders(currentCount + 1);
+        const order = orderValues[currentCount];
+
         // Calculate position within column (distribute notes)
-        const positionX = column.order * 300 + 50 + (noteCount * 20); // Spread horizontally
-        const positionY = 100 + (stickyNoteIndex * 30) % 400; // Spread vertically
-        
+        const positionX = column.order * 300 + 50 + noteCount * 20; // Spread horizontally
+        const positionY = 100 + currentCount * 80 + 50; // Spread vertically based on column count
+
         await prisma.sticky.create({
           data: {
             content,
@@ -308,8 +335,12 @@ async function main() {
             authorId: user.id,
             positionX,
             positionY,
-          }
+            order,
+          },
         });
+
+        // Update the count for this column
+        stickiesPerColumn.set(column.id, currentCount + 1);
         totalStickies++;
       }
     }
