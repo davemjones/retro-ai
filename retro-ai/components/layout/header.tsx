@@ -24,9 +24,9 @@ export function Header() {
 
   return (
     <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-      <div className="container flex h-16 items-center">
+      <div className="flex h-16 items-center px-4 md:px-6 lg:px-8">
         <div className="flex flex-1 items-center justify-between">
-          <div className="flex flex-col ml-4">
+          <div className="flex flex-col">
             <Link href="/dashboard" className="font-semibold text-xl">
               Retro AI
             </Link>
