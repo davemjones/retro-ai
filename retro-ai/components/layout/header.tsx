@@ -39,7 +39,7 @@ export function Header() {
             {status === "authenticated" && session?.user ? (
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <Button variant="outline" size="sm" className="text-sm max-w-[200px]">
+                  <Button variant="outline" size="sm" className="min-w-0 max-w-48">
                     <span className="truncate">
                       {session.user.name || session.user.email || "User"}
                     </span>
