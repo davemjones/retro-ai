@@ -251,6 +251,8 @@ export function BoardCanvas({ board, columns: initialColumns, userId, isOwner }:
                   }
                   
                   // Schedule adding to unassigned after this setState completes
+                  // Capture the sticky data with order in closure
+                  const stickyToAdd = foundSticky;
                   requestAnimationFrame(() => {
                     setUnassignedStickies(prevUnassigned => {
                       // Double-check it's not already there
@@ -258,7 +260,7 @@ export function BoardCanvas({ board, columns: initialColumns, userId, isOwner }:
                         return prevUnassigned;
                       }
                       
-                      const result = [...prevUnassigned, foundSticky!];
+                      const result = [...prevUnassigned, stickyToAdd!];
                       result.sort((a, b) => a.order - b.order);
                       
                       return result;
@@ -294,6 +296,8 @@ export function BoardCanvas({ board, columns: initialColumns, userId, isOwner }:
               }
               
               // Schedule adding to target column after this setState completes
+              // Capture the sticky data with order in closure
+              const stickyToAdd = stickyFromUnassigned;
               requestAnimationFrame(() => {
                 setColumns(prevColumns => {
                   return prevColumns.map(column => {
@@ -304,7 +308,7 @@ export function BoardCanvas({ board, columns: initialColumns, userId, isOwner }:
                         return column;
                       }
                       
-                      const newStickies = [...column.stickies, stickyFromUnassigned];
+                      const newStickies = [...column.stickies, stickyToAdd];
                       
                       // Sort by order
                       newStickies.sort((a, b) => a.order - b.order);
@@ -342,6 +346,8 @@ export function BoardCanvas({ board, columns: initialColumns, userId, isOwner }:
                   }
                   
                   // Schedule adding to target column after this setState completes
+                  // Capture the sticky data with order in closure
+                  const stickyToAdd = foundSticky;
                   requestAnimationFrame(() => {
                     setColumns(prevColumns => {
                       return prevColumns.map(column => {
@@ -352,7 +358,7 @@ export function BoardCanvas({ board, columns: initialColumns, userId, isOwner }:
                             return column;
                           }
                           
-                          const newStickies = [...column.stickies, foundSticky!];
+                          const newStickies = [...column.stickies, stickyToAdd!];
                           
                           // Sort by order
                           newStickies.sort((a, b) => a.order - b.order);
