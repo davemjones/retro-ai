@@ -200,3 +200,29 @@
     transform: scale(1);
   }
 }
+
+/* Custom scrollbar styling for board canvas only */
+.board-canvas-scrollable {
+  scrollbar-width: thick; /* Firefox */
+}
+
+/* Webkit browsers (Chrome, Safari, Edge) - Canvas specific */
+.board-canvas-scrollable::-webkit-scrollbar {
+  height: 16px; /* Increase horizontal scrollbar thickness */
+}
+
+.board-canvas-scrollable::-webkit-scrollbar-thumb {
+  background: hsl(var(--border));
+  border-radius: 8px;
+  min-width: 50px; /* Ensure minimum thumb size for easy grabbing */
+  border: 2px solid hsl(var(--background)); /* Add border for visual separation */
+}
+
+.board-canvas-scrollable::-webkit-scrollbar-thumb:hover {
+  background: hsl(var(--muted-foreground));
+}
+
+.board-canvas-scrollable::-webkit-scrollbar-track {
+  background: hsl(var(--muted));
+  border-radius: 8px;
+}
