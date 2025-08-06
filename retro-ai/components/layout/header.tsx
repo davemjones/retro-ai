@@ -1,6 +1,7 @@
 "use client";
 
-import { useSession, signOut } from "next-auth/react";
+import { useNextAuthCompatSession } from "@/components/providers/better-auth-provider";
+import { signOut } from "@/lib/auth-client";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import {
@@ -15,10 +16,10 @@ import { LogOut, Settings, User } from "lucide-react";
 import { getDisplayVersion } from "@/lib/version";
 
 export function Header() {
-  const { data: session, status } = useSession();
+  const { data: session, status } = useNextAuthCompatSession();
 
   const handleSignOut = async () => {
-    await signOut({ redirect: false });
+    await signOut();
     window.location.href = '/';
   };
 

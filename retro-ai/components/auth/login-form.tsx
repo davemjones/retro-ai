@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { signIn } from "next-auth/react";
+import { signIn } from "@/lib/auth-client";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
@@ -66,6 +66,13 @@ export function LoginForm({
           icon: <AlertTriangle className="h-4 w-4" />,
           variant: 'default' as const
         };
+      case 'EmailNotVerified':
+        return {
+          title: 'Email Verification Required',
+          message: 'Please verify your email address before accessing your account.',
+          icon: <AlertTriangle className="h-4 w-4" />,
+          variant: 'default' as const
+        };
       default:
         return null;
     }
@@ -78,15 +85,19 @@ export function LoginForm({
     setIsLoading(true);
 
     try {
-      const result = await signIn("credentials", {
+      const result = await signIn.email({
         email,
         password,
-        redirect: false,
       });
 
-      if (result?.error) {
-        toast.error("Invalid email or password");
-      } else if (result?.ok) {
+      if (result.error) {
+        // Check if email is not verified
+        if (result.error.code === "EMAIL_NOT_VERIFIED") {
+          toast.error("Please verify your email before signing in");
+        } else {
+          toast.error(result.error.message || "Invalid email or password");
+        }
+      } else if (result.data) {
         console.log("Login successful, redirecting to dashboard");
         router.push("/dashboard");
         router.refresh();
@@ -137,7 +148,7 @@ export function LoginForm({
           <div className="grid gap-2">
             <div className="flex items-center">
               <Label htmlFor="password">Password</Label>
-              <Link href="#" className="ml-auto inline-block text-sm underline" tabIndex={-1}>
+              <Link href="/forgot-password" className="ml-auto inline-block text-sm underline" tabIndex={-1}>
                 Forgot your password?
               </Link>
             </div>
