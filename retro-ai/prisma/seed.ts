@@ -1,5 +1,5 @@
 import { PrismaClient, User } from "@prisma/client";
-import bcrypt from "bcryptjs";
+import { hashPassword } from "../lib/password-utils";
 import { generateInitialOrders } from "../lib/lexicographic-order";
 import { randomBytes } from "crypto";
 
@@ -9,11 +9,11 @@ async function main() {
   // Check environment - only seed test data in development or staging
 
   // Use APP_ENV if available, otherwise fall back to NODE_ENV
-  const appEnv = process.env.APP_ENV || process.env.NODE_ENV || 'development';
+  const appEnv = process.env.APP_ENV || process.env.NODE_ENV || "development";
   // For now, we'll consider any non-production environment as suitable for test data
-  const isNonProduction = appEnv !== 'production';
-  
-  console.log('Current environment:', appEnv);
+  const isNonProduction = appEnv !== "production";
+
+  console.log("Current environment:", appEnv);
 
   // Always seed templates regardless of environment
   // Create default templates
@@ -78,23 +78,22 @@ async function main() {
 
   // Create test users
   const testUsers = [
-    { name: "Alice Johnson", email: "TestUser1@example.com", color: "#FFE066" },
-    { name: "Bob Smith", email: "TestUser2@example.com", color: "#FF6B9D" },
-    { name: "Charlie Brown", email: "TestUser3@example.com", color: "#4ECDC4" },
-    { name: "Diana Prince", email: "TestUser4@example.com", color: "#95E1D3" },
-    { name: "Ethan Hunt", email: "TestUser5@example.com", color: "#FFA07A" },
-    { name: "Fiona Shaw", email: "TestUser6@example.com", color: "#C3A6FF" },
-    { name: "George Wilson", email: "TestUser7@example.com", color: "#FFE066" },
-    { name: "Hannah Lee", email: "TestUser8@example.com", color: "#FF6B9D" },
-    { name: "Ian Malcolm", email: "TestUser9@example.com", color: "#4ECDC4" },
+    { name: "Alice Johnson", email: "testuser1@example.com", color: "#FFE066" },
+    { name: "Bob Smith", email: "testuser2@example.com", color: "#FF6B9D" },
+    { name: "Charlie Brown", email: "testuser3@example.com", color: "#4ECDC4" },
+    { name: "Diana Prince", email: "testuser4@example.com", color: "#95E1D3" },
+    { name: "Ethan Hunt", email: "testuser5@example.com", color: "#FFA07A" },
+    { name: "Fiona Shaw", email: "testuser6@example.com", color: "#C3A6FF" },
+    { name: "George Wilson", email: "testuser7@example.com", color: "#FFE066" },
+    { name: "Hannah Lee", email: "testuser8@example.com", color: "#FF6B9D" },
+    { name: "Ian Malcolm", email: "testuser9@example.com", color: "#4ECDC4" },
     {
       name: "Julia Roberts",
-      email: "TestUser10@example.com",
+      email: "testuser10@example.com",
       color: "#95E1D3",
     },
   ];
 
-  const hashedPassword = await bcrypt.hash("demopassword", 10);
   const createdUsers: User[] = [];
 
   for (const user of testUsers) {
@@ -104,10 +103,11 @@ async function main() {
       create: {
         name: user.name,
         email: user.email,
+        color: user.color,
         emailVerified: false, // Match Better Auth default
       },
     });
-    
+
     // Create Account record for Better Auth (stores password)
     // Check if account already exists
     const existingAccount = await prisma.account.findFirst({
@@ -118,9 +118,10 @@ async function main() {
     });
 
     if (!existingAccount) {
+      const hashedPassword = await hashPassword("demopassword");
       await prisma.account.create({
         data: {
-          id: randomBytes(16).toString('base64url'), // Generate random ID like Better Auth
+          id: randomBytes(16).toString("base64url"), // Generate random ID like Better Auth
           accountId: createdUser.id, // Better Auth uses user ID as account ID
           providerId: "credential", // Better Auth uses 'credential' not 'email'
           userId: createdUser.id,
@@ -130,7 +131,7 @@ async function main() {
         },
       });
     }
-    
+
     createdUsers.push(createdUser);
   }
 
@@ -332,8 +333,8 @@ async function main() {
 
     // Each user creates 3 sticky notes
     for (const user of teamMembers) {
-      const userIndex = createdUsers.findIndex((u) => u.id === user.id);
-      const userColor = testUsers[userIndex].color;
+      // Use the user's color from the database, or default if not set
+      const userColor = user.color || "#FFE066"; // Default color
 
       for (let noteCount = 0; noteCount < 3; noteCount++) {
         const column = board.columns![noteCount % board.columns!.length];

@@ -16,6 +16,7 @@ model User {
   name          String?
   emailVerified Boolean        @default(false)
   image         String?
+  color         String?        // User avatar/identification color
   teams         TeamMember[]
   stickies      Sticky[]
   createdBoards Board[]

@@ -45,19 +45,65 @@ git push -u origin fix/issue-47-eslint-errors
 
 ## Demo User Setup
 
-After seeding the database, create demo users, teams, and boards using Better Auth API:
+The database seeding script automatically creates demo data:
 
 ```bash
-npm run db:create-demo-users
+npm run db:seed
 ```
 
 This creates:
-- **10 demo users** (TestUser1@example.com through TestUser10@example.com) with password `demopassword`
+- **10 demo users** (testuser1@example.com through testuser10@example.com) with password `demopassword`
 - **3 teams** (Alpha Team, Beta Team, Gamma Team) with proper member assignments
 - **3 boards** (Sprint Planning, Retrospective Meeting, Project Kickoff) with different templates
-- **15+ sticky notes** distributed across the boards
+- **45+ sticky notes** distributed across the boards
 
 All users are compatible with Better Auth authentication and can login immediately (no email verification required).
+
+## Authentication Setup (Better Auth)
+
+This project uses **Better Auth** for authentication, which provides:
+- Email/password authentication with scrypt hashing
+- Session-based authentication (not JWT)
+- Email verification and password reset functionality
+- Rate limiting on auth endpoints
+
+### Environment Variables
+
+Required environment variables for authentication:
+
+```bash
+# Better Auth Configuration
+BETTER_AUTH_URL="http://localhost:3000"  # Your app's base URL
+BETTER_AUTH_SECRET="your-secret-key"     # Generate with: openssl rand -base64 32
+NEXT_PUBLIC_APP_URL="http://localhost:3000"  # Public URL for client-side
+
+# Email Configuration (Resend)
+RESEND_API_KEY="re_YOUR_API_KEY"         # From https://resend.com/api-keys
+EMAIL_FROM="noreply@your-domain.com"     # Verified domain email
+EMAIL_FROM_NAME="Retro AI"               # Display name for emails
+```
+
+### Email Service (Resend)
+
+The app uses **Resend** for transactional emails:
+- **Development**: If `RESEND_API_KEY` is not configured, emails are logged to console
+- **Production**: Requires valid Resend API key and verified domain
+
+To set up Resend:
+1. Sign up at [resend.com](https://resend.com)
+2. Verify your domain in the Resend dashboard
+3. Create an API key
+4. Add the API key to your `.env` file
+
+### Password Hashing
+
+Better Auth uses **scrypt** by default for password hashing with these parameters:
+- N: 16384 (CPU/memory cost)
+- r: 16 (block size)
+- p: 1 (parallelization)
+- dkLen: 64 (derived key length)
+
+The seed script (`prisma/seed.ts`) uses the same scrypt implementation to ensure compatibility.
 
 ## Linting Requirements
 

@@ -1,7 +1,6 @@
 import { betterAuth } from "better-auth";
 import { prismaAdapter } from "better-auth/adapters/prisma";
 import { prisma } from "./prisma";
-import bcrypt from "bcryptjs";
 
 export const auth = betterAuth({
   database: prismaAdapter(prisma, {
@@ -31,20 +30,36 @@ export const auth = betterAuth({
   emailAndPassword: {
     enabled: true,
     requireEmailVerification: false, // Temporarily disable for testing
-    password: {
-      hash: async (password) => {
-        const salt = bcrypt.genSaltSync(10);
-        return bcrypt.hashSync(password, salt);
-      },
-      verify: async ({ hash, password }) => {
-        return bcrypt.compareSync(password, hash);
-      }
-    },
-    sendResetPassword: async ({ user, token, url }: { user: { email: string }, token: string, url: string }) => {
+    // password: {
+    //   hash: async (password) => {
+    //     const salt = bcrypt.genSaltSync(10);
+    //     return bcrypt.hashSync(password, salt);
+    //   },
+    //   verify: async ({ hash, password }) => {
+    //     return bcrypt.compareSync(password, hash);
+    //   }
+    // },
+    sendResetPassword: async ({
+      user,
+      token,
+      url,
+    }: {
+      user: { email: string };
+      token: string;
+      url: string;
+    }) => {
       const { sendPasswordResetEmail } = await import("./email");
       await sendPasswordResetEmail(user.email, url, token);
     },
-    sendVerificationEmail: async ({ user, token, url }: { user: { email: string }, token: string, url: string }) => {
+    sendVerificationEmail: async ({
+      user,
+      token,
+      url,
+    }: {
+      user: { email: string };
+      token: string;
+      url: string;
+    }) => {
       const { sendVerificationEmail } = await import("./email");
       await sendVerificationEmail(user.email, url, token);
     },
@@ -52,7 +67,16 @@ export const auth = betterAuth({
   user: {
     changeEmail: {
       enabled: true,
-      sendChangeEmailVerification: async ({ newEmail, url, token }: { user: { email: string }, newEmail: string, url: string, token: string }) => {
+      sendChangeEmailVerification: async ({
+        newEmail,
+        url,
+        token,
+      }: {
+        user: { email: string };
+        newEmail: string;
+        url: string;
+        token: string;
+      }) => {
         const { sendChangeEmailVerification } = await import("./email");
         await sendChangeEmailVerification(newEmail, url, token);
       },
@@ -80,12 +104,12 @@ export const auth = betterAuth({
   //       // Generate session IDs for tracking and window validation
   //       const sessionId = generateSecureSessionId();
   //       const windowSessionId = generateSecureSessionId();
-        
+
   //       // Create UserSession record for tracking
   //       if (request) {
   //         const nextRequest = request as NextRequest;
   //         const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours
-          
+
   //         try {
   //           await SessionManager.createSession(
   //             user.id,
@@ -97,7 +121,7 @@ export const auth = betterAuth({
   //           console.error("Failed to create UserSession record:", error);
   //         }
   //       }
-        
+
   //       return {
   //         ...session,
   //         sessionId,

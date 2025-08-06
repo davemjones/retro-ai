@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from 'react';
-import { useSession } from '@/components/providers/better-auth-provider';
+import { useNextAuthCompatSession } from '@/components/providers/better-auth-provider';
 
 interface SessionInfo {
   id: string;
@@ -31,7 +31,7 @@ interface SessionAnalytics {
 }
 
 export function useSessionManager() {
-  const { data: session } = useSession();
+  const { data: session } = useNextAuthCompatSession();
   const [sessions, setSessions] = useState<SessionInfo[]>([]);
   const [currentSession, setCurrentSession] = useState<SessionInfo | null>(null);
   const [analytics, setAnalytics] = useState<SessionAnalytics | null>(null);

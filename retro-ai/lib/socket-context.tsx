@@ -263,7 +263,7 @@ export function SocketProvider({ children }: SocketProviderProps) {
       });
       setIsConnected(false);
     };
-  }, [session?.user?.id, status]);
+  }, [session?.user?.id, status]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const joinBoard = (boardId: string) => {
     if (socket && isConnected) {

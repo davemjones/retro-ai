@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef } from 'react';
-import { useSession } from '@/components/providers/better-auth-provider';
+import { useNextAuthCompatSession } from '@/components/providers/better-auth-provider';
 import { usePathname } from 'next/navigation';
 
 /**
@@ -9,7 +9,7 @@ import { usePathname } from 'next/navigation';
  * Tracks page views and user activity for session management
  */
 export function useSessionActivityTracker() {
-  const { data: session } = useSession();
+  const { data: session } = useNextAuthCompatSession();
   const pathname = usePathname();
   const lastActivityRef = useRef<number>(Date.now());
   const trackingIntervalRef = useRef<NodeJS.Timeout | null>(null);

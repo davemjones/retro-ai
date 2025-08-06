@@ -12,10 +12,11 @@ A modern, real-time collaborative retrospective tool built with Next.js, Socket.
 - 🚀 **Real-time Collaboration** - See changes instantly as team members add, edit, or move sticky notes
 - 🎯 **Drag & Drop Interface** - Intuitive UI for organizing thoughts into customizable columns
 - 👥 **Team Management** - Create teams, invite members, and manage permissions
-- 🔒 **Secure Authentication** - Built-in authentication with NextAuth.js
+- 🔒 **Secure Authentication** - Modern authentication with Better Auth (email verification, password reset)
 - 📱 **Responsive Design** - Works seamlessly on desktop and mobile devices
 - 🎨 **Customizable Boards** - Create boards with different templates or custom columns
 - 🔄 **Live Activity Indicators** - See who's editing what in real-time
+- ✉️ **Email Notifications** - Transactional emails via Resend for verification and password resets
 
 ## Prerequisites
 
@@ -59,17 +60,21 @@ Edit `.env` file with your settings:
 # Database - Update with your PostgreSQL credentials
 DATABASE_URL="postgresql://retroai:your-password@localhost:5432/retroai"
 
-# NextAuth - Keep for local development
-NEXTAUTH_URL="http://localhost:3000"
+# Better Auth - Authentication configuration
+BETTER_AUTH_URL="http://localhost:3000"
+BETTER_AUTH_SECRET="your-generated-secret-here"  # Generate with: openssl rand -base64 32
+NEXT_PUBLIC_APP_URL="http://localhost:3000"
 
-# CRITICAL: Generate a secure secret for production
-NEXTAUTH_SECRET="your-generated-secret-here"
+# Email (Optional for development - emails will log to console if not configured)
+RESEND_API_KEY="re_YOUR_API_KEY"  # From https://resend.com
+EMAIL_FROM="noreply@your-domain.com"
+EMAIL_FROM_NAME="Retro AI"
 
 # Socket.io - Default port
 SOCKET_PORT=3001
 ```
 
-**Important: Generate a secure `NEXTAUTH_SECRET`:**
+**Important: Generate a secure `BETTER_AUTH_SECRET`:**
 ```bash
 openssl rand -base64 32
 ```
