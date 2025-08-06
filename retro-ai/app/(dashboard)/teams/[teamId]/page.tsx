@@ -1,5 +1,4 @@
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { auth } from "@/lib/auth-better";
 import { redirect, notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { Button } from "@/components/ui/button";
@@ -67,7 +66,9 @@ export default async function TeamPage({
   params: Promise<{ teamId: string }>;
 }) {
   const { teamId } = await params;
-  const session = await getServerSession(authOptions);
+  const session = await auth.api.getSession({
+    headers: new Headers(),
+  });
 
   if (!session?.user?.id) {
     redirect("/");
