@@ -4,7 +4,6 @@ import { prisma } from "./prisma";
 import { generateSecureSessionId } from "./cookie-security";
 import { SessionManager } from "./session-manager";
 import { NextRequest } from "next/server";
-import bcrypt from "bcryptjs";
 
 export const auth = betterAuth({
   database: prismaAdapter(prisma, {
@@ -41,15 +40,6 @@ export const auth = betterAuth({
       const { sendVerificationEmail } = await import("./email");
       await sendVerificationEmail(user.email, url, token);
     },
-    // Customize password hashing to use bcrypt like the existing system
-    passwordHasher: {
-      hash: async (password: string) => {
-        return await bcrypt.hash(password, 10);
-      },
-      verify: async (password: string, hash: string) => {
-        return await bcrypt.compare(password, hash);
-      },
-    },
   },
   user: {
     changeEmail: {
@@ -62,7 +52,9 @@ export const auth = betterAuth({
   },
   advanced: {
     // Custom JWT configuration for socket server compatibility
-    generateId: () => generateSecureSessionId(),
+    database: {
+      generateId: () => generateSecureSessionId(),
+    },
     // Ensure JWT includes necessary fields for socket authentication
     cookiePrefix: "better-auth",
     defaultCookieAttributes: {
