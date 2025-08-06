@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef } from 'react';
-import { useSession } from 'next-auth/react';
+import { useSession } from '@/components/providers/better-auth-provider';
 import { usePathname } from 'next/navigation';
 
 /**

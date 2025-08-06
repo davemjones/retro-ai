@@ -1,9 +1,6 @@
 import { betterAuth } from "better-auth";
 import { prismaAdapter } from "better-auth/adapters/prisma";
 import { prisma } from "./prisma";
-import { generateSecureSessionId } from "./cookie-security";
-import { SessionManager } from "./session-manager";
-import { NextRequest } from "next/server";
 import bcrypt from "bcryptjs";
 
 export const auth = betterAuth({
@@ -43,11 +40,11 @@ export const auth = betterAuth({
         return bcrypt.compareSync(password, hash);
       }
     },
-    sendResetPassword: async ({ user, token, url }: { user: any, token: string, url: string }) => {
+    sendResetPassword: async ({ user, token, url }: { user: { email: string }, token: string, url: string }) => {
       const { sendPasswordResetEmail } = await import("./email");
       await sendPasswordResetEmail(user.email, url, token);
     },
-    sendVerificationEmail: async ({ user, token, url }: { user: any, token: string, url: string }) => {
+    sendVerificationEmail: async ({ user, token, url }: { user: { email: string }, token: string, url: string }) => {
       const { sendVerificationEmail } = await import("./email");
       await sendVerificationEmail(user.email, url, token);
     },
@@ -55,7 +52,7 @@ export const auth = betterAuth({
   user: {
     changeEmail: {
       enabled: true,
-      sendChangeEmailVerification: async ({ user, newEmail, url, token }: { user: any, newEmail: string, url: string, token: string }) => {
+      sendChangeEmailVerification: async ({ newEmail, url, token }: { user: { email: string }, newEmail: string, url: string, token: string }) => {
         const { sendChangeEmailVerification } = await import("./email");
         await sendChangeEmailVerification(newEmail, url, token);
       },

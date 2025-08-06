@@ -43,6 +43,22 @@ git push -u origin fix/issue-47-eslint-errors
 
 **See [docs/BRANCHING-STRATEGY.md](./docs/BRANCHING-STRATEGY.md) for complete workflow details.**
 
+## Demo User Setup
+
+After seeding the database, create demo users, teams, and boards using Better Auth API:
+
+```bash
+npm run db:create-demo-users
+```
+
+This creates:
+- **10 demo users** (TestUser1@example.com through TestUser10@example.com) with password `demopassword`
+- **3 teams** (Alpha Team, Beta Team, Gamma Team) with proper member assignments
+- **3 boards** (Sprint Planning, Retrospective Meeting, Project Kickoff) with different templates
+- **15+ sticky notes** distributed across the boards
+
+All users are compatible with Better Auth authentication and can login immediately (no email verification required).
+
 ## Linting Requirements
 
 Before committing any changes, always run:

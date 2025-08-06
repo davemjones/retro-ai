@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getToken } from 'next-auth/jwt';
+import { headers } from 'next/headers';
+import { auth } from '@/lib/auth-better';
 import { SessionManager } from '@/lib/session-manager';
 
 /**
@@ -9,16 +10,18 @@ import { SessionManager } from '@/lib/session-manager';
 export async function GET(req: NextRequest) {
   try {
     // Verify user is authenticated
-    const token = await getToken({ req, secret: process.env.NEXTAUTH_SECRET });
+    const session = await auth.api.getSession({
+      headers: await headers(),
+    });
     
-    if (!token) {
+    if (!session?.user?.id) {
       return NextResponse.json(
         { error: 'Unauthorized' },
         { status: 401 }
       );
     }
 
-    const userId = token.id as string;
+    const userId = session.user.id;
     const url = new URL(req.url);
     const action = url.searchParams.get('action');
 
@@ -36,7 +39,7 @@ export async function GET(req: NextRequest) {
 
       case 'current':
         // Get current session info
-        const sessionId = token.sessionId as string;
+        const sessionId = session.session.id;
         const validation = await SessionManager.validateSession(sessionId);
         return NextResponse.json({ 
           currentSession: validation.session,
@@ -62,9 +65,11 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   try {
     // Verify user is authenticated
-    const token = await getToken({ req, secret: process.env.NEXTAUTH_SECRET });
+    const session = await auth.api.getSession({
+      headers: await headers(),
+    });
     
-    if (!token) {
+    if (!session?.user?.id) {
       return NextResponse.json(
         { error: 'Unauthorized' },
         { status: 401 }
@@ -73,8 +78,8 @@ export async function POST(req: NextRequest) {
 
     const body = await req.json();
     const { action, sessionId } = body;
-    const userId = token.id as string;
-    const currentSessionId = token.sessionId as string;
+    const userId = session.user.id;
+    const currentSessionId = session.session.id;
 
     switch (action) {
       case 'create':
@@ -163,9 +168,11 @@ export async function POST(req: NextRequest) {
 export async function DELETE(req: NextRequest) {
   try {
     // Verify user is authenticated
-    const token = await getToken({ req, secret: process.env.NEXTAUTH_SECRET });
+    const session = await auth.api.getSession({
+      headers: await headers(),
+    });
     
-    if (!token) {
+    if (!session?.user?.id) {
       return NextResponse.json(
         { error: 'Unauthorized' },
         { status: 401 }

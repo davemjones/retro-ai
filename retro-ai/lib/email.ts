@@ -187,7 +187,7 @@ const changeEmailTemplate = (verificationUrl: string) => `
 export async function sendVerificationEmail(
   to: string,
   verificationUrl: string,
-  _token: string
+  _token?: string
 ) {
   try {
     // In development mode without API key, just log the email
@@ -222,7 +222,7 @@ export async function sendVerificationEmail(
 export async function sendPasswordResetEmail(
   to: string,
   resetUrl: string,
-  _token: string
+  _token?: string
 ) {
   try {
     // In development mode without API key, just log the email
@@ -257,9 +257,12 @@ export async function sendPasswordResetEmail(
 export async function sendChangeEmailVerification(
   to: string,
   verificationUrl: string,
-  _token: string
+  _token?: string
 ) {
   try {
+    if (!resend) {
+      throw new Error("Email service not configured");
+    }
     const { data, error } = await resend.emails.send({
       from: `${fromName} <${fromEmail}>`,
       to,
@@ -287,7 +290,7 @@ export function isValidEmail(email: string): boolean {
 }
 
 // Utility function to check if email domain is allowed (for future use)
-export async function isEmailDomainAllowed(_email: string): Promise<boolean> {
+export async function isEmailDomainAllowed(_email?: string): Promise<boolean> {
   // For now, allow all domains
   // In the future, you might want to implement domain allowlist/blocklist
   return true;
