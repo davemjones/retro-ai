@@ -4,17 +4,8 @@ import { createAuthClient } from "better-auth/client";
 export const authClient = createAuthClient({
   baseURL: process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000",
   // Configure client options
-  session: {
-    cookieName: "better-auth.session-token",
-    // Automatically refresh session when it's about to expire
-    fetchOptions: {
-      onError: (error: any) => {
-        if (error.status === 401) {
-          // Session expired, redirect to login
-          window.location.href = "/";
-        }
-      },
-    },
+  fetchOptions: {
+    credentials: 'include', // Important: Include cookies in requests
   },
 });
 

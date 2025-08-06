@@ -1,5 +1,6 @@
 import { auth } from "@/lib/auth-better";
 import { redirect } from "next/navigation";
+import { headers } from "next/headers";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -81,7 +82,7 @@ async function getUserStats(userId: string) {
 
 export default async function DashboardPage() {
   const session = await auth.api.getSession({
-    headers: new Headers(),
+    headers: await headers(),
   });
 
   if (!session?.user?.id) {

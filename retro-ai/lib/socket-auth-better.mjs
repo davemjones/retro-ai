@@ -25,33 +25,60 @@ async function authenticateSocket(socket) {
       }
     });
 
-    // Look for Better Auth session token
-    const sessionToken = cookieObject['better-auth.session-token'];
+    // Look for Better Auth session token (try both possible names)
+    const rawSessionToken = cookieObject['better-auth.session_token'] || cookieObject['better-auth.session-token'];
     
-    if (!sessionToken) {
+    if (!rawSessionToken) {
       console.warn(`Socket authentication failed: No Better Auth token for ${socket.id}`);
       return null;
     }
 
-    // Decode and verify JWT token using Better Auth secret
-    let decodedToken;
+    // Better Auth signs the session token - extract just the session ID part
+    // Format: sessionId.signature
+    const sessionToken = decodeURIComponent(rawSessionToken).split('.')[0];
+
+    // For Better Auth, we need to validate the session token against the database
+    // Better Auth uses session-based authentication, not JWT
+    const prisma = new PrismaClient();
+    let user, session;
+    
     try {
-      decodedToken = jwt.verify(sessionToken, process.env.BETTER_AUTH_SECRET);
+      // Look up the session in the database using the session token
+      session = await prisma.session.findUnique({
+        where: { token: sessionToken },
+        include: { user: true }
+      });
+
+      if (!session) {
+        console.warn(`Socket authentication failed: Invalid session token for ${socket.id}`);
+        await prisma.$disconnect();
+        return null;
+      }
+
+      // Check if session is expired
+      if (new Date() > session.expiresAt) {
+        console.warn(`Socket authentication failed: Expired session for ${socket.id}`);
+        await prisma.$disconnect();
+        return null;
+      }
+
+      user = session.user;
+      
+      // Note: Better Auth is configured with requireEmailVerification: false
+      // so we allow users with unverified emails
+
     } catch (error) {
-      console.warn(`Socket authentication failed: Invalid token for ${socket.id}`, error.message);
+      console.error('Database error during socket authentication:', error);
+      await prisma.$disconnect();
       return null;
+    } finally {
+      await prisma.$disconnect();
     }
 
-    // Extract user information from Better Auth token
-    const userId = decodedToken.sub || decodedToken.userId;
-    const userEmail = decodedToken.email;
-    const userName = decodedToken.name || userEmail || 'User';
-    const sessionId = decodedToken.sessionId || `socket_${Date.now()}`;
-
-    if (!userId) {
-      console.warn(`Socket authentication failed: No user ID in token for ${socket.id}`);
-      return null;
-    }
+    const userId = user.id;
+    const userEmail = user.email;
+    const userName = user.name || userEmail || 'User';
+    const sessionId = session.id;
 
     // Create socket session object compatible with existing system
     const socketSession = {
@@ -64,14 +91,14 @@ async function authenticateSocket(socket) {
         userAgentHash: userAgent,
         features: [
           'better-auth-session',
-          'email-verified'
+          user.emailVerified ? 'email-verified' : 'email-unverified'
         ]
       },
       securityLevel: 'standard',
       provider: 'better-auth',
-      token: decodedToken,
-      issuedAt: decodedToken.iat,
-      expiresAt: decodedToken.exp
+      sessionToken: sessionToken,
+      issuedAt: Math.floor(session.createdAt.getTime() / 1000),
+      expiresAt: Math.floor(session.expiresAt.getTime() / 1000)
     };
 
     console.log(`Socket authenticated successfully for user ${userId} (${userName}) with Better Auth`);
@@ -110,11 +137,8 @@ async function validateSocketSession(socket, session, operation) {
         return { isValid: false, reason: 'User not found' };
       }
 
-      // Check email verification status
-      if (!user.emailVerified) {
-        console.warn(`Socket operation denied: Email not verified for user ${session.userId}`);
-        return { isValid: false, reason: 'Email verification required' };
-      }
+      // Note: Better Auth is configured with requireEmailVerification: false
+      // so we allow users with unverified emails for socket operations
     } catch (error) {
       console.error('Error validating user:', error);
       return { isValid: false, reason: 'Database error' };

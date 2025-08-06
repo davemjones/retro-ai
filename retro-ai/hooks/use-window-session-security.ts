@@ -136,7 +136,7 @@ export function useWindowSessionSecurity() {
         isWindowSessionValid: true
       }));
     }
-  }, [session, status, state.windowSessionId, handleSessionViolation]);
+  }, [session?.user?.id, status, state.windowSessionId, handleSessionViolation]);
 
   // Force session validation
   const validateSession = useCallback(() => {
@@ -156,7 +156,7 @@ export function useWindowSessionSecurity() {
     }
 
     return true;
-  }, [session, state.windowSessionId, handleSessionViolation]);
+  }, [session?.user?.id, state.windowSessionId, handleSessionViolation]);
 
   // Get current window session info for debugging
   const getSessionInfo = useCallback(() => {
@@ -168,7 +168,7 @@ export function useWindowSessionSecurity() {
       userAgent: typeof window !== 'undefined' ? navigator.userAgent : 'server',
       timestamp: new Date().toISOString()
     };
-  }, [session, state]);
+  }, [session?.user?.id, state]);
 
   return {
     isWindowSessionValid: state.isWindowSessionValid,

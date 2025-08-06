@@ -1,5 +1,6 @@
 import { auth } from "@/lib/auth-better";
 import { redirect, notFound } from "next/navigation";
+import { headers } from "next/headers";
 import { prisma } from "@/lib/prisma";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -67,7 +68,7 @@ export default async function TeamPage({
 }) {
   const { teamId } = await params;
   const session = await auth.api.getSession({
-    headers: new Headers(),
+    headers: await headers(),
   });
 
   if (!session?.user?.id) {

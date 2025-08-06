@@ -1,6 +1,7 @@
 import { PrismaClient, User } from "@prisma/client";
 import bcrypt from "bcryptjs";
 import { generateInitialOrders } from "../lib/lexicographic-order";
+import { randomBytes } from "crypto";
 
 const prisma = new PrismaClient();
 
@@ -93,7 +94,7 @@ async function main() {
     },
   ];
 
-  const hashedPassword = await bcrypt.hash("password", 10);
+  const hashedPassword = await bcrypt.hash("demopassword", 10);
   const createdUsers: User[] = [];
 
   for (const user of testUsers) {
@@ -103,9 +104,33 @@ async function main() {
       create: {
         name: user.name,
         email: user.email,
-        password: hashedPassword,
+        emailVerified: false, // Match Better Auth default
       },
     });
+    
+    // Create Account record for Better Auth (stores password)
+    // Check if account already exists
+    const existingAccount = await prisma.account.findFirst({
+      where: {
+        userId: createdUser.id,
+        providerId: "credential",
+      },
+    });
+
+    if (!existingAccount) {
+      await prisma.account.create({
+        data: {
+          id: randomBytes(16).toString('base64url'), // Generate random ID like Better Auth
+          accountId: createdUser.id, // Better Auth uses user ID as account ID
+          providerId: "credential", // Better Auth uses 'credential' not 'email'
+          userId: createdUser.id,
+          password: hashedPassword,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        },
+      });
+    }
+    
     createdUsers.push(createdUser);
   }
 

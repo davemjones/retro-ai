@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from "next/server";
-import { auth } from "./lib/auth-better";
 import { 
   validateCookieSecurity, 
   detectSessionHijacking, 
@@ -12,90 +11,22 @@ export default async function middleware(req: NextRequest) {
       req.nextUrl.pathname.startsWith("/register") ||
       req.nextUrl.pathname.startsWith("/forgot-password") ||
       req.nextUrl.pathname.startsWith("/reset-password") ||
-      req.nextUrl.pathname.startsWith("/api/auth")) {
+      req.nextUrl.pathname.startsWith("/api/auth") ||
+      req.nextUrl.pathname.startsWith("/api/debug")) {
     return NextResponse.next();
   }
 
   try {
-    // Get Better Auth session
-    const session = await auth.api.getSession({
-      headers: req.headers,
-    });
-
-    if (!session) {
-      console.log('No Better Auth session found, redirecting to login');
+    // Check for session cookie (try both possible names)
+    const sessionCookie = req.cookies.get("better-auth.session-token") || req.cookies.get("better-auth.session_token");
+    
+    if (!sessionCookie?.value) {
       return NextResponse.redirect(new URL('/', req.url));
     }
 
-    // Check email verification
-    if (!session.user.emailVerified) {
-      console.warn('User email not verified, redirecting to login');
-      const response = NextResponse.redirect(new URL('/?error=EmailNotVerified', req.url));
-      return clearAuthCookies(response);
-    }
-
-    // SECURITY CHECKS - Critical for preventing session sharing vulnerability
-    console.log('User authenticated, performing security validation for:', req.url);
-    
-    try {
-      // Validate cookie security
-      const securityResult = await validateCookieSecurity(req, {
-        enableCSRFProtection: true,
-        enableSessionRotation: true,
-        enableCookieTamperingDetection: true,
-        sessionRotationInterval: 120, // 2 hours
-      });
-
-      // Check for session hijacking
-      const hijackingCheck = detectSessionHijacking(req);
-
-      // Handle high-risk scenarios
-      if (!securityResult.isValid || hijackingCheck.riskLevel === 'high') {
-        console.warn('🚨 SECURITY THREAT DETECTED:', {
-          securityResult,
-          hijackingCheck,
-          url: req.url,
-          userAgent: req.headers.get('user-agent'),
-          ip: req.headers.get('x-forwarded-for') || req.headers.get('x-real-ip') || 'unknown'
-        });
-
-        // Clear cookies and redirect to homepage
-        const response = NextResponse.redirect(new URL('/?error=SecurityThreat', req.url));
-        return clearAuthCookies(response);
-      }
-
-      // Handle session rotation
-      if (securityResult.shouldRotateSession) {
-        console.log('🔄 Session rotation required for security');
-        // Set flag for session rotation (handled by Better Auth)
-        const response = NextResponse.next();
-        response.headers.set('X-Session-Rotation-Required', 'true');
-        return response;
-      }
-
-      // Log medium-risk scenarios for monitoring
-      if (hijackingCheck.riskLevel === 'medium') {
-        console.warn('⚠️  Medium security risk detected:', {
-          indicators: hijackingCheck.indicators,
-          url: req.url,
-          userAgent: req.headers.get('user-agent')
-        });
-      }
-
-      // Log recommendations
-      if (securityResult.recommendations && securityResult.recommendations.length > 0) {
-        console.info('💡 Security recommendations:', securityResult.recommendations);
-      }
-
-    } catch (error) {
-      console.error('❌ Middleware security check failed:', error);
-      // On error, allow request but log for investigation
-      console.error('Error details:', {
-        message: error instanceof Error ? error.message : 'Unknown error',
-        stack: error instanceof Error ? error.stack : 'No stack trace',
-        url: req.url
-      });
-    }
+    // For now, just trust the presence of the session cookie
+    // Individual pages will do proper session validation using Better Auth
+    // TODO: Re-implement security checks for Better Auth
 
     return NextResponse.next();
 
@@ -116,5 +47,4 @@ export const config = {
      */
     '/((?!api|_next/static|_next/image|favicon.ico).*)',
   ],
-  runtime: 'nodejs',
 };

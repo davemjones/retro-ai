@@ -1,12 +1,19 @@
 import { Resend } from "resend";
 
-// Initialize Resend with API key
-const resend = new Resend(process.env.RESEND_API_KEY);
+// Handle missing API key for development
+const apiKey = process.env.RESEND_API_KEY;
+const isDevelopment = !apiKey || apiKey === "your-resend-api-key-here";
+
+if (isDevelopment) {
+  console.warn("⚠️  RESEND_API_KEY not configured - emails will be logged instead of sent");
+}
+
+// Initialize Resend only if API key is available
+const resend = !isDevelopment ? new Resend(apiKey) : null;
 
 // Get email configuration from environment variables
-const fromDomain = process.env.EMAIL_FROM_DOMAIN || "example.com";
 const fromName = process.env.EMAIL_FROM_NAME || "Retro AI";
-const fromEmail = `noreply@${fromDomain}`;
+const fromEmail = process.env.EMAIL_FROM || "noreply@localhost.com";
 
 // Simple HTML email templates
 const emailStyles = `
@@ -183,6 +190,14 @@ export async function sendVerificationEmail(
   _token: string
 ) {
   try {
+    // In development mode without API key, just log the email
+    if (isDevelopment || !resend) {
+      console.log(`📧 [DEV MODE] Verification email would be sent to: ${to}`);
+      console.log(`📧 [DEV MODE] Verification URL: ${verificationUrl}`);
+      console.log(`📧 [DEV MODE] Subject: Verify your email for ${fromName}`);
+      return { id: "dev-mode-email" };
+    }
+
     const { data, error } = await resend.emails.send({
       from: `${fromName} <${fromEmail}>`,
       to,
@@ -210,6 +225,14 @@ export async function sendPasswordResetEmail(
   _token: string
 ) {
   try {
+    // In development mode without API key, just log the email
+    if (isDevelopment || !resend) {
+      console.log(`📧 [DEV MODE] Password reset email would be sent to: ${to}`);
+      console.log(`📧 [DEV MODE] Reset URL: ${resetUrl}`);
+      console.log(`📧 [DEV MODE] Subject: Reset your password for ${fromName}`);
+      return { id: "dev-mode-email" };
+    }
+
     const { data, error } = await resend.emails.send({
       from: `${fromName} <${fromEmail}>`,
       to,

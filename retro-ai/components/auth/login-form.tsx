@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { signIn } from "@/lib/auth-client";
 import { useRouter } from "next/navigation";
+import { useSession } from "@/components/providers/better-auth-provider";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -31,6 +32,7 @@ export function LoginForm({
   const [password, setPassword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const router = useRouter();
+  const { update } = useSession();
 
   // Get error from URL params (from middleware redirects) using window.location
   const [error, setError] = useState<string | null>(null);
@@ -90,7 +92,10 @@ export function LoginForm({
         password,
       });
 
+      console.log('Sign-in result:', result);
+
       if (result.error) {
+        console.error('Sign-in error:', result.error);
         // Check if email is not verified
         if (result.error.code === "EMAIL_NOT_VERIFIED") {
           toast.error("Please verify your email before signing in");
@@ -98,9 +103,19 @@ export function LoginForm({
           toast.error(result.error.message || "Invalid email or password");
         }
       } else if (result.data) {
-        console.log("Login successful, redirecting to dashboard");
-        router.push("/dashboard");
-        router.refresh();
+        console.log("Login successful:", result.data);
+        
+        // Update the session in the provider immediately
+        await update();
+        
+        // Wait a moment for session to be updated
+        setTimeout(() => {
+          console.log("Redirecting to dashboard");
+          router.push("/dashboard");
+        }, 100);
+      } else {
+        console.log("Unknown sign-in result:", result);
+        toast.error("An unexpected error occurred. Please try again.");
       }
     } catch (error) {
       console.error("Login error:", error);

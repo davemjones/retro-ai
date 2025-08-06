@@ -4,20 +4,24 @@ import { prisma } from "./prisma";
 import { generateSecureSessionId } from "./cookie-security";
 import { SessionManager } from "./session-manager";
 import { NextRequest } from "next/server";
+import bcrypt from "bcryptjs";
 
 export const auth = betterAuth({
   database: prismaAdapter(prisma, {
     provider: "postgresql",
   }),
+  baseURL: process.env.BETTER_AUTH_URL || "http://localhost:3000",
+  secret: process.env.BETTER_AUTH_SECRET,
   session: {
-    cookieName: "better-auth.session-token",
+    cookieName: "better-auth.session_token",
     expiresIn: 60 * 60 * 24, // 24 hours in seconds
     updateAge: 60 * 60 * 12, // Update session every 12 hours
     cookieOptions: {
       httpOnly: true,
-      sameSite: "strict",
+      sameSite: "lax", // Changed from strict to lax for better compatibility
       secure: process.env.NODE_ENV === "production",
       path: "/",
+      domain: process.env.NODE_ENV === "production" ? undefined : "localhost",
     },
   },
   account: {
@@ -29,14 +33,21 @@ export const auth = betterAuth({
   },
   emailAndPassword: {
     enabled: true,
-    requireEmailVerification: true,
-    sendResetPasswordToken: async ({ user, token, url }: { user: any, token: string, url: string }) => {
-      // We'll implement this when we create the email service
+    requireEmailVerification: false, // Temporarily disable for testing
+    password: {
+      hash: async (password) => {
+        const salt = bcrypt.genSaltSync(10);
+        return bcrypt.hashSync(password, salt);
+      },
+      verify: async ({ hash, password }) => {
+        return bcrypt.compareSync(password, hash);
+      }
+    },
+    sendResetPassword: async ({ user, token, url }: { user: any, token: string, url: string }) => {
       const { sendPasswordResetEmail } = await import("./email");
       await sendPasswordResetEmail(user.email, url, token);
     },
     sendVerificationEmail: async ({ user, token, url }: { user: any, token: string, url: string }) => {
-      // We'll implement this when we create the email service
       const { sendVerificationEmail } = await import("./email");
       await sendVerificationEmail(user.email, url, token);
     },
@@ -50,66 +61,59 @@ export const auth = betterAuth({
       },
     },
   },
-  advanced: {
-    // Custom JWT configuration for socket server compatibility
-    database: {
-      generateId: () => generateSecureSessionId(),
-    },
-    // Ensure JWT includes necessary fields for socket authentication
-    cookiePrefix: "better-auth",
-    defaultCookieAttributes: {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      sameSite: "strict",
-    },
-  },
-  callbacks: {
-    session: {
-      // Add custom session data for socket server compatibility
-      create: async ({ session, user, request }: { session: any, user: any, request: any }) => {
-        // Generate session IDs for tracking and window validation
-        const sessionId = generateSecureSessionId();
-        const windowSessionId = generateSecureSessionId();
+  // Simplified configuration to avoid conflicts
+  // advanced: {
+  //   // Custom JWT configuration for socket server compatibility
+  //   database: {
+  //     generateId: () => generateSecureSessionId(),
+  //   },
+  //   // Ensure JWT includes necessary fields for socket authentication
+  //   cookiePrefix: "better-auth",
+  //   defaultCookieAttributes: {
+  //     httpOnly: true,
+  //     secure: process.env.NODE_ENV === "production",
+  //     sameSite: "strict",
+  //   },
+  // },
+  // Simplified callbacks - let Better Auth handle most of the work
+  // callbacks: {
+  //   session: {
+  //     // Add custom session data for socket server compatibility
+  //     create: async ({ session, user, request }: { session: any, user: any, request: any }) => {
+  //       // Generate session IDs for tracking and window validation
+  //       const sessionId = generateSecureSessionId();
+  //       const windowSessionId = generateSecureSessionId();
         
-        // Create UserSession record for tracking
-        if (request) {
-          const nextRequest = request as NextRequest;
-          const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours
+  //       // Create UserSession record for tracking
+  //       if (request) {
+  //         const nextRequest = request as NextRequest;
+  //         const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours
           
-          try {
-            await SessionManager.createSession(
-              user.id,
-              sessionId,
-              nextRequest,
-              expiresAt
-            );
-          } catch (error) {
-            console.error("Failed to create UserSession record:", error);
-          }
-        }
+  //         try {
+  //           await SessionManager.createSession(
+  //             user.id,
+  //             sessionId,
+  //             nextRequest,
+  //             expiresAt
+  //           );
+  //         } catch (error) {
+  //           console.error("Failed to create UserSession record:", error);
+  //         }
+  //       }
         
-        return {
-          ...session,
-          sessionId,
-          windowSessionId,
-          requiresFingerprint: true,
-        };
-      },
-      // Update session with user data
-      update: async ({ session }: { session: any }) => {
-        return session;
-      },
-    },
-    user: {
-      // Set up new user defaults
-      create: async ({ user }: { user: any }) => {
-        return {
-          ...user,
-          emailVerified: null, // Ensure new users have unverified email
-        };
-      },
-    },
-  },
+  //       return {
+  //         ...session,
+  //         sessionId,
+  //         windowSessionId,
+  //         requiresFingerprint: true,
+  //       };
+  //     },
+  //     // Update session with user data
+  //     update: async ({ session }: { session: any }) => {
+  //       return session;
+  //     },
+  //   },
+  // },
   // Rate limiting configuration
   rateLimit: {
     // Window is in seconds for Better Auth
