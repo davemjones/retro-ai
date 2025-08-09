@@ -56,6 +56,28 @@ export async function validateCookieSecurity(
       };
     }
 
+    // Check for suspicious cookie patterns first, before database validation
+    if (enableCookieTamperingDetection) {
+      const suspiciousPatterns = [
+        /[<>]/, // HTML tags
+        /javascript:/i, // JS injection
+        /data:/i, // Data URLs
+        /vbscript:/i, // VBScript
+      ];
+      
+      const cookieValue = sessionCookie.value;
+      for (const pattern of suspiciousPatterns) {
+        if (pattern.test(cookieValue)) {
+          return {
+            isValid: false,
+            shouldRotateSession: false,
+            shouldClearCookies: true,
+            reason: 'Suspicious cookie content detected'
+          };
+        }
+      }
+    }
+
     // Better Auth signs the session token - extract just the session ID part
     // Format: sessionId.signature
     const sessionToken = decodeURIComponent(sessionCookie.value).split('.')[0];
@@ -140,30 +162,12 @@ export async function validateCookieSecurity(
       }
     }
 
-    // Validate cookie headers for tampering
+    // Validate cookie length for tampering detection
     if (enableCookieTamperingDetection) {
       const betterAuthCookie = req.cookies.get('better-auth.session_token') || req.cookies.get('better-auth.session-token');
       
       if (betterAuthCookie) {
-        // Check for suspicious cookie patterns
-        const suspiciousPatterns = [
-          /[<>]/, // HTML tags
-          /javascript:/i, // JS injection
-          /data:/i, // Data URLs
-          /vbscript:/i, // VBScript
-        ];
-        
         const cookieValue = betterAuthCookie.value;
-        for (const pattern of suspiciousPatterns) {
-          if (pattern.test(cookieValue)) {
-            return {
-              isValid: false,
-              shouldRotateSession: false,
-              shouldClearCookies: true,
-              reason: 'Suspicious cookie content detected'
-            };
-          }
-        }
         
         // Check cookie length (Better Auth session tokens have expected ranges)
         // Better Auth tokens are typically shorter than JWT tokens
