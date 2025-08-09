@@ -23,12 +23,20 @@ jest.mock('next/navigation', () => ({
   }),
 }));
 
-// Mock next-auth/react
-jest.mock('next-auth/react', () => ({
+// Mock Better Auth
+jest.mock('@/lib/auth-client', () => ({
   useSession: () => ({
-    data: { user: { id: 'test-user', name: 'Test User', email: 'test@example.com' } },
+    data: {
+      user: { id: 'test-user', name: 'Test User', email: 'test@example.com' },
+      session: { id: 'session-id', expiresAt: new Date('2099-01-01') }
+    },
     status: 'authenticated',
+    isPending: false,
+    error: null
   }),
+  signIn: jest.fn(),
+  signOut: jest.fn(),
+  getSession: jest.fn(),
 }));
 
 // Mock sonner
