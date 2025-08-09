@@ -63,8 +63,8 @@ async function authenticateSocket(socket) {
 
       user = session.user;
       
-      // Note: Better Auth is configured with requireEmailVerification: false
-      // so we allow users with unverified emails
+      // Note: Better Auth is configured with requireEmailVerification: true
+      // Email verification is required for new accounts
 
     } catch (error) {
       console.error('Database error during socket authentication:', error);
@@ -140,8 +140,8 @@ async function validateSocketSession(socket, session, operation) {
           return { isValid: false, reason: 'User not found' };
         }
 
-        // Note: Better Auth is configured with requireEmailVerification: false
-        // so we allow users with unverified emails for socket operations
+        // Note: Better Auth is configured with requireEmailVerification: true
+        // Email verification is required, but existing users retain access
       } catch (error) {
         console.error('Error validating user:', error);
         return { isValid: false, reason: 'Database error' };
