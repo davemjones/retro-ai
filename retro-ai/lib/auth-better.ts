@@ -29,7 +29,7 @@ export const auth = betterAuth({
   },
   emailAndPassword: {
     enabled: true,
-    requireEmailVerification: false, // Temporarily disable for testing
+    requireEmailVerification: true, // Email verification enabled for security
     sendResetPassword: async ({
       user,
       token,
@@ -42,6 +42,21 @@ export const auth = betterAuth({
       const { sendPasswordResetEmail } = await import("./email");
       await sendPasswordResetEmail(user.email, url, token);
     },
+    sendVerificationEmail: async ({
+      user,
+      token,
+      url,
+    }: {
+      user: { email: string };
+      token: string;
+      url: string;
+    }) => {
+      const { sendVerificationEmail } = await import("./email");
+      await sendVerificationEmail(user.email, url, token);
+    },
+  },
+  emailVerification: {
+    sendOnSignUp: true, // Automatically send verification email on signup
     sendVerificationEmail: async ({
       user,
       token,
