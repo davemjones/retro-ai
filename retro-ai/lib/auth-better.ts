@@ -30,15 +30,6 @@ export const auth = betterAuth({
   emailAndPassword: {
     enabled: true,
     requireEmailVerification: false, // Temporarily disable for testing
-    // password: {
-    //   hash: async (password) => {
-    //     const salt = bcrypt.genSaltSync(10);
-    //     return bcrypt.hashSync(password, salt);
-    //   },
-    //   verify: async ({ hash, password }) => {
-    //     return bcrypt.compareSync(password, hash);
-    //   }
-    // },
     sendResetPassword: async ({
       user,
       token,
