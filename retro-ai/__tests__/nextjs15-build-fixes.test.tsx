@@ -95,7 +95,7 @@ describe('Next.js 15 Build Fixes', () => {
     expect(mockParams).toBeInstanceOf(Promise);
   });
 
-  it('should demonstrate NextAuth typing is fixed', () => {
+  it('should demonstrate Better Auth typing is working', () => {
     // Mock the session structure that was causing issues
     const mockSession = {
       user: {

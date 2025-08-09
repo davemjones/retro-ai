@@ -394,12 +394,12 @@ describe('Cookie Security Utilities', () => {
           ['user-agent', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36']
         ]),
         cookies: new Map([
-          ['next-auth.session-token', { value: 'valid-token' }]
+          ['better-auth.session_token', { value: 'valid-token' }]
         ])
       } as unknown as NextRequest;
 
       mockRequest.cookies.getAll = jest.fn().mockReturnValue([
-        { name: 'next-auth.session-token', value: 'valid-token' }
+        { name: 'better-auth.session_token', value: 'valid-token' }
       ]);
 
       const result = detectSessionHijacking(mockRequest);
@@ -459,7 +459,7 @@ describe('Cookie Security Utilities', () => {
       } as unknown as NextRequest;
 
       mockRequest.cookies.getAll = jest.fn().mockReturnValue([
-        { name: 'next-auth.session-token', value: 'valid-token' }
+        { name: 'better-auth.session_token', value: 'valid-token' }
       ]);
 
       const result = detectSessionHijacking(mockRequest);

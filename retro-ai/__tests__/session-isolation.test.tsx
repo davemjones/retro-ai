@@ -8,7 +8,7 @@ import {
 import { NextRequest } from 'next/server';
 
 // Mock environment variable
-process.env.NEXTAUTH_SECRET = 'test-secret-key';
+process.env.BETTER_AUTH_SECRET = 'test-secret-key';
 
 // Mock crypto.subtle for Jest environment
 const mockDigest = jest.fn();

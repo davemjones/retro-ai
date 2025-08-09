@@ -2,11 +2,19 @@ import { render } from '@testing-library/react';
 import { BoardCanvas } from '@/components/board/board-canvas';
 
 // Mock dependencies
-jest.mock('next-auth/react', () => ({
+jest.mock('@/lib/auth-client', () => ({
   useSession: () => ({
-    data: { user: { id: 'test-user', name: 'Test User', email: 'test@example.com' } },
+    data: {
+      user: { id: 'test-user', name: 'Test User', email: 'test@example.com' },
+      session: { id: 'session-id', expiresAt: new Date('2099-01-01') }
+    },
     status: 'authenticated',
+    isPending: false,
+    error: null
   }),
+  signIn: jest.fn(),
+  signOut: jest.fn(),
+  getSession: jest.fn(),
 }));
 jest.mock('@dnd-kit/core');
 jest.mock('@dnd-kit/sortable');
