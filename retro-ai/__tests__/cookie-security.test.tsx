@@ -10,6 +10,16 @@ import { NextRequest, NextResponse } from 'next/server';
 
 // Mock environment variables
 process.env.BETTER_AUTH_SECRET = 'test-secret-key';
+process.env.NODE_ENV = 'test';
+
+// Mock generateSessionFingerprint to avoid crypto API issues
+jest.mock('../lib/session-utils', () => ({
+  generateSessionFingerprint: jest.fn().mockResolvedValue({
+    ipHash: 'test-ip-hash',
+    userAgentHash: 'test-ua-hash',
+    timestamp: Date.now()
+  })
+}));
 
 // Mock Prisma Client
 const mockPrismaInstance = {
@@ -29,6 +39,20 @@ jest.mock('@prisma/client', () => ({
 const mockPrisma = mockPrismaInstance;
 
 describe('Cookie Security Utilities', () => {
+  // Mock console methods to suppress log messages in tests
+  const originalConsoleError = console.error;
+  const originalConsoleLog = console.log;
+  
+  beforeAll(() => {
+    console.error = jest.fn();
+    console.log = jest.fn();
+  });
+  
+  afterAll(() => {
+    console.error = originalConsoleError;
+    console.log = originalConsoleLog;
+  });
+
   beforeEach(() => {
     jest.clearAllMocks();
     // Reset Prisma mocks
@@ -348,7 +372,7 @@ describe('Cookie Security Utilities', () => {
         }
       } as unknown as NextResponse;
 
-      const result = clearAuthCookies(mockResponse);
+      clearAuthCookies(mockResponse);
 
       expect(mockResponse.cookies.set).toHaveBeenCalledTimes(9);
       expect(mockResponse.cookies.set).toHaveBeenCalledWith({

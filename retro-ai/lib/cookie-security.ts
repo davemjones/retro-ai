@@ -78,6 +78,46 @@ export async function validateCookieSecurity(
       }
     }
 
+    // Check for secure transmission first (before expensive database operations)
+    if (process.env.NODE_ENV === 'production') {
+      // Enhanced HTTPS detection including Cloudflare tunnel headers
+      const cfVisitor = req.headers.get('cf-visitor');
+      const isSecure = req.url.startsWith('https://') || 
+                      req.headers.get('x-forwarded-proto') === 'https' ||
+                      req.headers.get('x-forwarded-ssl') === 'on' ||
+                      req.headers.get('x-original-proto') === 'https' ||
+                      (cfVisitor && cfVisitor.includes('"scheme":"https"'));
+      
+      // Debug logging for Cloudflare tunnel troubleshooting (skip in tests)
+      if (!isSecure && process.env.NODE_ENV !== 'test') {
+        console.log('🔍 HTTPS Detection Debug:', {
+          url: req.url,
+          nextauthUrl: process.env.NEXTAUTH_URL,
+          headers: {
+            'x-forwarded-proto': req.headers.get('x-forwarded-proto'),
+            'x-forwarded-ssl': req.headers.get('x-forwarded-ssl'),
+            'x-original-proto': req.headers.get('x-original-proto'),
+            'cf-visitor': req.headers.get('cf-visitor'),
+            'cf-connecting-ip': req.headers.get('cf-connecting-ip'),
+            'cf-ray': req.headers.get('cf-ray'),
+            'host': req.headers.get('host'),
+            'x-forwarded-host': req.headers.get('x-forwarded-host'),
+            'x-forwarded-for': req.headers.get('x-forwarded-for')
+          },
+          environment: process.env.NODE_ENV
+        });
+      }
+      
+      if (!isSecure) {
+        return {
+          isValid: false,
+          shouldRotateSession: false,
+          shouldClearCookies: true,
+          reason: 'Insecure transmission in production environment'
+        };
+      }
+    }
+
     // Better Auth signs the session token - extract just the session ID part
     // Format: sessionId.signature
     const sessionToken = decodeURIComponent(sessionCookie.value).split('.')[0];
@@ -135,13 +175,15 @@ export async function validateCookieSecurity(
       // Generate current session fingerprint
       const currentFingerprint = await generateSessionFingerprint(req);
       
-      // Log fingerprint for security monitoring
-      console.log('🔒 Session fingerprint for Better Auth session:', {
-        sessionId: session.id,
-        userId: user.id,
-        ipHash: currentFingerprint.ipHash,
-        userAgentHash: currentFingerprint.userAgentHash
-      });
+      // Log fingerprint for security monitoring (skip in tests)
+      if (process.env.NODE_ENV !== 'test' && typeof jest === 'undefined') {
+        console.log('🔒 Session fingerprint for Better Auth session:', {
+          sessionId: session.id,
+          userId: user.id,
+          ipHash: currentFingerprint.ipHash,
+          userAgentHash: currentFingerprint.userAgentHash
+        });
+      }
       
       // Note: Better Auth handles session validation at the database level
       // We can enhance this later by storing fingerprints in a separate table if needed
@@ -188,43 +230,6 @@ export async function validateCookieSecurity(
       }
     }
 
-    // Check for secure transmission
-    if (process.env.NODE_ENV === 'production') {
-      // Enhanced HTTPS detection including Cloudflare tunnel headers
-      const cfVisitor = req.headers.get('cf-visitor');
-      const isSecure = req.url.startsWith('https://') || 
-                      req.headers.get('x-forwarded-proto') === 'https' ||
-                      req.headers.get('x-forwarded-ssl') === 'on' ||
-                      req.headers.get('x-original-proto') === 'https' ||
-                      (cfVisitor && cfVisitor.includes('"scheme":"https"'));
-      
-      // Debug logging for Cloudflare tunnel troubleshooting
-      if (!isSecure) {
-        console.log('🔍 HTTPS Detection Debug:', {
-          url: req.url,
-          nextauthUrl: process.env.NEXTAUTH_URL,
-          headers: {
-            'x-forwarded-proto': req.headers.get('x-forwarded-proto'),
-            'x-forwarded-ssl': req.headers.get('x-forwarded-ssl'),
-            'x-original-proto': req.headers.get('x-original-proto'),
-            'cf-visitor': req.headers.get('cf-visitor'),
-            'cf-connecting-ip': req.headers.get('cf-connecting-ip'),
-            'cf-ray': req.headers.get('cf-ray'),
-            'host': req.headers.get('host'),
-            'x-forwarded-host': req.headers.get('x-forwarded-host'),
-            'x-forwarded-for': req.headers.get('x-forwarded-for')
-          },
-          environment: process.env.NODE_ENV
-        });
-        
-        return {
-          isValid: false,
-          shouldRotateSession: false,
-          shouldClearCookies: true,
-          reason: 'Insecure transmission in production environment'
-        };
-      }
-    }
 
     return result;
   } catch (error) {
