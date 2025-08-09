@@ -1,8 +1,8 @@
 import { Socket } from 'socket.io';
-import { getToken } from 'next-auth/jwt';
 import { SessionManager } from './session-manager';
 import { generateSessionFingerprint } from './session-utils';
 import { NextRequest } from 'next/server';
+import { PrismaClient } from '@prisma/client';
 
 /**
  * Socket.io authentication and session security middleware
@@ -12,15 +12,21 @@ import { NextRequest } from 'next/server';
 export interface SocketSession {
   userId: string;
   userName: string;
+  userEmail?: string;
   sessionId: string;
   fingerprint: {
     ipHash: string;
     userAgentHash: string;
     timestamp: number;
+    features?: string[];
   };
   isAuthenticated: boolean;
   boardId?: string;
   lastActivity: number;
+  provider?: string;
+  sessionToken?: string;
+  issuedAt?: number;
+  expiresAt?: number;
 }
 
 export interface SocketAuthOptions {
@@ -52,23 +58,61 @@ export async function authenticateSocket(
     const userAgent = socket.handshake.headers['user-agent'] || 'unknown';
     const clientIP = getClientIPFromSocket(socket);
 
-    // Validate JWT token
-    const token = await getToken({
-      req: {
-        headers: { cookie: cookies },
-        cookies: parseCookieObject(cookies),
-      } as unknown as NextRequest,
-      secret: process.env.NEXTAUTH_SECRET,
-    });
-
-    if (!token) {
-      console.warn(`Socket authentication failed: No valid token for ${socket.id}`);
+    // Parse cookies into object format
+    const cookieObject = parseCookieObject(cookies);
+    
+    // Look for Better Auth session token (try both possible names)
+    const rawSessionToken = cookieObject['better-auth.session_token'] || cookieObject['better-auth.session-token'];
+    
+    if (!rawSessionToken) {
+      console.warn(`Socket authentication failed: No Better Auth token for ${socket.id}`);
       return null;
     }
 
-    // Validate session exists and is active
-    if (enableSessionValidation && token.sessionId) {
-      const sessionValidation = await SessionManager.validateSession(token.sessionId as string);
+    // Better Auth signs the session token - extract just the session ID part
+    // Format: sessionId.signature
+    const sessionToken = decodeURIComponent(rawSessionToken).split('.')[0];
+
+    // Validate session against the database using Better Auth's session table
+    const prisma = new PrismaClient();
+    let user, session;
+    
+    try {
+      // Look up the session in the database using the session token
+      session = await prisma.session.findUnique({
+        where: { token: sessionToken },
+        include: { user: true }
+      });
+
+      if (!session) {
+        console.warn(`Socket authentication failed: Invalid session token for ${socket.id}`);
+        await prisma.$disconnect();
+        return null;
+      }
+
+      // Check if session is expired
+      if (new Date() > session.expiresAt) {
+        console.warn(`Socket authentication failed: Expired session for ${socket.id}`);
+        await prisma.$disconnect();
+        return null;
+      }
+
+      user = session.user;
+      
+      // Note: Better Auth is configured with requireEmailVerification: false
+      // so we allow users with unverified emails
+
+    } catch (error) {
+      console.error('Database error during socket authentication:', error);
+      await prisma.$disconnect();
+      return null;
+    } finally {
+      await prisma.$disconnect();
+    }
+
+    // Validate session exists and is active with SessionManager if enabled
+    if (enableSessionValidation && session.id) {
+      const sessionValidation = await SessionManager.validateSession(session.id);
       
       if (!sessionValidation.isValid) {
         console.warn(`Socket authentication failed: Invalid session for ${socket.id}: ${sessionValidation.reason}`);
@@ -88,39 +132,48 @@ export async function authenticateSocket(
       } as NextRequest);
 
       // Validate against stored fingerprint if session exists
-      if (token.sessionId) {
-        const storedSession = await SessionManager.validateSession(token.sessionId as string);
+      if (session.id) {
+        const storedSession = await SessionManager.validateSession(session.id);
         if (storedSession.isValid && storedSession.session) {
           // For sockets, we allow some flexibility in fingerprint validation
           // since browsers may behave differently for WebSocket connections
-          console.log(`Socket fingerprint generated for session ${token.sessionId}`);
+          console.log(`Socket fingerprint generated for session ${session.id}`);
         }
       }
     }
 
-    // Create socket session object
+    // Create socket session object compatible with existing system
     const socketSession: SocketSession = {
-      userId: token.id as string,
-      userName: token.name as string || token.email as string,
-      sessionId: token.sessionId as string,
+      userId: user.id,
+      userName: user.name || user.email || 'User',
+      userEmail: user.email,
+      sessionId: session.id,
       fingerprint: fingerprint || {
-        ipHash: 'unknown',
-        userAgentHash: 'unknown',
+        ipHash: clientIP,
+        userAgentHash: userAgent,
         timestamp: Date.now(),
+        features: [
+          'better-auth-session',
+          user.emailVerified ? 'email-verified' : 'email-unverified'
+        ]
       },
       isAuthenticated: true,
       lastActivity: Date.now(),
+      provider: 'better-auth',
+      sessionToken: sessionToken,
+      issuedAt: Math.floor(session.createdAt.getTime() / 1000),
+      expiresAt: Math.floor(session.expiresAt.getTime() / 1000)
     };
 
     // Update session activity in database
-    if (token.sessionId) {
+    if (session.id) {
       try {
         const activityHeaders = new Headers();
         activityHeaders.set('user-agent', userAgent);
         activityHeaders.set('x-forwarded-for', clientIP);
         
         await SessionManager.updateSessionActivity(
-          token.sessionId as string,
+          session.id,
           {
             headers: activityHeaders,
             method: 'GET',
@@ -140,7 +193,7 @@ export async function authenticateSocket(
       });
     }
 
-    console.log(`Socket authenticated: ${socket.id} for user ${socketSession.userId}`);
+    console.log(`Socket authenticated: ${socket.id} for user ${socketSession.userId} with Better Auth`);
     return socketSession;
 
   } catch (error) {
@@ -250,17 +303,46 @@ export async function validateSocketSession(
 ): Promise<{ isValid: boolean; reason?: string }> {
   try {
     // Basic session checks
-    if (!session.isAuthenticated) {
-      return { isValid: false, reason: 'Not authenticated' };
+    if (!session || !session.userId) {
+      return { isValid: false, reason: 'No authenticated session' };
     }
 
-    // Check session timeout
+    // Check if session is expired
+    if (session.expiresAt && Date.now() / 1000 > session.expiresAt) {
+      return { isValid: false, reason: 'Session expired' };
+    }
+
+    // Check session idle timeout
     const now = Date.now();
     if (now - session.lastActivity > 30 * 60 * 1000) { // 30 minutes
       return { isValid: false, reason: 'Session idle timeout' };
     }
 
-    // Validate session in database
+    // Additional validation for Better Auth sessions
+    if (session.provider === 'better-auth') {
+      // Verify the user still exists and session is valid
+      const prisma = new PrismaClient();
+      try {
+        const user = await prisma.user.findUnique({
+          where: { id: session.userId },
+          select: { id: true, emailVerified: true }
+        });
+
+        if (!user) {
+          return { isValid: false, reason: 'User not found' };
+        }
+
+        // Note: Better Auth is configured with requireEmailVerification: false
+        // so we allow users with unverified emails for socket operations
+      } catch (error) {
+        console.error('Error validating user:', error);
+        return { isValid: false, reason: 'Database error' };
+      } finally {
+        await prisma.$disconnect();
+      }
+    }
+
+    // Validate session in database if SessionManager is available
     if (session.sessionId) {
       const validation = await SessionManager.validateSession(session.sessionId);
       if (!validation.isValid) {

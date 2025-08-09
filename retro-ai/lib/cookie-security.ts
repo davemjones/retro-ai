@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getToken } from 'next-auth/jwt';
 import { generateSessionFingerprint } from './session-utils';
+import { PrismaClient } from '@prisma/client';
 
 /**
  * Cookie security utilities for enhanced session protection
@@ -44,10 +44,10 @@ export async function validateCookieSecurity(
   };
 
   try {
-    // Get JWT token for validation
-    const token = await getToken({ req, secret: process.env.NEXTAUTH_SECRET });
+    // Get Better Auth session token for validation
+    const sessionCookie = req.cookies.get('better-auth.session_token') || req.cookies.get('better-auth.session-token');
     
-    if (!token) {
+    if (!sessionCookie) {
       return {
         isValid: false,
         shouldRotateSession: false,
@@ -56,64 +56,85 @@ export async function validateCookieSecurity(
       };
     }
 
-    // SECURITY FIX: Session fingerprinting validation
-    if (token.requiresFingerprint) {
-      try {
-        // Generate current session fingerprint
-        const currentFingerprint = await generateSessionFingerprint(req);
-        
-        // If token has stored fingerprint, validate it matches current request
-        if (token.fingerprint) {
-          const storedFingerprint = token.fingerprint as { ipHash: string; userAgentHash: string; timestamp: number };
-          
-          // Validate IP hash (detect session sharing across different IPs)
-          if (storedFingerprint.ipHash !== currentFingerprint.ipHash) {
-            console.warn('🚨 Session fingerprint mismatch - IP changed:', {
-              stored: storedFingerprint.ipHash,
-              current: currentFingerprint.ipHash,
-              sessionId: token.sessionId
-            });
-            
-            return {
-              isValid: false,
-              shouldRotateSession: false,
-              shouldClearCookies: true,
-              reason: 'Session fingerprint mismatch - IP address changed'
-            };
-          }
-          
-          // Validate User-Agent hash (detect session sharing across different browsers)
-          if (storedFingerprint.userAgentHash !== currentFingerprint.userAgentHash) {
-            console.warn('🚨 Session fingerprint mismatch - User-Agent changed:', {
-              stored: storedFingerprint.userAgentHash,
-              current: currentFingerprint.userAgentHash,
-              sessionId: token.sessionId
-            });
-            
-            return {
-              isValid: false,
-              shouldRotateSession: false,
-              shouldClearCookies: true,
-              reason: 'Session fingerprint mismatch - Browser changed'
-            };
-          }
-        } else {
-          // First time fingerprint validation - store it
-          console.log('🔒 Storing session fingerprint for session:', token.sessionId);
-          // Note: We can't modify the token here, but we log for monitoring
-        }
-      } catch (error) {
-        console.error('❌ Session fingerprinting failed:', error);
-        result.recommendations?.push('Session fingerprinting validation failed');
+    // Better Auth signs the session token - extract just the session ID part
+    // Format: sessionId.signature
+    const sessionToken = decodeURIComponent(sessionCookie.value).split('.')[0];
+
+    // Validate session against the database using Better Auth's session table
+    const prisma = new PrismaClient();
+    let session, user;
+    
+    try {
+      // Look up the session in the database using the session token
+      session = await prisma.session.findUnique({
+        where: { token: sessionToken },
+        include: { user: true }
+      });
+
+      if (!session) {
+        await prisma.$disconnect();
+        return {
+          isValid: false,
+          shouldRotateSession: false,
+          shouldClearCookies: true,
+          reason: 'Invalid session token'
+        };
       }
+
+      // Check if session is expired
+      if (new Date() > session.expiresAt) {
+        await prisma.$disconnect();
+        return {
+          isValid: false,
+          shouldRotateSession: false,
+          shouldClearCookies: true,
+          reason: 'Session expired'
+        };
+      }
+
+      user = session.user;
+
+    } catch (error) {
+      console.error('Database error during cookie security validation:', error);
+      await prisma.$disconnect();
+      return {
+        isValid: false,
+        shouldRotateSession: false,
+        shouldClearCookies: true,
+        reason: 'Database validation error'
+      };
+    } finally {
+      await prisma.$disconnect();
     }
 
-    // Check token age for session rotation
-    if (enableSessionRotation && token.iat) {
-      const tokenAge = Date.now() / 1000 - (token.iat as number);
+    // SECURITY FIX: Session fingerprinting validation for Better Auth
+    // Better Auth doesn't store fingerprints in tokens, so we generate and log for monitoring
+    try {
+      // Generate current session fingerprint
+      const currentFingerprint = await generateSessionFingerprint(req);
+      
+      // Log fingerprint for security monitoring
+      console.log('🔒 Session fingerprint for Better Auth session:', {
+        sessionId: session.id,
+        userId: user.id,
+        ipHash: currentFingerprint.ipHash,
+        userAgentHash: currentFingerprint.userAgentHash
+      });
+      
+      // Note: Better Auth handles session validation at the database level
+      // We can enhance this later by storing fingerprints in a separate table if needed
+      
+    } catch (error) {
+      console.error('❌ Session fingerprinting failed:', error);
+      result.recommendations?.push('Session fingerprinting validation failed');
+    }
+
+    // Check session age for session rotation
+    if (enableSessionRotation && session.createdAt) {
+      const sessionAge = Date.now() / 1000 - (session.createdAt.getTime() / 1000);
       const rotationThreshold = sessionRotationInterval * 60;
       
-      if (tokenAge > rotationThreshold) {
+      if (sessionAge > rotationThreshold) {
         result.shouldRotateSession = true;
         result.recommendations?.push('Session should be rotated due to age');
       }
@@ -121,9 +142,9 @@ export async function validateCookieSecurity(
 
     // Validate cookie headers for tampering
     if (enableCookieTamperingDetection) {
-      const sessionCookie = req.cookies.get('next-auth.session-token');
+      const betterAuthCookie = req.cookies.get('better-auth.session_token') || req.cookies.get('better-auth.session-token');
       
-      if (sessionCookie) {
+      if (betterAuthCookie) {
         // Check for suspicious cookie patterns
         const suspiciousPatterns = [
           /[<>]/, // HTML tags
@@ -132,7 +153,7 @@ export async function validateCookieSecurity(
           /vbscript:/i, // VBScript
         ];
         
-        const cookieValue = sessionCookie.value;
+        const cookieValue = betterAuthCookie.value;
         for (const pattern of suspiciousPatterns) {
           if (pattern.test(cookieValue)) {
             return {
@@ -144,8 +165,9 @@ export async function validateCookieSecurity(
           }
         }
         
-        // Check cookie length (JWT tokens have expected ranges)
-        if (cookieValue.length < 100 || cookieValue.length > 2048) {
+        // Check cookie length (Better Auth session tokens have expected ranges)
+        // Better Auth tokens are typically shorter than JWT tokens
+        if (cookieValue.length < 50 || cookieValue.length > 1024) {
           result.recommendations?.push('Cookie length is outside expected range');
         }
       }
@@ -153,11 +175,12 @@ export async function validateCookieSecurity(
 
     // CSRF protection validation
     if (enableCSRFProtection && req.method !== 'GET') {
-      const csrfToken = req.headers.get('x-csrf-token') || 
-                       req.cookies.get('next-auth.csrf-token')?.value;
+      // Better Auth doesn't use CSRF tokens in the same way as NextAuth
+      // Instead, it relies on SameSite cookies and other security measures
+      const csrfToken = req.headers.get('x-csrf-token');
       
       if (!csrfToken) {
-        result.recommendations?.push('CSRF token missing for non-GET request');
+        result.recommendations?.push('CSRF token missing for non-GET request - consider adding custom CSRF protection');
       }
     }
 
@@ -266,6 +289,11 @@ export function createSecureCookieHeaders(options: {
  */
 export function clearAuthCookies(response: NextResponse): NextResponse {
   const authCookies = [
+    // Better Auth cookies
+    'better-auth.session_token',
+    'better-auth.session-token',
+    'better-auth.csrf',
+    // Legacy NextAuth cookies (for cleanup)
     'next-auth.session-token',
     'next-auth.callback-url',
     'next-auth.csrf-token',
@@ -368,23 +396,23 @@ export function validateSessionTokenStructure(token: string): {
 } {
   const issues: string[] = [];
 
-  // Check if it looks like a JWT
+  // Better Auth tokens have a different structure: sessionId.signature
   const parts = token.split('.');
-  if (parts.length !== 3) {
-    issues.push('Token does not have valid JWT structure (header.payload.signature)');
+  if (parts.length !== 2) {
+    issues.push('Token does not have valid Better Auth structure (sessionId.signature)');
   }
 
-  // Check for minimum length
-  if (token.length < 100) {
+  // Check for minimum length (Better Auth tokens are shorter than JWT)
+  if (token.length < 50) {
     issues.push('Token is suspiciously short');
   }
 
   // Check for maximum length (prevent DoS)
-  if (token.length > 4096) {
+  if (token.length > 1024) {
     issues.push('Token is suspiciously long');
   }
 
-  // Check for valid characters (JWT uses base64url)
+  // Check for valid characters (Better Auth uses base64url for signatures)
   const validChars = /^[A-Za-z0-9_-]+$/;
   for (const part of parts) {
     if (!validChars.test(part)) {
