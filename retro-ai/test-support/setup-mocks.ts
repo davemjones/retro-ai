@@ -2,12 +2,20 @@
 import { jest } from '@jest/globals';
 import { mockUseSession, mockUseSocket, mockUseSocketContext } from './test-utils';
 
-// Mock next-auth/react
-jest.mock('next-auth/react', () => ({
+// Mock Better Auth client
+jest.mock('@/lib/auth-client', () => ({
   useSession: jest.fn(() => mockUseSession),
-  SessionProvider: ({ children }: { children: React.ReactNode }) => children,
   signIn: jest.fn(),
   signOut: jest.fn(),
+  getSession: jest.fn(),
+  forgotPassword: jest.fn(),
+  resetPassword: jest.fn(),
+  verifyEmail: jest.fn(),
+  authClient: {
+    signIn: jest.fn(),
+    signOut: jest.fn(),
+    getSession: jest.fn(),
+  },
 }));
 
 // Mock the socket hooks
