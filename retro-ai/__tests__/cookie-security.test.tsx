@@ -8,30 +8,68 @@ import {
 } from '@/lib/cookie-security';
 import { NextRequest, NextResponse } from 'next/server';
 
-// Mock environment variable
-process.env.NEXTAUTH_SECRET = 'test-secret-key';
+// Mock environment variables
+process.env.BETTER_AUTH_SECRET = 'test-secret-key';
+process.env.NODE_ENV = 'test';
 
-// Mock next-auth/jwt
-jest.mock('next-auth/jwt', () => ({
-  getToken: jest.fn()
+// Mock generateSessionFingerprint to avoid crypto API issues
+jest.mock('../lib/session-utils', () => ({
+  generateSessionFingerprint: jest.fn().mockResolvedValue({
+    ipHash: 'test-ip-hash',
+    userAgentHash: 'test-ua-hash',
+    timestamp: Date.now()
+  })
 }));
 
-const mockGetToken = require('next-auth/jwt').getToken;
+// Mock Prisma Client
+const mockPrismaInstance = {
+  session: {
+    findUnique: jest.fn()
+  },
+  user: {
+    findUnique: jest.fn()
+  },
+  $disconnect: jest.fn()
+};
+
+jest.mock('@prisma/client', () => ({
+  PrismaClient: jest.fn().mockImplementation(() => mockPrismaInstance)
+}));
+
+const mockPrisma = mockPrismaInstance;
 
 describe('Cookie Security Utilities', () => {
+  // Mock console methods to suppress log messages in tests
+  const originalConsoleError = console.error;
+  const originalConsoleLog = console.log;
+  
+  beforeAll(() => {
+    console.error = jest.fn();
+    console.log = jest.fn();
+  });
+  
+  afterAll(() => {
+    console.error = originalConsoleError;
+    console.log = originalConsoleLog;
+  });
+
   beforeEach(() => {
     jest.clearAllMocks();
+    // Reset Prisma mocks
+    mockPrisma.session.findUnique.mockReset();
+    mockPrisma.user.findUnique.mockReset();
+    mockPrisma.$disconnect.mockReset();
   });
 
   describe('validateCookieSecurity', () => {
     it('should return invalid for missing token', async () => {
-      mockGetToken.mockResolvedValue(null);
-      
       const mockRequest = {
         headers: new Map([
           ['user-agent', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)']
         ]),
-        cookies: new Map(),
+        cookies: {
+          get: jest.fn().mockReturnValue(undefined)
+        },
         method: 'GET',
         url: 'https://example.com/dashboard'
       } as unknown as NextRequest;
@@ -44,19 +82,32 @@ describe('Cookie Security Utilities', () => {
     });
 
     it('should detect session rotation needed', async () => {
-      const oldTimestamp = Math.floor(Date.now() / 1000) - (3 * 60 * 60); // 3 hours ago
-      mockGetToken.mockResolvedValue({
-        iat: oldTimestamp,
-        exp: Math.floor(Date.now() / 1000) + 3600
+      const oldTimestamp = new Date(Date.now() - (3 * 60 * 60 * 1000)); // 3 hours ago
+      
+      mockPrisma.session.findUnique.mockResolvedValue({
+        id: 'session-id',
+        token: 'valid-session-token',
+        createdAt: oldTimestamp,
+        expiresAt: new Date(Date.now() + 3600 * 1000),
+        user: {
+          id: 'user-id',
+          email: 'test@example.com',
+          emailVerified: true
+        }
       });
       
       const mockRequest = {
         headers: new Map([
           ['user-agent', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)']
         ]),
-        cookies: new Map([
-          ['next-auth.session-token', { value: 'valid.jwt.token' }]
-        ]),
+        cookies: {
+          get: jest.fn().mockImplementation((name) => {
+            if (name === 'better-auth.session_token' || name === 'better-auth.session-token') {
+              return { value: 'valid-session-token.signature' };
+            }
+            return undefined;
+          })
+        },
         method: 'GET',
         url: 'https://example.com/dashboard'
       } as unknown as NextRequest;
@@ -71,18 +122,26 @@ describe('Cookie Security Utilities', () => {
     });
 
     it('should detect suspicious cookie content', async () => {
-      mockGetToken.mockResolvedValue({
-        iat: Math.floor(Date.now() / 1000),
-        exp: Math.floor(Date.now() / 1000) + 3600
+      // Mock a valid session but the cookie value contains suspicious content
+      mockPrisma.session.findUnique.mockResolvedValue({
+        id: 'session-id',
+        token: 'valid-session-token', // This will be the clean part after decoding
+        createdAt: new Date(),
+        expiresAt: new Date(Date.now() + 3600 * 1000),
+        user: {
+          id: 'user-id',
+          email: 'test@example.com',
+          emailVerified: true
+        }
       });
       
       const mockRequest = {
         headers: new Map([
           ['user-agent', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)']
         ]),
-        cookies: new Map([
-          ['next-auth.session-token', { value: '<script>alert("xss")</script>' }]
-        ]),
+        cookies: {
+          get: jest.fn().mockReturnValue({ value: '<script>alert("xss")</script>.signature' })
+        },
         method: 'GET',
         url: 'https://example.com/dashboard'
       } as unknown as NextRequest;
@@ -95,18 +154,30 @@ describe('Cookie Security Utilities', () => {
     });
 
     it('should validate CSRF protection for non-GET requests', async () => {
-      mockGetToken.mockResolvedValue({
-        iat: Math.floor(Date.now() / 1000),
-        exp: Math.floor(Date.now() / 1000) + 3600
+      mockPrisma.session.findUnique.mockResolvedValue({
+        id: 'session-id',
+        token: 'valid-session-token',
+        createdAt: new Date(),
+        expiresAt: new Date(Date.now() + 3600 * 1000),
+        user: {
+          id: 'user-id',
+          email: 'test@example.com',
+          emailVerified: true
+        }
       });
       
       const mockRequest = {
         headers: new Map([
           ['user-agent', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)']
         ]),
-        cookies: new Map([
-          ['next-auth.session-token', { value: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiaWF0IjoxNTE2MjM5MDIyfQ.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c' }]
-        ]),
+        cookies: {
+          get: jest.fn().mockImplementation((name) => {
+            if (name === 'better-auth.session_token' || name === 'better-auth.session-token') {
+              return { value: 'valid-session-token.signature' };
+            }
+            return undefined;
+          })
+        },
         method: 'POST',
         url: 'https://example.com/api/data'
       } as unknown as NextRequest;
@@ -114,23 +185,37 @@ describe('Cookie Security Utilities', () => {
       const result = await validateCookieSecurity(mockRequest);
       
       expect(result.isValid).toBe(true);
-      expect(result.recommendations).toContain('CSRF token missing for non-GET request');
+      expect(result.recommendations).toContain('CSRF token missing for non-GET request - consider adding custom CSRF protection');
     });
 
     it('should reject insecure transmission in production', async () => {
       const originalEnv = process.env.NODE_ENV;
       process.env.NODE_ENV = 'production';
       
-      mockGetToken.mockResolvedValue({
-        iat: Math.floor(Date.now() / 1000),
-        exp: Math.floor(Date.now() / 1000) + 3600
+      mockPrisma.session.findUnique.mockResolvedValue({
+        id: 'session-id',
+        token: 'valid-session-token',
+        createdAt: new Date(),
+        expiresAt: new Date(Date.now() + 3600 * 1000),
+        user: {
+          id: 'user-id',
+          email: 'test@example.com',
+          emailVerified: true
+        }
       });
       
       const mockRequest = {
         headers: new Map([
           ['user-agent', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)']
         ]),
-        cookies: new Map(),
+        cookies: {
+          get: jest.fn().mockImplementation((name) => {
+            if (name === 'better-auth.session_token' || name === 'better-auth.session-token') {
+              return { value: 'valid-session-token.signature' };
+            }
+            return undefined;
+          })
+        },
         method: 'GET',
         url: 'http://example.com/dashboard' // HTTP in production
       } as unknown as NextRequest;
@@ -147,9 +232,16 @@ describe('Cookie Security Utilities', () => {
       const originalEnv = process.env.NODE_ENV;
       process.env.NODE_ENV = 'production';
       
-      mockGetToken.mockResolvedValue({
-        iat: Math.floor(Date.now() / 1000),
-        exp: Math.floor(Date.now() / 1000) + 3600
+      mockPrisma.session.findUnique.mockResolvedValue({
+        id: 'session-id',
+        token: 'valid-session-token',
+        createdAt: new Date(),
+        expiresAt: new Date(Date.now() + 3600 * 1000),
+        user: {
+          id: 'user-id',
+          email: 'test@example.com',
+          emailVerified: true
+        }
       });
       
       const mockRequest = {
@@ -157,7 +249,14 @@ describe('Cookie Security Utilities', () => {
           ['user-agent', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'],
           ['x-forwarded-proto', 'https']
         ]),
-        cookies: new Map(),
+        cookies: {
+          get: jest.fn().mockImplementation((name) => {
+            if (name === 'better-auth.session_token' || name === 'better-auth.session-token') {
+              return { value: 'valid-session-token.signature' };
+            }
+            return undefined;
+          })
+        },
         method: 'GET',
         url: 'http://staging-retroai.tryitnow.dev/dashboard' // HTTP URL but HTTPS via proxy
       } as unknown as NextRequest;
@@ -181,9 +280,16 @@ describe('Cookie Security Utilities', () => {
       const originalEnv = process.env.NODE_ENV;
       process.env.NODE_ENV = 'production';
       
-      mockGetToken.mockResolvedValue({
-        iat: Math.floor(Date.now() / 1000),
-        exp: Math.floor(Date.now() / 1000) + 3600
+      mockPrisma.session.findUnique.mockResolvedValue({
+        id: 'session-id',
+        token: 'valid-session-token',
+        createdAt: new Date(),
+        expiresAt: new Date(Date.now() + 3600 * 1000),
+        user: {
+          id: 'user-id',
+          email: 'test@example.com',
+          emailVerified: true
+        }
       });
       
       const mockRequest = {
@@ -191,7 +297,14 @@ describe('Cookie Security Utilities', () => {
           ['user-agent', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'],
           ['cf-visitor', '{"scheme":"https"}']
         ]),
-        cookies: new Map(),
+        cookies: {
+          get: jest.fn().mockImplementation((name) => {
+            if (name === 'better-auth.session_token' || name === 'better-auth.session-token') {
+              return { value: 'valid-session-token.signature' };
+            }
+            return undefined;
+          })
+        },
         method: 'GET',
         url: 'http://localhost:3000/dashboard' // Internal URL but HTTPS via Cloudflare
       } as unknown as NextRequest;
@@ -259,11 +372,11 @@ describe('Cookie Security Utilities', () => {
         }
       } as unknown as NextResponse;
 
-      const result = clearAuthCookies(mockResponse);
+      clearAuthCookies(mockResponse);
 
-      expect(mockResponse.cookies.set).toHaveBeenCalledTimes(6);
+      expect(mockResponse.cookies.set).toHaveBeenCalledTimes(9);
       expect(mockResponse.cookies.set).toHaveBeenCalledWith({
-        name: 'next-auth.session-token',
+        name: 'better-auth.session_token',
         value: '',
         expires: new Date(0),
         path: '/',
@@ -388,26 +501,26 @@ describe('Cookie Security Utilities', () => {
   });
 
   describe('validateSessionTokenStructure', () => {
-    it('should validate proper JWT structure', () => {
-      const validJWT = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiaWF0IjoxNTE2MjM5MDIyfQ.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c';
+    it('should validate proper Better Auth token structure', () => {
+      const validToken = 'abcdefghijklmnopqrstuvwxyz123456789012345678901234567890.abcdefghijklmnopqrstuvwxyz123456789012345678901234567890';
       
-      const result = validateSessionTokenStructure(validJWT);
+      const result = validateSessionTokenStructure(validToken);
       
       expect(result.isValid).toBe(true);
       expect(result.issues).toHaveLength(0);
     });
 
-    it('should reject invalid JWT structure', () => {
-      const invalidJWT = 'invalid.jwt';
+    it('should reject invalid Better Auth token structure', () => {
+      const invalidToken = 'invalid.token.with.too.many.parts';
       
-      const result = validateSessionTokenStructure(invalidJWT);
+      const result = validateSessionTokenStructure(invalidToken);
       
       expect(result.isValid).toBe(false);
-      expect(result.issues).toContain('Token does not have valid JWT structure (header.payload.signature)');
+      expect(result.issues).toContain('Token does not have valid Better Auth structure (sessionId.signature)');
     });
 
     it('should reject suspiciously short tokens', () => {
-      const shortToken = 'a.b.c';
+      const shortToken = 'a.b';
       
       const result = validateSessionTokenStructure(shortToken);
       
@@ -416,7 +529,7 @@ describe('Cookie Security Utilities', () => {
     });
 
     it('should reject suspiciously long tokens', () => {
-      const longToken = 'a'.repeat(5000) + '.' + 'b'.repeat(5000) + '.' + 'c'.repeat(5000);
+      const longToken = 'a'.repeat(2000) + '.' + 'b'.repeat(2000);
       
       const result = validateSessionTokenStructure(longToken);
       
