@@ -28,7 +28,8 @@ interface ColumnProps {
         id: string;
         name: string | null;
         email: string;
-        password: string;
+        emailVerified: boolean;
+        image: string | null;
         createdAt: Date;
         updatedAt: Date;
       };

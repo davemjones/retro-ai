@@ -40,19 +40,12 @@ function generateDynamicAlphaVersion(): string {
       .replace(/[-:T]/g, '')
       .substring(0, 12);
     
-    // Try to get git commit hash (fallback to 'dev' if not available)
+    // Try to get git commit hash (only on server side)
     let commit = 'dev';
-    try {
-      // eslint-disable-next-line @typescript-eslint/no-require-imports
-      const { execSync } = require('child_process');
-      commit = execSync('git rev-parse --short HEAD', { 
-        encoding: 'utf8',
-        stdio: 'pipe'
-      }).trim();
-    } catch {
-      // Git not available or not in git repo, use fallback
-      commit = 'dev';
-    }
+    
+    // For client-side compatibility, just use 'dev' as commit hash
+    // The actual git commit will be available in production builds via build-info.json
+    commit = 'dev';
     
     return `${baseVersion}-alpha.${build}+${commit}`;
   } catch {

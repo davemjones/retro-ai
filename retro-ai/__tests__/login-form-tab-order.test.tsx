@@ -1,11 +1,34 @@
 import { render, screen } from '@testing-library/react';
 import { LoginForm } from '@/components/auth/login-form';
 import { useRouter } from 'next/navigation';
-import { signIn } from 'next-auth/react';
 
-// Mock next-auth
-jest.mock('next-auth/react', () => ({
+// Mock Better Auth client
+jest.mock('@/lib/auth-client', () => ({
   signIn: jest.fn(),
+  signUp: jest.fn(),
+  signOut: jest.fn(),
+  getSession: jest.fn(),
+  useSession: jest.fn(),
+  forgotPassword: jest.fn(),
+  resetPassword: jest.fn(),
+  verifyEmail: jest.fn(),
+  authClient: {
+    signIn: jest.fn(),
+  },
+}));
+
+// Mock Better Auth provider
+jest.mock('@/components/providers/better-auth-provider', () => ({
+  useSession: jest.fn(() => ({
+    data: {
+      user: { id: 'test-id', email: 'test@example.com' },
+      session: { id: 'session-id', expiresAt: new Date('2099-01-01') },
+    },
+    isPending: false,
+    error: null,
+    update: jest.fn(),
+  })),
+  BetterAuthProvider: ({ children }: { children: React.ReactNode }) => children,
 }));
 
 // Mock next/navigation
@@ -20,6 +43,10 @@ jest.mock('sonner', () => ({
   },
 }));
 
+// Import signIn mock from Better Auth client
+import { signIn } from '@/lib/auth-client';
+import React from 'react';
+
 const mockRouter = {
   push: jest.fn(),
   refresh: jest.fn(),
@@ -29,7 +56,10 @@ describe('LoginForm Tab Order', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     (useRouter as jest.Mock).mockReturnValue(mockRouter);
-    (signIn as jest.Mock).mockResolvedValue({ ok: true });
+    (signIn as jest.Mock).mockResolvedValue({ 
+      data: { user: { id: 'test-id', email: 'test@example.com' }},
+      error: null 
+    });
   });
 
   it('should have correct tab order excluding forgot password link', () => {
@@ -82,7 +112,7 @@ describe('LoginForm Tab Order', () => {
     // Link should still be clickable
     expect(forgotPasswordLink).toBeInTheDocument();
     expect(forgotPasswordLink.tagName.toLowerCase()).toBe('a');
-    expect(forgotPasswordLink).toHaveAttribute('href', '#');
+    expect(forgotPasswordLink).toHaveAttribute('href', '/forgot-password');
     
     // But should be excluded from tab order
     expect(forgotPasswordLink).toHaveAttribute('tabindex', '-1');

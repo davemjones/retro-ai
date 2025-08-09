@@ -1,14 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/lib/auth';
+import { headers } from 'next/headers';
+import { auth } from '@/lib/auth-better';
 import { SessionManager } from '@/lib/session-manager';
 
 export async function POST(req: NextRequest) {
   try {
     // Get the current session
-    const session = await getServerSession(authOptions);
+    const session = await auth.api.getSession({
+      headers: await headers(),
+    });
     
-    if (!session?.user?.id || !session.sessionId) {
+    if (!session?.user?.id || !session?.session?.id) {
       return NextResponse.json(
         { error: 'Unauthorized' },
         { status: 401 }
@@ -21,7 +23,7 @@ export async function POST(req: NextRequest) {
 
     // Update session activity
     await SessionManager.updateSessionActivity(
-      session.sessionId as string,
+      session.session.id,
       req,
       action
     );
@@ -30,7 +32,7 @@ export async function POST(req: NextRequest) {
     if (resource) {
       try {
         await SessionManager.logActivity(
-          session.sessionId as string,
+          session.session.id,
           {
             action,
             resource,

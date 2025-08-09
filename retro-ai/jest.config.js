@@ -15,6 +15,12 @@ const customJestConfig = {
     '!**/*.d.ts',
     '!**/node_modules/**',
   ],
+  moduleNameMapper: {
+    '^@/(.*)$': '<rootDir>/$1',
+  },
+  transformIgnorePatterns: [
+    'node_modules/(?!(nanostores|better-auth)/)',
+  ],
   testEnvironmentOptions: {
     customExportConditions: ['node', 'node-addons'],
   },

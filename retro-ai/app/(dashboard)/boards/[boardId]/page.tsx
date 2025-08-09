@@ -1,6 +1,6 @@
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { auth } from "@/lib/auth-better";
 import { redirect, notFound } from "next/navigation";
+import { headers } from "next/headers";
 import { prisma } from "@/lib/prisma";
 import { BoardPageClient } from "@/components/board/board-page-client";
 import { Prisma } from "@prisma/client";
@@ -111,7 +111,9 @@ export default async function BoardPage({
   params: Promise<{ boardId: string }>;
 }) {
   const { boardId } = await params;
-  const session = await getServerSession(authOptions);
+  const session = await auth.api.getSession({
+    headers: await headers(),
+  });
 
   if (!session?.user?.id) {
     redirect("/");

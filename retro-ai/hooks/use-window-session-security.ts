@@ -4,7 +4,8 @@
  */
 
 import { useEffect, useState, useCallback } from 'react';
-import { useSession, signOut } from 'next-auth/react';
+import { useNextAuthCompatSession } from '@/components/providers/better-auth-provider';
+import { signOut } from '@/lib/auth-client';
 import { 
   getWindowSessionId, 
   validateWindowSession, 
@@ -21,7 +22,7 @@ interface WindowSessionSecurityState {
 }
 
 export function useWindowSessionSecurity() {
-  const { data: session, status } = useSession();
+  const { data: session, status } = useNextAuthCompatSession();
   const [state, setState] = useState<WindowSessionSecurityState>({
     isWindowSessionValid: true,
     windowSessionId: null,
@@ -75,10 +76,9 @@ export function useWindowSessionSecurity() {
     clearWindowSessionId();
     
     try {
-      await signOut({
-        callbackUrl: '/?error=SessionSecurityViolation',
-        redirect: true
-      });
+      await signOut();
+      // Force redirect after signout
+      window.location.href = '/?error=SessionSecurityViolation';
     } catch (error) {
       console.error('❌ Failed to sign out after security violation:', error);
       // Force redirect as fallback
@@ -136,7 +136,7 @@ export function useWindowSessionSecurity() {
         isWindowSessionValid: true
       }));
     }
-  }, [session, status, state.windowSessionId, handleSessionViolation]);
+  }, [session?.user?.id, status, state.windowSessionId, handleSessionViolation]);
 
   // Force session validation
   const validateSession = useCallback(() => {
@@ -156,7 +156,7 @@ export function useWindowSessionSecurity() {
     }
 
     return true;
-  }, [session, state.windowSessionId, handleSessionViolation]);
+  }, [session?.user?.id, state.windowSessionId, handleSessionViolation]);
 
   // Get current window session info for debugging
   const getSessionInfo = useCallback(() => {
@@ -168,7 +168,7 @@ export function useWindowSessionSecurity() {
       userAgent: typeof window !== 'undefined' ? navigator.userAgent : 'server',
       timestamp: new Date().toISOString()
     };
-  }, [session, state]);
+  }, [session?.user?.id, state]);
 
   return {
     isWindowSessionValid: state.isWindowSessionValid,

@@ -2,7 +2,7 @@
 
 import React, { createContext, useContext, useEffect, useState, ReactNode } from "react";
 import { io, Socket } from "socket.io-client";
-import { useSession } from "next-auth/react";
+import { useNextAuthCompatSession } from "@/components/providers/better-auth-provider";
 
 interface MovementEvent {
   stickyId: string;
@@ -164,7 +164,7 @@ export function SocketProvider({ children }: SocketProviderProps) {
   const [socket, setSocket] = useState<Socket | null>(null);
   const [isConnected, setIsConnected] = useState(false);
   const [sessionId, setSessionId] = useState<string | null>(null);
-  const { data: session, status } = useSession();
+  const { data: session, status } = useNextAuthCompatSession();
 
   useEffect(() => {
     // Only initialize socket if user is authenticated
@@ -263,7 +263,7 @@ export function SocketProvider({ children }: SocketProviderProps) {
       });
       setIsConnected(false);
     };
-  }, [session, status]);
+  }, [session?.user?.id, status]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const joinBoard = (boardId: string) => {
     if (socket && isConnected) {
