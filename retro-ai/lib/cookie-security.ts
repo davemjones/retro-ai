@@ -88,8 +88,8 @@ export async function validateCookieSecurity(
                       req.headers.get('x-original-proto') === 'https' ||
                       (cfVisitor && cfVisitor.includes('"scheme":"https"'));
       
-      // Debug logging for Cloudflare tunnel troubleshooting (skip in tests)
-      if (!isSecure && process.env.NODE_ENV !== 'test') {
+      // Debug logging for Cloudflare tunnel troubleshooting
+      if (!isSecure) {
         console.log('🔍 HTTPS Detection Debug:', {
           url: req.url,
           nextauthUrl: process.env.NEXTAUTH_URL,
