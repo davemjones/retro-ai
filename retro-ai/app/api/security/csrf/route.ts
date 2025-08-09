@@ -1,17 +1,20 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getToken } from 'next-auth/jwt';
+import { auth } from '@/lib/auth-better';
+import { headers } from 'next/headers';
 import { generateSecureSessionId } from '@/lib/cookie-security';
 
 /**
  * CSRF token generation and validation endpoint
  */
 
-export async function GET(req: NextRequest) {
+export async function GET(_req: NextRequest) {
   try {
     // Verify user is authenticated
-    const token = await getToken({ req, secret: process.env.NEXTAUTH_SECRET });
+    const session = await auth.api.getSession({
+      headers: await headers(),
+    });
     
-    if (!token) {
+    if (!session?.user?.id) {
       return NextResponse.json(
         { error: 'Unauthorized' },
         { status: 401 }
@@ -24,7 +27,7 @@ export async function GET(req: NextRequest) {
     // Create response with CSRF token
     const response = NextResponse.json({
       csrfToken,
-      sessionId: token.sessionId,
+      sessionId: session.session.id,
     });
 
     // Set CSRF token as httpOnly cookie
@@ -51,9 +54,11 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   try {
     // Verify user is authenticated
-    const token = await getToken({ req, secret: process.env.NEXTAUTH_SECRET });
+    const session = await auth.api.getSession({
+      headers: await headers(),
+    });
     
-    if (!token) {
+    if (!session?.user?.id) {
       return NextResponse.json(
         { error: 'Unauthorized' },
         { status: 401 }
@@ -78,7 +83,7 @@ export async function POST(req: NextRequest) {
       console.warn('CSRF token validation failed:', {
         expected: csrfCookie.value,
         provided: providedToken,
-        sessionId: token.sessionId,
+        sessionId: session.session.id,
         userAgent: req.headers.get('user-agent')
       });
       
@@ -90,7 +95,7 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({
       valid: true,
-      sessionId: token.sessionId,
+      sessionId: session.session.id,
     });
   } catch (error) {
     console.error('CSRF token validation error:', error);

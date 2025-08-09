@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getToken } from 'next-auth/jwt';
+import { auth } from '@/lib/auth-better';
+import { headers } from 'next/headers';
 import { 
   validateCookieSecurity, 
   detectSessionHijacking,
@@ -13,9 +14,11 @@ import {
 export async function POST(req: NextRequest) {
   try {
     // Verify user is authenticated
-    const token = await getToken({ req, secret: process.env.NEXTAUTH_SECRET });
+    const session = await auth.api.getSession({
+      headers: await headers(),
+    });
     
-    if (!token) {
+    if (!session?.user?.id) {
       return NextResponse.json(
         { error: 'Unauthorized' },
         { status: 401 }
@@ -33,7 +36,7 @@ export async function POST(req: NextRequest) {
     const hijackingCheck = detectSessionHijacking(req);
     
     // Get session token for structure validation
-    const sessionCookie = req.cookies.get('next-auth.session-token');
+    const sessionCookie = req.cookies.get('better-auth.session_token');
     let tokenStructureValidation: { isValid: boolean; issues: string[] } = { isValid: true, issues: [] };
     
     if (sessionCookie) {
@@ -43,8 +46,8 @@ export async function POST(req: NextRequest) {
     // Create security report
     const securityReport = {
       timestamp: new Date().toISOString(),
-      sessionId: token.sessionId,
-      userId: token.id,
+      sessionId: session.session.id,
+      userId: session.user.id,
       cookieSecurity: {
         isValid: securityResult.isValid,
         shouldRotateSession: securityResult.shouldRotateSession,
@@ -79,8 +82,8 @@ export async function POST(req: NextRequest) {
       console.warn('Medium-risk security event detected:', securityReport);
     } else {
       console.info('Security check completed:', {
-        sessionId: token.sessionId,
-        userId: token.id,
+        sessionId: session.session.id,
+        userId: session.user.id,
         riskLevel: hijackingCheck.riskLevel,
       });
     }
@@ -103,12 +106,14 @@ export async function POST(req: NextRequest) {
   }
 }
 
-export async function GET(req: NextRequest) {
+export async function GET(_req: NextRequest) {
   try {
     // Verify user is authenticated
-    const token = await getToken({ req, secret: process.env.NEXTAUTH_SECRET });
+    const session = await auth.api.getSession({
+      headers: await headers(),
+    });
     
-    if (!token) {
+    if (!session?.user?.id) {
       return NextResponse.json(
         { error: 'Unauthorized' },
         { status: 401 }
@@ -130,10 +135,10 @@ export async function GET(req: NextRequest) {
         secureTransmissionRequired: process.env.NODE_ENV === 'production',
       },
       sessionInfo: {
-        sessionId: token.sessionId,
-        userId: token.id,
-        issuedAt: token.iat,
-        expiresAt: token.exp,
+        sessionId: session.session.id,
+        userId: session.user.id,
+        issuedAt: session.session.createdAt,
+        expiresAt: session.session.expiresAt,
       },
     });
 
