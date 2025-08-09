@@ -92,7 +92,7 @@ export async function validateCookieSecurity(
       if (!isSecure) {
         console.log('🔍 HTTPS Detection Debug:', {
           url: req.url,
-          nextauthUrl: process.env.NEXTAUTH_URL,
+          betterAuthUrl: process.env.BETTER_AUTH_URL,
           headers: {
             'x-forwarded-proto': req.headers.get('x-forwarded-proto'),
             'x-forwarded-ssl': req.headers.get('x-forwarded-ssl'),
@@ -221,7 +221,7 @@ export async function validateCookieSecurity(
 
     // CSRF protection validation
     if (enableCSRFProtection && req.method !== 'GET') {
-      // Better Auth doesn't use CSRF tokens in the same way as NextAuth
+      // Better Auth doesn't use CSRF tokens in the same way as traditional auth
       // Instead, it relies on SameSite cookies and other security measures
       const csrfToken = req.headers.get('x-csrf-token');
       
