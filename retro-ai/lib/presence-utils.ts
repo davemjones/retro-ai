@@ -6,6 +6,7 @@ export interface ActiveUser {
   userId: string;
   userName: string;
   userEmail: string;
+  userColor?: string;
   socketId?: string;
   timestamp: number;
   status?: 'active' | 'away' | 'offline';

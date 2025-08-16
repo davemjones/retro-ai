@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { headers } from "next/headers";
+import { auth } from "@/lib/auth-better";
 import { prisma } from "@/lib/prisma";
 
 export async function PATCH(
@@ -9,24 +9,14 @@ export async function PATCH(
 ) {
   const { columnId } = await params;
   try {
-    const session = await getServerSession(authOptions);
+    const session = await auth.api.getSession({
+      headers: await headers(),
+    });
 
-    if (!session?.user?.email) {
+    if (!session?.user?.id) {
       return NextResponse.json(
         { error: "Unauthorized" },
         { status: 401 }
-      );
-    }
-
-    // Get user from database
-    const user = await prisma.user.findUnique({
-      where: { email: session.user.email },
-    });
-
-    if (!user) {
-      return NextResponse.json(
-        { error: "User not found" },
-        { status: 404 }
       );
     }
 
@@ -63,7 +53,7 @@ export async function PATCH(
     }
 
     // Check if user is the board owner
-    if (column.board.createdById !== user.id) {
+    if (column.board.createdById !== session.user.id) {
       return NextResponse.json(
         { error: "Only board owners can rename columns" },
         { status: 403 }
@@ -92,24 +82,14 @@ export async function DELETE(
 ) {
   const { columnId } = await params;
   try {
-    const session = await getServerSession(authOptions);
+    const session = await auth.api.getSession({
+      headers: await headers(),
+    });
 
-    if (!session?.user?.email) {
+    if (!session?.user?.id) {
       return NextResponse.json(
         { error: "Unauthorized" },
         { status: 401 }
-      );
-    }
-
-    // Get user from database
-    const user = await prisma.user.findUnique({
-      where: { email: session.user.email },
-    });
-
-    if (!user) {
-      return NextResponse.json(
-        { error: "User not found" },
-        { status: 404 }
       );
     }
 
@@ -139,7 +119,7 @@ export async function DELETE(
     }
 
     // Check if user is the board owner
-    if (column.board.createdById !== user.id) {
+    if (column.board.createdById !== session.user.id) {
       return NextResponse.json(
         { error: "Only board owners can delete columns" },
         { status: 403 }

@@ -8,13 +8,14 @@ import { Shield, Users, Settings as SettingsIcon, Wifi } from 'lucide-react';
 
 export default function SettingsPage() {
   return (
-    <div className="space-y-6">
-      <div className="flex items-center space-x-2">
-        <SettingsIcon className="h-6 w-6" />
-        <h1 className="text-3xl font-bold">Settings</h1>
-      </div>
+    <div className="h-full overflow-y-auto">
+      <div className="container mx-auto p-6 space-y-6">
+        <div className="flex items-center space-x-2">
+          <SettingsIcon className="h-6 w-6" />
+          <h1 className="text-3xl font-bold">Settings</h1>
+        </div>
 
-      <Tabs defaultValue="sessions" className="space-y-6">
+        <Tabs defaultValue="sessions" className="space-y-6">
         <TabsList>
           <TabsTrigger value="sessions" className="flex items-center space-x-2">
             <Users className="h-4 w-4" />
@@ -113,7 +114,8 @@ export default function SettingsPage() {
             <SocketSessionMonitor />
           </div>
         </TabsContent>
-      </Tabs>
+        </Tabs>
+      </div>
     </div>
   );
 }

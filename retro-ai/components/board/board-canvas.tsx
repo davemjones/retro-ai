@@ -108,7 +108,8 @@ interface BoardData {
         id: string;
         name: string | null;
         email: string;
-        password: string;
+        emailVerified: boolean;
+        image: string | null;
         createdAt: Date;
         updatedAt: Date;
       };
@@ -136,7 +137,8 @@ interface BoardData {
       id: string;
       name: string | null;
       email: string;
-      password: string;
+      emailVerified: boolean;
+      image: string | null;
       createdAt: Date;
       updatedAt: Date;
     };
@@ -432,7 +434,8 @@ export function BoardCanvas({ board, columns: initialColumns, userId, isOwner }:
         order: 0, // Default order, will be updated by server if needed
         author: {
           ...data.author,
-          password: '', // Not needed for display
+          emailVerified: false, // Default for socket events
+          image: null, // Default for socket events
           createdAt: new Date(),
           updatedAt: new Date(),
         },

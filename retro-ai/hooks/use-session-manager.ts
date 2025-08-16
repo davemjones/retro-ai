@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from 'react';
-import { useSession } from 'next-auth/react';
+import { useNextAuthCompatSession } from '@/components/providers/better-auth-provider';
 
 interface SessionInfo {
   id: string;
@@ -31,7 +31,7 @@ interface SessionAnalytics {
 }
 
 export function useSessionManager() {
-  const { data: session } = useSession();
+  const { data: session } = useNextAuthCompatSession();
   const [sessions, setSessions] = useState<SessionInfo[]>([]);
   const [currentSession, setCurrentSession] = useState<SessionInfo | null>(null);
   const [analytics, setAnalytics] = useState<SessionAnalytics | null>(null);
@@ -43,7 +43,7 @@ export function useSessionManager() {
     if (session?.sessionId) {
       initializeSession();
     }
-  }, [session]);
+  }, [session?.sessionId]);
 
   const initializeSession = useCallback(async () => {
     try {
@@ -87,7 +87,7 @@ export function useSessionManager() {
     } finally {
       setLoading(false);
     }
-  }, [session]);
+  }, [session?.sessionId]);
 
   const loadCurrentSession = useCallback(async () => {
     if (!session) return;
@@ -107,7 +107,7 @@ export function useSessionManager() {
     } catch (error) {
       console.error('Failed to load current session:', error);
     }
-  }, [session]);
+  }, [session?.sessionId]);
 
   const loadAnalytics = useCallback(async (days: number = 30) => {
     if (!session) return;
@@ -130,7 +130,7 @@ export function useSessionManager() {
     } finally {
       setLoading(false);
     }
-  }, [session]);
+  }, [session?.sessionId]);
 
   const terminateSession = useCallback(async (sessionId: string) => {
     if (!session) return false;
@@ -160,7 +160,7 @@ export function useSessionManager() {
       console.error('Terminate session error:', error);
       return false;
     }
-  }, [session, loadSessions]);
+  }, [session?.sessionId, loadSessions]);
 
   const terminateOtherSessions = useCallback(async () => {
     if (!session) return 0;
@@ -187,7 +187,7 @@ export function useSessionManager() {
       console.error('Terminate other sessions error:', error);
       return 0;
     }
-  }, [session, loadSessions]);
+  }, [session?.sessionId, loadSessions]);
 
   const logActivity = useCallback(async (
     action: string,
@@ -212,7 +212,7 @@ export function useSessionManager() {
     } catch (error) {
       console.error('Failed to log activity:', error);
     }
-  }, [session]);
+  }, [session?.sessionId]);
 
   // Auto-refresh sessions periodically
   useEffect(() => {
@@ -223,7 +223,7 @@ export function useSessionManager() {
 
       return () => clearInterval(interval);
     }
-  }, [session, sessions.length, loadSessions]);
+  }, [session?.sessionId, sessions.length, loadSessions]);
 
   return {
     sessions,

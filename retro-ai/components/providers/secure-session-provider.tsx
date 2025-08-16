@@ -6,7 +6,7 @@
 'use client';
 
 import { useEffect } from 'react';
-import { useSession } from 'next-auth/react';
+import { useNextAuthCompatSession } from './better-auth-provider';
 import { useWindowSessionSecurity } from '@/hooks/use-window-session-security';
 
 interface SecureSessionProviderProps {
@@ -14,7 +14,7 @@ interface SecureSessionProviderProps {
 }
 
 export function SecureSessionProvider({ children }: SecureSessionProviderProps) {
-  const { data: session, status } = useSession();
+  const { data: session, status } = useNextAuthCompatSession();
   const {
     isWindowSessionValid,
     securityLevel,

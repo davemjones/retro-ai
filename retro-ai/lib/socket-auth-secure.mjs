@@ -1,13 +1,12 @@
-import { getToken } from 'next-auth/jwt';
 import { PrismaClient } from '@prisma/client';
 
 /**
  * Secure socket authentication with board authorization for CommonJS server.js
- * Implements team membership validation and comprehensive session management
+ * Uses Better Auth session-based authentication with team membership validation
  */
 
 /**
- * Enhanced authentication for Socket.io connections with team-based board authorization
+ * Enhanced authentication for Socket.io connections with Better Auth sessions
  */
 async function authenticateSocket(socket) {
 
@@ -26,35 +25,79 @@ async function authenticateSocket(socket) {
       }
     });
 
-    // Validate JWT token using NextAuth
-    const token = await getToken({
-      req: {
-        headers: { cookie: cookies },
-        cookies: cookieObject,
-      },
-      secret: process.env.NEXTAUTH_SECRET,
-    });
-
-    if (!token) {
-      console.warn(`Socket authentication failed: No valid token for ${socket.id}`);
+    // Look for Better Auth session token (try both possible names)
+    const rawSessionToken = cookieObject['better-auth.session_token'] || cookieObject['better-auth.session-token'];
+    
+    if (!rawSessionToken) {
+      console.warn(`Socket authentication failed: No Better Auth token for ${socket.id}`);
       return null;
     }
 
-    // Create socket session object
+    // Better Auth signs the session token - extract just the session ID part
+    // Format: sessionId.signature
+    const sessionToken = decodeURIComponent(rawSessionToken).split('.')[0];
+
+    // Validate session against the database using Better Auth's session table
+    const prisma = new PrismaClient();
+    let user, session;
+    
+    try {
+      // Look up the session in the database using the session token
+      session = await prisma.session.findUnique({
+        where: { token: sessionToken },
+        include: { user: true }
+      });
+
+      if (!session) {
+        console.warn(`Socket authentication failed: Invalid session token for ${socket.id}`);
+        await prisma.$disconnect();
+        return null;
+      }
+
+      // Check if session is expired
+      if (new Date() > session.expiresAt) {
+        console.warn(`Socket authentication failed: Expired session for ${socket.id}`);
+        await prisma.$disconnect();
+        return null;
+      }
+
+      user = session.user;
+      
+      // Note: Better Auth is configured with requireEmailVerification: true
+      // Email verification is required for new accounts
+
+    } catch (error) {
+      console.error('Database error during socket authentication:', error);
+      await prisma.$disconnect();
+      return null;
+    } finally {
+      await prisma.$disconnect();
+    }
+
+    // Create socket session object compatible with existing system
     const socketSession = {
-      userId: token.id || token.sub,
-      userName: token.name || token.email || 'User',
-      sessionId: token.sessionId || `socket_${Date.now()}`,
+      userId: user.id,
+      userName: user.name || user.email || 'User',
+      userEmail: user.email,
+      sessionId: session.id,
       fingerprint: {
         ipHash: clientIP,
         userAgentHash: userAgent,
         timestamp: Date.now(),
+        features: [
+          'better-auth-session',
+          user.emailVerified ? 'email-verified' : 'email-unverified'
+        ]
       },
       isAuthenticated: true,
       lastActivity: Date.now(),
+      provider: 'better-auth',
+      sessionToken: sessionToken,
+      issuedAt: Math.floor(session.createdAt.getTime() / 1000),
+      expiresAt: Math.floor(session.expiresAt.getTime() / 1000)
     };
 
-    console.log(`Socket authenticated: ${socket.id} for user ${socketSession.userId}`);
+    console.log(`Socket authenticated: ${socket.id} for user ${socketSession.userId} with Better Auth`);
     return socketSession;
 
   } catch (error) {
@@ -64,25 +107,56 @@ async function authenticateSocket(socket) {
 }
 
 /**
- * Validate socket session for specific operations
+ * Validate socket session for specific operations with Better Auth compatibility
  */
-async function validateSocketSession(socket, session) {
+async function validateSocketSession(socket, session, operation) {
+  if (!session || !session.userId) {
+    return { isValid: false, reason: 'No authenticated session' };
+  }
+
   try {
-    // Basic session checks
-    if (!session.isAuthenticated) {
-      return { isValid: false, reason: 'Not authenticated' };
+    // Check if session is expired
+    if (session.expiresAt && Date.now() / 1000 > session.expiresAt) {
+      return { isValid: false, reason: 'Session expired' };
     }
 
-    // Check session timeout
+    // Check session idle timeout
     const now = Date.now();
     if (now - session.lastActivity > 30 * 60 * 1000) { // 30 minutes
       return { isValid: false, reason: 'Session idle timeout' };
     }
 
+    // Additional validation for Better Auth sessions
+    if (session.provider === 'better-auth') {
+      // Verify the user still exists and session is valid
+      const prisma = new PrismaClient();
+      try {
+        const user = await prisma.user.findUnique({
+          where: { id: session.userId },
+          select: { id: true, emailVerified: true }
+        });
+
+        if (!user) {
+          return { isValid: false, reason: 'User not found' };
+        }
+
+        // Note: Better Auth is configured with requireEmailVerification: true
+        // Email verification is required, but existing users retain access
+      } catch (error) {
+        console.error('Error validating user:', error);
+        return { isValid: false, reason: 'Database error' };
+      } finally {
+        await prisma.$disconnect();
+      }
+    }
+
     // Update activity timestamp
     session.lastActivity = now;
 
-    return { isValid: true };
+    // Log successful validation
+    console.log(`✅ Socket session validated for ${operation || 'operation'}: User ${session.userId} (${session.userName})`);
+
+    return { isValid: true, session };
 
   } catch (error) {
     console.error('Socket session validation error:', error);

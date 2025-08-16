@@ -1,6 +1,6 @@
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { auth } from "@/lib/auth-better";
 import { redirect, notFound } from "next/navigation";
+import { headers } from "next/headers";
 import { prisma } from "@/lib/prisma";
 import { BoardPageClient } from "@/components/board/board-page-client";
 import { Prisma } from "@prisma/client";
@@ -17,14 +17,36 @@ type BoardWithRelations = Prisma.BoardGetPayload<{
       include: {
         stickies: {
           include: {
-            author: true;
+            author: {
+              select: {
+                id: true,
+                name: true,
+                email: true,
+                emailVerified: true,
+                image: true,
+                color: true,
+                createdAt: true,
+                updatedAt: true,
+              },
+            };
           };
         };
       };
     };
     stickies: {
       include: {
-        author: true;
+        author: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            emailVerified: true,
+            image: true,
+            color: true,
+            createdAt: true,
+            updatedAt: true,
+          },
+        };
       };
     };
   };
@@ -47,7 +69,18 @@ async function getBoard(boardId: string, userId: string): Promise<BoardWithRelat
         include: {
           stickies: {
             include: {
-              author: true,
+              author: {
+                select: {
+                  id: true,
+                  name: true,
+                  email: true,
+                  emailVerified: true,
+                  image: true,
+                  color: true,
+                  createdAt: true,
+                  updatedAt: true,
+                },
+              },
             },
             orderBy: { order: "asc" },
           },
@@ -56,7 +89,18 @@ async function getBoard(boardId: string, userId: string): Promise<BoardWithRelat
       stickies: {
         where: { columnId: null },
         include: {
-          author: true,
+          author: {
+            select: {
+              id: true,
+              name: true,
+              email: true,
+              emailVerified: true,
+              image: true,
+              color: true,
+              createdAt: true,
+              updatedAt: true,
+            },
+          },
         },
         orderBy: { order: "asc" },
       },
@@ -111,7 +155,9 @@ export default async function BoardPage({
   params: Promise<{ boardId: string }>;
 }) {
   const { boardId } = await params;
-  const session = await getServerSession(authOptions);
+  const session = await auth.api.getSession({
+    headers: await headers(),
+  });
 
   if (!session?.user?.id) {
     redirect("/");

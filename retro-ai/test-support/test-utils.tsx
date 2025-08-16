@@ -1,25 +1,35 @@
 import React from 'react';
 import { render } from '@testing-library/react';
-import { SessionProvider } from 'next-auth/react';
 import { jest } from '@jest/globals';
 
-// Mock session data for tests
+// Mock session data for tests (Better Auth format)
 export const mockSession = {
   user: {
     id: 'test-user-id',
     name: 'Test User',
     email: 'test@example.com',
+    emailVerified: true,
+    createdAt: new Date('2023-01-01'),
+    updatedAt: new Date('2023-01-01'),
+    image: null,
   },
-  expires: '2099-01-01',
+  session: {
+    id: 'session-id',
+    userId: 'test-user-id',
+    expiresAt: new Date('2099-01-01'),
+    token: 'mock-session-token',
+    createdAt: new Date('2023-01-01'),
+    updatedAt: new Date('2023-01-01'),
+    ipAddress: '127.0.0.1',
+    userAgent: 'test-user-agent',
+  },
+  expires: '2099-01-01', // Keep for backward compatibility
 };
 
 // Mock SessionProvider that doesn't require real authentication
 export const MockSessionProvider = ({ children }: { children: React.ReactNode }) => {
-  return (
-    <SessionProvider session={mockSession}>
-      {children}
-    </SessionProvider>
-  );
+  // Simply return children since we're mocking the auth context
+  return <>{children}</>;
 };
 
 // Mock SocketProvider for testing
@@ -46,10 +56,15 @@ export const renderWithProviders = (ui: React.ReactElement, options = {}) => {
   });
 };
 
-// Mock functions for common hooks
+// Mock functions for common hooks (Better Auth format)
 export const mockUseSession = {
-  data: mockSession,
+  data: {
+    user: mockSession.user,
+    session: mockSession.session,
+  },
   status: 'authenticated' as const,
+  isPending: false,
+  error: null,
   update: jest.fn(),
 };
 

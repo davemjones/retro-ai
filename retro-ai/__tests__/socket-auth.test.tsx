@@ -1,16 +1,16 @@
 import { authenticateSocket, validateSocketSession, createBoardIsolationMiddleware } from '../lib/socket-auth';
 import { SessionManager } from '../lib/session-manager';
 import { generateSessionFingerprint } from '../lib/session-utils';
-import { getToken } from 'next-auth/jwt';
+import { getSession } from '@/lib/auth-client';
 
 // Mock dependencies
 jest.mock('../lib/session-manager');
 jest.mock('../lib/session-utils');
-jest.mock('next-auth/jwt');
+jest.mock('@/lib/auth-client');
 
 const mockSessionManager = SessionManager as jest.Mocked<typeof SessionManager>;
 const mockGenerateSessionFingerprint = generateSessionFingerprint as jest.MockedFunction<typeof generateSessionFingerprint>;
-const mockGetToken = getToken as jest.MockedFunction<typeof getToken>;
+const mockGetSession = getSession as jest.MockedFunction<typeof getSession>;
 
 describe.skip('Socket Authentication', () => {
   const mockSocket = {
@@ -19,7 +19,7 @@ describe.skip('Socket Authentication', () => {
       headers: {
         'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
         'x-forwarded-for': '192.168.1.1',
-        'cookie': 'next-auth.session-token=test-token'
+        'cookie': 'better-auth.session_token=test-token'
       },
       address: '192.168.1.1'
     },
@@ -30,17 +30,24 @@ describe.skip('Socket Authentication', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
-    process.env.NEXTAUTH_SECRET = 'test-secret';
+    process.env.BETTER_AUTH_SECRET = 'test-secret';
   });
 
   describe('authenticateSocket', () => {
     it('should authenticate a valid socket connection', async () => {
       // Mock successful authentication
-      mockGetToken.mockResolvedValue({
-        id: 'user123',
-        name: 'Test User',
-        email: 'test@example.com',
-        sessionId: 'session123'
+      mockGetSession.mockResolvedValue({
+        data: {
+          user: {
+            id: 'user123',
+            name: 'Test User',
+            email: 'test@example.com'
+          },
+          session: {
+            id: 'session123',
+            expiresAt: new Date('2099-01-01')
+          }
+        }
       });
 
       mockSessionManager.validateSession.mockResolvedValue({

@@ -5,11 +5,13 @@
 **CRITICAL: BEFORE starting ANY issue work, ALWAYS follow this workflow first:**
 
 ### Branch Strategy (develop → staging → main)
+
 - **develop**: Default branch for all new work
 - **staging**: Alpha/beta releases
 - **main**: Production releases only
 
 When working on a new issue:
+
 1. **ALWAYS** checkout the develop branch first (unless explicitly told not to)
 2. Pull the latest changes: `git pull origin develop`
 3. Create a new branch for the issue: `git checkout -b feature/issue-XX-description`
@@ -20,6 +22,7 @@ When working on a new issue:
 ⚠️ **MANDATORY**: Add Git workflow as the FIRST todo item for every new issue before any technical work.
 
 ### Branch Naming Conventions
+
 - **Features**: `feature/issue-XX-brief-description`
 - **Bug Fixes**: `fix/issue-XX-brief-description`
 - **Enhancements**: `enhance/issue-XX-brief-description`
@@ -27,6 +30,7 @@ When working on a new issue:
 - **Documentation**: `docs/issue-XX-brief-description`
 
 Example workflow:
+
 ```bash
 git checkout develop
 git pull origin develop
@@ -39,9 +43,72 @@ git push -u origin fix/issue-47-eslint-errors
 
 **See [docs/BRANCHING-STRATEGY.md](./docs/BRANCHING-STRATEGY.md) for complete workflow details.**
 
+## Demo User Setup
+
+The database seeding script automatically creates demo data:
+
+```bash
+npm run db:seed
+```
+
+This creates:
+- **10 demo users** (testuser1@example.com through testuser10@example.com) with password `demopassword`
+- **3 teams** (Alpha Team, Beta Team, Gamma Team) with proper member assignments
+- **3 boards** (Sprint Planning, Retrospective Meeting, Project Kickoff) with different templates
+- **45+ sticky notes** distributed across the boards
+
+All users are compatible with Better Auth authentication and can login immediately (no email verification required).
+
+## Authentication Setup (Better Auth)
+
+This project uses **Better Auth** for authentication, which provides:
+- Email/password authentication with scrypt hashing
+- Session-based authentication (not JWT)
+- Email verification and password reset functionality
+- Rate limiting on auth endpoints
+
+### Environment Variables
+
+Required environment variables for authentication:
+
+```bash
+# Better Auth Configuration
+BETTER_AUTH_URL="http://localhost:3000"  # Your app's base URL
+BETTER_AUTH_SECRET="your-secret-key"     # Generate with: openssl rand -base64 32
+NEXT_PUBLIC_APP_URL="http://localhost:3000"  # Public URL for client-side
+
+# Email Configuration (Resend)
+RESEND_API_KEY="re_YOUR_API_KEY"         # From https://resend.com/api-keys
+EMAIL_FROM="noreply@your-domain.com"     # Verified domain email
+EMAIL_FROM_NAME="Retro AI"               # Display name for emails
+```
+
+### Email Service (Resend)
+
+The app uses **Resend** for transactional emails:
+- **Development**: If `RESEND_API_KEY` is not configured, emails are logged to console
+- **Production**: Requires valid Resend API key and verified domain
+
+To set up Resend:
+1. Sign up at [resend.com](https://resend.com)
+2. Verify your domain in the Resend dashboard
+3. Create an API key
+4. Add the API key to your `.env` file
+
+### Password Hashing
+
+Better Auth uses **scrypt** by default for password hashing with these parameters:
+- N: 16384 (CPU/memory cost)
+- r: 16 (block size)
+- p: 1 (parallelization)
+- dkLen: 64 (derived key length)
+
+The seed script (`prisma/seed.ts`) uses the same scrypt implementation to ensure compatibility.
+
 ## Linting Requirements
 
 Before committing any changes, always run:
+
 ```bash
 cd retro-ai && npm run lint
 ```
@@ -49,6 +116,7 @@ cd retro-ai && npm run lint
 ## TypeScript Type Checking Requirements
 
 Before committing any changes, always run TypeScript type checking:
+
 ```bash
 cd retro-ai && npm run typecheck
 ```
@@ -58,22 +126,26 @@ cd retro-ai && npm run typecheck
 ## Common Issues to Avoid
 
 ### 1. Unused Imports
+
 - Remove any imports that are not used in the file
 - Example: ActivityTracker in session-provider.tsx was imported but never used
 
 ### 2. TypeScript 'any' Type
+
 - **NEVER** use `as any` to bypass type checking
 - Create proper type definitions or interfaces instead
 - If working with external APIs, define proper request types
 - Example: In auth.ts, instead of `} as any`, create a proper type or interface
 
 ### 3. React Hook Dependencies
+
 - Always include all variables used inside useEffect in the dependency array
 - Use ESLint disable comments sparingly and only when absolutely necessary
 - If a dependency causes infinite loops, refactor the code structure
 - Example: socket-context.tsx useEffect uses 'socket' but doesn't include it in dependencies
 
 ### 4. Socket.io TypeScript Import Errors ⚠️ CRITICAL
+
 - **NEVER** import TypeScript files in `server.js` - Node.js cannot handle `.ts` imports
 - **ALWAYS** use `.mjs` files for server-side Socket.io authentication
 - ❌ `await import('./lib/socket-auth.ts')` - WILL FAIL with ERR_MODULE_NOT_FOUND
@@ -81,6 +153,7 @@ cd retro-ai && npm run typecheck
 - **Reference SOCKET-SERVER.md** for all real-time communication work
 
 ### 5. Socket.io Scope Management ⚠️ CRITICAL
+
 - **ALL socket event handlers MUST be inside the authentication try block**
 - ❌ Defining `socket.on()` outside try block - WILL CAUSE "ReferenceError: validateSocketSession is not defined"
 - ✅ All socket handlers must be inside the try block where authentication imports are defined
@@ -89,11 +162,13 @@ cd retro-ai && npm run typecheck
 ## Real-Time Communication Documentation ⚠️ MANDATORY
 
 ### ⚠️ BEFORE Touching ANY Real-Time Code: READ SOCKET-SERVER.md FIRST
-- **MANDATORY**: Read `/workspaces/retro-ai/SOCKET-SERVER.md` BEFORE making ANY changes to real-time communication code
+
+- **MANDATORY**: Read `/workspaces/retro-ai/docs/SOCKET-SERVER.md` BEFORE making ANY changes to real-time communication code
 - This includes: `server.js`, socket event handlers, WebSocket code, Socket.io integration, real-time features
 - **FAILURE to read SOCKET-SERVER.md first will result in critical bugs and security issues**
 
 ### Socket.io and WebSocket Development Rules
+
 - **CRITICAL**: Any changes to real-time communication code MUST be documented in `SOCKET-SERVER.md`
 - **ALWAYS** update `SOCKET-SERVER.md` when:
   - Adding new socket events (client→server or server→client)
@@ -103,13 +178,16 @@ cd retro-ai && npm run typecheck
   - Updating security requirements or board isolation logic
 
 ### Required Documentation Updates
+
 When working on real-time features, you MUST update these sections in `SOCKET-SERVER.md`:
+
 1. **Socket event handlers** - Add/update code examples with proper authentication flow
 2. **Authorization requirements** - Document ownership/permission requirements (e.g., board owner only)
 3. **Testing checklist** - Add security and functional tests for new features
 4. **Error handling** - Document new error scenarios and proper socket event responses
 
 ### Files That Require SOCKET-SERVER.md Updates
+
 - `server.js` - Main socket server with event handlers
 - `lib/socket-auth-*.mjs` - Authentication and authorization logic
 - `lib/socket-context.tsx` - Client-side socket integration
@@ -117,18 +195,21 @@ When working on real-time features, you MUST update these sections in `SOCKET-SE
 - Any API route that triggers real-time updates
 
 ## Pre-issue Work Checklist
+
 - [ ] **Git workflow completed** (checkout develop, pull latest, create feature branch)
 - [ ] Issue analysis and todo list created
 - [ ] Technical approach planned
 - [ ] **If working on real-time/Socket.io code**: Read SOCKET-SERVER.md first
 
 ## Post-Implementation Checklist
+
 - [ ] **If real-time communication was modified**: Update SOCKET-SERVER.md documentation
 - [ ] All socket events documented with proper authentication flow
 - [ ] Authorization requirements clearly documented (ownership, team membership)
 - [ ] Testing scenarios added to SOCKET-SERVER.md checklist
 
 ## Pre-commit Checklist
+
 - [ ] Run `npm run lint` and fix ALL errors before committing
 - [ ] Run `npm run typecheck` and fix ALL TypeScript errors before committing
 - [ ] No TypeScript 'any' types used
@@ -137,12 +218,14 @@ When working on real-time features, you MUST update these sections in `SOCKET-SE
 - [ ] No ESLint errors (warnings may be acceptable if justified)
 
 ## TypeScript Best Practices
+
 1. Define interfaces for all data structures
 2. Use proper type annotations for function parameters and return values
 3. Avoid type assertions unless absolutely necessary
 4. When dealing with third-party libraries, create type definitions if missing
 
 ## React Best Practices
+
 1. Clean up side effects in useEffect return functions
 2. Include all dependencies in useEffect dependency arrays
 3. Remove unused imports immediately
@@ -151,32 +234,36 @@ When working on real-time features, you MUST update these sections in `SOCKET-SE
 ## Example Fixes
 
 ### Bad: Using 'as any'
+
 ```typescript
 // ❌ Don't do this
-const request = { ip: '127.0.0.1', headers: new Headers() } as any;
+const request = { ip: "127.0.0.1", headers: new Headers() } as any;
 ```
 
 ### Good: Create proper types
+
 ```typescript
 // ✅ Do this
 interface MockRequest {
   ip: string;
   headers: Headers;
 }
-const request: MockRequest = { ip: '127.0.0.1', headers: new Headers() };
+const request: MockRequest = { ip: "127.0.0.1", headers: new Headers() };
 ```
 
 ### Bad: Missing dependencies
+
 ```typescript
 // ❌ Don't do this
 useEffect(() => {
   if (socket) {
     socket.disconnect();
   }
-}, []);  // socket is missing!
+}, []); // socket is missing!
 ```
 
 ### Good: Include all dependencies
+
 ```typescript
 // ✅ Do this
 useEffect(() => {
@@ -186,7 +273,44 @@ useEffect(() => {
 }, [socket]);
 ```
 
+## UI/UX Design System ⚠️ MANDATORY
+
+### ⚠️ BEFORE Creating or Modifying ANY UI Components: READ UI-DESIGN-GUIDE.md FIRST
+
+- **MANDATORY**: Read `/docs/DESIGN-SYSTEM-README.md` BEFORE making ANY UI/UX changes
+- This includes: creating new components, modifying existing components, updating styles, changing colors or spacing
+- **The UI Design Guide is the single source of truth for all UI decisions**
+
+### UI Development Rules
+
+- **ALWAYS** reference the UI Design Guide when:
+  - Creating new components or widgets
+  - Modifying existing component styles
+  - Choosing colors, spacing, or typography
+  - Implementing interactive states (hover, focus, active, disabled)
+  - Building responsive layouts
+
+### Key Design System Files
+
+- `/docs/UI-DESIGN-GUIDE.md` - Main design system documentation
+- `/styles/design-tokens.css` - All CSS custom properties
+- `/components/ui-examples.tsx` - Example implementations
+- `/docs/DESIGN-SYSTEM-README.md` - Quick reference guide
+
+### Component Creation Checklist
+
+Before creating any new UI component:
+
+- [ ] Review existing patterns in UI-DESIGN-GUIDE.md
+- [ ] Check ui-examples.tsx for similar components
+- [ ] Use design tokens from design-tokens.css
+- [ ] Follow the component template in the guide
+- [ ] Include all interactive states
+- [ ] Ensure responsive behavior
+- [ ] Meet accessibility requirements
+
 ## UI/UX Issues
 
 ### Sticky Note Rendering
+
 - The avatar on the sticky note is too small and is clipping the user initials. Increase the size of the circle.

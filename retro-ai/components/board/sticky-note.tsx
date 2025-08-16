@@ -38,7 +38,9 @@ interface StickyNoteProps {
       id: string;
       name: string | null;
       email: string;
-      password: string;
+      emailVerified: boolean;
+      image: string | null;
+      color?: string | null;
       createdAt: Date;
       updatedAt: Date;
     };
@@ -157,7 +159,7 @@ export function StickyNote({ sticky, userId, moveIndicator: propMoveIndicator }:
                   {sticky.author.name || sticky.author.email}
                 </span>
                 <Avatar className="h-5 w-5">
-                  <AvatarFallback className="text-xs">
+                  <AvatarFallback className="text-xs" color={sticky.author.color || undefined}>
                     {getInitials(sticky.author.name || '') || 
                      getInitials(sticky.author.email) || "U"}
                   </AvatarFallback>
