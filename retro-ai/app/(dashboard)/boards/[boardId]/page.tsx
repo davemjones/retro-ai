@@ -17,14 +17,36 @@ type BoardWithRelations = Prisma.BoardGetPayload<{
       include: {
         stickies: {
           include: {
-            author: true;
+            author: {
+              select: {
+                id: true,
+                name: true,
+                email: true,
+                emailVerified: true,
+                image: true,
+                color: true,
+                createdAt: true,
+                updatedAt: true,
+              },
+            };
           };
         };
       };
     };
     stickies: {
       include: {
-        author: true;
+        author: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            emailVerified: true,
+            image: true,
+            color: true,
+            createdAt: true,
+            updatedAt: true,
+          },
+        };
       };
     };
   };
@@ -47,7 +69,18 @@ async function getBoard(boardId: string, userId: string): Promise<BoardWithRelat
         include: {
           stickies: {
             include: {
-              author: true,
+              author: {
+                select: {
+                  id: true,
+                  name: true,
+                  email: true,
+                  emailVerified: true,
+                  image: true,
+                  color: true,
+                  createdAt: true,
+                  updatedAt: true,
+                },
+              },
             },
             orderBy: { order: "asc" },
           },
@@ -56,7 +89,18 @@ async function getBoard(boardId: string, userId: string): Promise<BoardWithRelat
       stickies: {
         where: { columnId: null },
         include: {
-          author: true,
+          author: {
+            select: {
+              id: true,
+              name: true,
+              email: true,
+              emailVerified: true,
+              image: true,
+              color: true,
+              createdAt: true,
+              updatedAt: true,
+            },
+          },
         },
         orderBy: { order: "asc" },
       },

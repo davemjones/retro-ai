@@ -333,8 +333,9 @@ async function main() {
 
     // Each user creates 3 sticky notes
     for (const user of teamMembers) {
-      // Use the user's color from the database, or default if not set
-      const userColor = user.color || "#FFE066"; // Default color
+      // Use the user's color from the database, or generate one if not set
+      const { generateRandomUserColor } = await import("../lib/user-colors");
+      const userColor = user.color || generateRandomUserColor();
 
       for (let noteCount = 0; noteCount < 3; noteCount++) {
         const column = board.columns![noteCount % board.columns!.length];

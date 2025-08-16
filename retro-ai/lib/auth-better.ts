@@ -1,11 +1,28 @@
 import { betterAuth } from "better-auth";
 import { prismaAdapter } from "better-auth/adapters/prisma";
 import { prisma } from "./prisma";
+import { generateRandomUserColor } from "./user-colors";
 
 export const auth = betterAuth({
   database: prismaAdapter(prisma, {
     provider: "postgresql",
   }),
+  databaseHooks: {
+    user: {
+      create: {
+        before: async (user) => {
+          // Assign a random color to new users
+          const color = generateRandomUserColor();
+          return {
+            data: {
+              ...user,
+              color,
+            },
+          };
+        },
+      },
+    },
+  },
   baseURL: process.env.BETTER_AUTH_URL || "http://localhost:3000",
   secret: process.env.BETTER_AUTH_SECRET,
   session: {
@@ -71,6 +88,13 @@ export const auth = betterAuth({
     },
   },
   user: {
+    additionalFields: {
+      color: {
+        type: "string",
+        required: false,
+        input: false, // Don't allow direct input, we assign it via hook
+      },
+    },
     changeEmail: {
       enabled: true,
       sendChangeEmailVerification: async ({
