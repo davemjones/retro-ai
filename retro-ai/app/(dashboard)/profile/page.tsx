@@ -9,6 +9,18 @@ import { User, Calendar, Mail, CheckCircle, XCircle } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useEffect } from 'react';
 
+// Type definition for user with additional color property
+type UserWithColor = {
+  id: string;
+  email: string;
+  name?: string;
+  emailVerified?: boolean;
+  createdAt: Date;
+  updatedAt: Date;
+  image?: string | null;
+  color?: string | null;
+};
+
 export default function ProfilePage() {
   const { data: session, status } = useSession();
   const router = useRouter();
@@ -129,7 +141,7 @@ export default function ProfilePage() {
               <div className="flex items-center space-x-4">
                 <Avatar className="h-20 w-20">
                   <AvatarImage src={user.image || undefined} alt={userName} />
-                  <AvatarFallback className="text-lg font-semibold" color={(user as any).color || undefined}>
+                  <AvatarFallback className="text-lg font-semibold" color={(user as UserWithColor).color || undefined}>
                     {getInitials(userName)}
                   </AvatarFallback>
                 </Avatar>
