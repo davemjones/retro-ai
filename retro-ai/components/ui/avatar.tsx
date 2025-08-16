@@ -36,15 +36,24 @@ function AvatarImage({
 
 function AvatarFallback({
   className,
+  color,
   ...props
-}: React.ComponentProps<typeof AvatarPrimitive.Fallback>) {
+}: React.ComponentProps<typeof AvatarPrimitive.Fallback> & {
+  color?: string;
+}) {
+  const style = color 
+    ? { backgroundColor: color, color: '#000000' } 
+    : undefined;
+
   return (
     <AvatarPrimitive.Fallback
       data-slot="avatar-fallback"
       className={cn(
-        "bg-muted flex size-full items-center justify-center rounded-full",
+        color ? "" : "bg-muted",
+        "flex size-full items-center justify-center rounded-full",
         className
       )}
+      style={style}
       {...props}
     />
   )

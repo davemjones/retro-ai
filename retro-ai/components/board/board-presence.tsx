@@ -81,6 +81,7 @@ function BoardPresenceComponent({
                     ? "bg-primary text-primary-foreground"
                     : ""
                 }
+                color={user.userId !== currentUserId ? user.userColor : undefined}
               >
                 {getUserInitials(user.userName, user.userEmail)}
               </AvatarFallback>
