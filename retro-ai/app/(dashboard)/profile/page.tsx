@@ -190,51 +190,6 @@ export default function ProfilePage() {
               </div>
             </CardContent>
           </Card>
-
-          {/* Account Status Card */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Account Status</CardTitle>
-              <CardDescription>
-                Your account verification and security status
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <div className="space-y-1">
-                    <p className="text-sm font-medium">Email Verification</p>
-                    <p className="text-xs text-muted-foreground">
-                      {emailVerified 
-                        ? 'Your email address has been verified' 
-                        : 'Please verify your email address to access all features'}
-                    </p>
-                  </div>
-                  <div>
-                    {emailVerified ? (
-                      <Badge variant="default" className="gap-1">
-                        <CheckCircle className="h-3 w-3" />
-                        Verified
-                      </Badge>
-                    ) : (
-                      <Badge variant="outline" className="gap-1 text-orange-600 border-orange-600">
-                        <XCircle className="h-3 w-3" />
-                        Pending
-                      </Badge>
-                    )}
-                  </div>
-                </div>
-
-                {!emailVerified && (
-                  <div className="pt-2 border-t">
-                    <p className="text-xs text-muted-foreground">
-                      Check your email for a verification link or request a new one from your account settings.
-                    </p>
-                  </div>
-                )}
-              </div>
-            </CardContent>
-          </Card>
         </div>
       </div>
     </div>
