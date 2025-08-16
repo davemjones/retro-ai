@@ -87,11 +87,7 @@ async function main() {
     { name: "George Wilson", email: "testuser7@example.com", color: "#FFE066" },
     { name: "Hannah Lee", email: "testuser8@example.com", color: "#FF6B9D" },
     { name: "Ian Malcolm", email: "testuser9@example.com", color: "#4ECDC4" },
-    {
-      name: "Julia Roberts",
-      email: "testuser10@example.com",
-      color: "#95E1D3",
-    },
+    { name: "Julia Roberts", email: "testuser10@example.com", color: "#95E1D3" },
   ];
 
   const createdUsers: User[] = [];
