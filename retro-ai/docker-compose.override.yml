@@ -1,0 +1,53 @@
+# Development overrides for docker-compose.yml
+# This file is automatically loaded by docker-compose in development
+# It overrides settings from the main docker-compose.yml file
+
+version: '3.8'
+
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev  # Use development Dockerfile if exists
+    environment:
+      - NODE_ENV=development
+      - DEBUG=true
+    ports:
+      - "3000:3000"      # Next.js development server
+      - "3001:3001"      # Socket.io server
+      - "9229:9229"      # Node.js debugger port
+    volumes:
+      - .:/app                          # Mount source code for hot reload
+      - /app/node_modules              # Exclude node_modules
+      - /app/.next                     # Exclude build artifacts
+    command: sh -c "npx prisma migrate deploy && npm run dev"
+
+  db:
+    ports:
+      - "5432:5432"      # Expose database port for development tools
+    environment:
+      - POSTGRES_PASSWORD=devpassword  # Simple password for development
+
+  pgadmin:
+    ports:
+      - "5050:80"        # Expose pgAdmin on port 5050 for development
+    environment:
+      - PGADMIN_DEFAULT_EMAIL=admin@localhost
+      - PGADMIN_DEFAULT_PASSWORD=admin
+    profiles: []         # Remove profile requirement in development
+
+  # Redis for development caching (optional)
+  redis:
+    image: redis:7-alpine
+    container_name: retro-ai-redis
+    ports:
+      - "6379:6379"
+    networks:
+      - retro-internal
+    profiles:
+      - cache
+
+# Remove nginx from development by default
+  nginx:
+    profiles:
+      - never            # Effectively disable nginx in development
