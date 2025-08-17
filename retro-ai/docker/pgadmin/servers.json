@@ -1,0 +1,18 @@
+{
+  "Servers": {
+    "1": {
+      "Name": "Retro AI Database",
+      "Group": "Docker Containers",
+      "Host": "db",
+      "Port": 5432,
+      "MaintenanceDB": "retroai",
+      "Username": "retroai",
+      "SSLMode": "prefer",
+      "Comment": "Retro AI PostgreSQL Database",
+      "UseSSHTunnel": 0,
+      "TunnelPort": 22,
+      "TunnelAuthentication": 0,
+      "ConnectionTimeout": 10
+    }
+  }
+}
