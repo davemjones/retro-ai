@@ -41,7 +41,6 @@ This will start:
 - Socket.io on http://localhost:3001
 - PostgreSQL on localhost:5432
 - pgAdmin on http://localhost:5050
-- MailHog on http://localhost:8025
 
 ### Production
 
@@ -75,7 +74,6 @@ The Docker setup includes the following services:
 
 ### Optional Services
 - **nginx**: Reverse proxy for production (profile: production)
-- **mailhog**: Email testing for development
 - **redis**: Caching layer (profile: cache)
 
 ### Networks
@@ -90,8 +88,8 @@ The `docker-compose.override.yml` file automatically applies development-specifi
 - Hot reload with volume mounts
 - Exposed database port for external tools
 - pgAdmin accessible on port 5050
-- MailHog for email testing
 - Node.js debugger on port 9229
+- Email via Resend API (console logging in development if not configured)
 
 ### Accessing Services
 
@@ -100,7 +98,6 @@ The `docker-compose.override.yml` file automatically applies development-specifi
 | Application | http://localhost:3000 | N/A |
 | Socket.io | http://localhost:3001 | N/A |
 | pgAdmin | http://localhost:5050 | admin@localhost / admin |
-| MailHog | http://localhost:8025 | N/A |
 | PostgreSQL | localhost:5432 | retroai / devpassword |
 
 ## Production Setup

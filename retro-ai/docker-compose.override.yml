@@ -36,17 +36,6 @@ services:
       - PGADMIN_DEFAULT_PASSWORD=admin
     profiles: []         # Remove profile requirement in development
 
-  # Development-only services
-  mailhog:
-    image: mailhog/mailhog:latest
-    container_name: retro-ai-mailhog
-    ports:
-      - "1025:1025"      # SMTP server
-      - "8025:8025"      # Web UI
-    networks:
-      - retro-internal
-    profiles: []         # Always run in development
-
   # Redis for development caching (optional)
   redis:
     image: redis:7-alpine
