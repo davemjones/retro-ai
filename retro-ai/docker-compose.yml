@@ -24,7 +24,7 @@ services:
       - EMAIL_FROM=${EMAIL_FROM}
       - EMAIL_FROM_NAME=${EMAIL_FROM_NAME}
       - SOCKET_PORT=${SOCKET_PORT:-3001}
-    command: sh -c "npx prisma migrate deploy && npm run build && node server.js"
+    command: sh -c "npx prisma migrate deploy && node server.js"
     depends_on:
       db:
         condition: service_healthy
