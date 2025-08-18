@@ -104,6 +104,7 @@ ssh -L 5050:pgadmin:80 your-server.com
 # Then access http://localhost:5050
 ```
 
+
 ## Architecture Overview
 
 The Docker setup includes the following services:
