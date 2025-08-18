@@ -13,7 +13,7 @@ services:
     environment:
       - NODE_ENV=${NODE_ENV:-production}
       - DATABASE_URL=postgresql://${DB_USER:-retroai}:${DB_PASSWORD:-changeme}@db:5432/${DB_NAME:-retroai}
-    command: sh -c "npx prisma migrate deploy && npm run build && node server.js"
+    command: sh -c "npx prisma migrate deploy && node server.js"
     depends_on:
       db:
         condition: service_healthy
