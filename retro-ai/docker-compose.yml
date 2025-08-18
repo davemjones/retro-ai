@@ -30,11 +30,12 @@ services:
         condition: service_healthy
     networks:
       - internal
-    # Only expose ports internally - Cloudflare Tunnel handles external access
+    # Expose port 3000 externally for Cloudflare Tunnel access
+    ports:
+      - "3000:3000"  # External port binding for Cloudflare Tunnel
     expose:
-      - "3000"  # Next.js application
+      - "3000"  # Next.js application (internal discovery)
       - "3001"  # Socket.io server
-    # No port binding - Cloudflare Tunnel manages external access
     healthcheck:
       test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:3000/api/health"]
       interval: 30s
