@@ -2,6 +2,8 @@
 
 This guide explains how to run Retro AI using Docker Compose with best practices for both development and production environments.
 
+> **Important Note:** The default `docker-compose.yml` is optimized for Cloudflare Tunnel deployments (no nginx). For traditional deployments with nginx, use `docker-compose.nginx.yml`.
+
 ## Table of Contents
 
 - [Quick Start](#quick-start)
@@ -19,11 +21,13 @@ This guide explains how to run Retro AI using Docker Compose with best practices
 ### Development
 
 1. Copy the example environment file:
+
 ```bash
 cp .env.docker.example .env.docker
 ```
 
 2. Update `.env.docker` with development values:
+
 ```bash
 NODE_ENV=development
 DB_PASSWORD=devpassword
@@ -32,11 +36,13 @@ BETTER_AUTH_SECRET=dev-secret-key
 ```
 
 3. Start the services:
+
 ```bash
 docker-compose up
 ```
 
 This will start:
+
 - Next.js app on http://localhost:3000
 - Socket.io on http://localhost:3001
 - PostgreSQL on localhost:5432
@@ -45,12 +51,14 @@ This will start:
 ### Production
 
 1. Copy and configure environment file:
+
 ```bash
 cp .env.docker.example .env.docker
 # Edit .env.docker with production values
 ```
 
 2. Generate secure secrets:
+
 ```bash
 # Generate Better Auth secret
 openssl rand -base64 32
@@ -58,18 +66,26 @@ openssl rand -base64 32
 # Generate strong passwords for database and pgAdmin
 ```
 
-3. Start production services:
+3. Start services:
+
 ```bash
-docker-compose --profile production up -d
+# Default (Cloudflare-ready, no nginx):
+docker-compose up -d
+
+# With nginx (traditional deployment):
+docker-compose -f docker-compose.nginx.yml --profile production up -d
 ```
 
 ## Cloudflare Tunnel Deployment (Coolify)
 
-If you're using Cloudflare Tunnel through Coolify or similar platforms, use the optimized configuration that excludes nginx to avoid double proxy conflicts:
+**Note: The default `docker-compose.yml` is now optimized for Cloudflare Tunnel deployments.**
 
-### Why a Separate Configuration?
+If you're using Cloudflare Tunnel through Coolify or similar platforms, the default configuration automatically excludes nginx to avoid double proxy conflicts.
+
+### Why No Nginx by Default?
 
 Cloudflare Tunnel already provides:
+
 - Reverse proxy functionality
 - SSL/TLS termination at the edge
 - DDoS protection
@@ -77,11 +93,12 @@ Cloudflare Tunnel already provides:
 
 Having nginx in addition creates a double proxy situation that causes conflicts and adds unnecessary latency.
 
-### Using docker-compose.cloudflare.yml
+### Default Deployment (Cloudflare/Coolify)
 
-1. **Use the Cloudflare-optimized compose file**:
+1. **Simply use the default compose file**:
+
 ```bash
-docker-compose -f docker-compose.cloudflare.yml up -d
+docker-compose up -d
 ```
 
 2. **Configure Cloudflare Tunnel in Coolify**:
@@ -90,6 +107,7 @@ docker-compose -f docker-compose.cloudflare.yml up -d
    - No external ports needed - everything routes through the tunnel
 
 3. **Environment Variables in Coolify**:
+
 ```bash
 BETTER_AUTH_URL=https://your-domain.com
 NEXT_PUBLIC_APP_URL=https://your-domain.com
@@ -99,26 +117,29 @@ RESEND_API_KEY=re_your_key
 ```
 
 4. **Access pgAdmin** (SSH tunnel only for security):
+
 ```bash
 ssh -L 5050:pgadmin:80 your-server.com
 # Then access http://localhost:5050
 ```
-
 
 ## Architecture Overview
 
 The Docker setup includes the following services:
 
 ### Core Services
+
 - **app**: Next.js application with Socket.io server
 - **db**: PostgreSQL 15 database
 - **pgadmin**: Database administration tool (internal network only)
 
 ### Optional Services
-- **nginx**: Reverse proxy for production (profile: production)
+
+- **nginx**: Traditional reverse proxy (use `docker-compose.nginx.yml` with profile: production)
 - **redis**: Caching layer (profile: cache)
 
 ### Networks
+
 - **retro-internal**: Internal network for database and backend services (isolated)
 - **retro-frontend**: Frontend network for web-facing services
 
@@ -127,6 +148,7 @@ The Docker setup includes the following services:
 The `docker-compose.override.yml` file automatically applies development-specific configurations:
 
 ### Features
+
 - Hot reload with volume mounts
 - Exposed database port for external tools
 - pgAdmin accessible on port 5050
@@ -135,12 +157,12 @@ The `docker-compose.override.yml` file automatically applies development-specifi
 
 ### Accessing Services
 
-| Service | URL | Credentials |
-|---------|-----|-------------|
-| Application | http://localhost:3000 | N/A |
-| Socket.io | http://localhost:3001 | N/A |
-| pgAdmin | http://localhost:5050 | admin@localhost / admin |
-| PostgreSQL | localhost:5432 | retroai / devpassword |
+| Service     | URL                   | Credentials             |
+| ----------- | --------------------- | ----------------------- |
+| Application | http://localhost:3000 | N/A                     |
+| Socket.io   | http://localhost:3001 | N/A                     |
+| pgAdmin     | http://localhost:5050 | admin@localhost / admin |
+| PostgreSQL  | localhost:5432        | retroai / devpassword   |
 
 ## Production Setup
 
@@ -162,6 +184,7 @@ EMAIL_FROM=noreply@your-domain.com
 ### 2. SSL Configuration
 
 For HTTPS, place SSL certificates in `docker/nginx/ssl/`:
+
 - `cert.pem` - SSL certificate
 - `key.pem` - Private key
 
@@ -169,7 +192,11 @@ For HTTPS, place SSL certificates in `docker/nginx/ssl/`:
 
 ```bash
 # Start with production profile
-docker-compose --profile production up -d
+# Default (Cloudflare/Coolify)
+docker-compose up -d
+
+# With nginx (traditional deployment)
+docker-compose -f docker-compose.nginx.yml --profile production up -d
 
 # View logs
 docker-compose logs -f
@@ -191,6 +218,7 @@ docker-compose exec app npx prisma migrate deploy
 pgAdmin is configured for internal network access only to enhance security.
 
 ### Development Access
+
 - URL: http://localhost:5050
 - Email: admin@localhost
 - Password: admin
@@ -200,22 +228,26 @@ pgAdmin is configured for internal network access only to enhance security.
 pgAdmin should NOT be exposed to the internet. Access methods:
 
 #### Option 1: SSH Tunnel (Recommended)
+
 ```bash
 ssh -L 5050:localhost:5050 your-server.com
 # Then access http://localhost:5050
 ```
 
 #### Option 2: Docker Exec
+
 ```bash
 docker exec -it retro-ai-pgadmin /bin/sh
 ```
 
 #### Option 3: Internal Network Only
+
 Configure nginx to proxy pgAdmin with IP restrictions (see nginx config).
 
 ### Pre-configured Database
 
 The database connection is pre-configured in pgAdmin. After login:
+
 1. Expand "Servers" → "Docker Containers"
 2. Select "Retro AI Database"
 3. Enter database password when prompted
@@ -224,36 +256,36 @@ The database connection is pre-configured in pgAdmin. After login:
 
 ### Required Variables
 
-| Variable | Description | Example |
-|----------|-------------|---------|
-| `BETTER_AUTH_SECRET` | Authentication secret | Generate with `openssl rand -base64 32` |
-| `DB_PASSWORD` | PostgreSQL password | Strong password |
-| `PGADMIN_PASSWORD` | pgAdmin login password | Strong password |
+| Variable             | Description            | Example                                 |
+| -------------------- | ---------------------- | --------------------------------------- |
+| `BETTER_AUTH_SECRET` | Authentication secret  | Generate with `openssl rand -base64 32` |
+| `DB_PASSWORD`        | PostgreSQL password    | Strong password                         |
+| `PGADMIN_PASSWORD`   | pgAdmin login password | Strong password                         |
 
 ### Optional Variables
 
-| Variable | Description | Default |
-|----------|-------------|---------|
-| `NODE_ENV` | Environment mode | production |
-| `DB_NAME` | Database name | retroai |
-| `DB_USER` | Database user | retroai |
-| `SOCKET_PORT` | Socket.io port | 3001 |
-| `NGINX_HTTP_PORT` | HTTP port | 80 |
-| `NGINX_HTTPS_PORT` | HTTPS port | 443 |
+| Variable           | Description      | Default    |
+| ------------------ | ---------------- | ---------- |
+| `NODE_ENV`         | Environment mode | production |
+| `DB_NAME`          | Database name    | retroai    |
+| `DB_USER`          | Database user    | retroai    |
+| `SOCKET_PORT`      | Socket.io port   | 3001       |
+| `NGINX_HTTP_PORT`  | HTTP port        | 80         |
+| `NGINX_HTTPS_PORT` | HTTPS port       | 443        |
 
 ## Docker Profiles
 
 Use profiles to enable optional services:
 
 ```bash
-# Default (app, db only)
+# Default (Cloudflare-ready: app, db)
 docker-compose up
 
 # With pgAdmin
 docker-compose --profile tools up
 
-# With nginx (production)
-docker-compose --profile production up
+# With nginx (traditional deployment)
+docker-compose -f docker-compose.nginx.yml --profile production up
 
 # With Redis cache
 docker-compose --profile cache up
@@ -267,6 +299,7 @@ docker-compose --profile tools --profile cache up
 ### Common Issues
 
 #### 1. Database Connection Failed
+
 ```bash
 # Check database logs
 docker-compose logs db
@@ -279,6 +312,7 @@ docker-compose exec db psql -U retroai -d retroai
 ```
 
 #### 2. pgAdmin Cannot Connect
+
 ```bash
 # Ensure database is running
 docker-compose ps db
@@ -290,6 +324,7 @@ docker-compose exec pgadmin ping db
 ```
 
 #### 3. Port Already in Use
+
 ```bash
 # Find process using port
 lsof -i :3000
@@ -298,6 +333,7 @@ lsof -i :3000
 ```
 
 #### 4. Permission Denied
+
 ```bash
 # Fix volume permissions
 sudo chown -R $(id -u):$(id -g) .
@@ -392,6 +428,7 @@ docker-compose logs --tail=100 | grep ERROR
 ## Support
 
 For issues or questions:
+
 1. Check the [Troubleshooting](#troubleshooting) section
 2. Review container logs: `docker-compose logs [service]`
 3. Open an issue on GitHub with relevant log output
