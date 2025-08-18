@@ -2,6 +2,8 @@
 
 This guide explains how to run Retro AI using Docker Compose with best practices for both development and production environments.
 
+> **Important Note:** The default `docker-compose.yml` is optimized for Cloudflare Tunnel deployments (no nginx). For traditional deployments with nginx, use `docker-compose.nginx.yml`.
+
 ## Table of Contents
 
 - [Quick Start](#quick-start)
@@ -58,16 +60,22 @@ openssl rand -base64 32
 # Generate strong passwords for database and pgAdmin
 ```
 
-3. Start production services:
+3. Start services:
 ```bash
-docker-compose --profile production up -d
+# Default (Cloudflare-ready, no nginx):
+docker-compose up -d
+
+# With nginx (traditional deployment):
+docker-compose -f docker-compose.nginx.yml --profile production up -d
 ```
 
 ## Cloudflare Tunnel Deployment (Coolify)
 
-If you're using Cloudflare Tunnel through Coolify or similar platforms, use the optimized configuration that excludes nginx to avoid double proxy conflicts:
+**Note: The default `docker-compose.yml` is now optimized for Cloudflare Tunnel deployments.**
 
-### Why a Separate Configuration?
+If you're using Cloudflare Tunnel through Coolify or similar platforms, the default configuration automatically excludes nginx to avoid double proxy conflicts.
+
+### Why No Nginx by Default?
 
 Cloudflare Tunnel already provides:
 - Reverse proxy functionality
@@ -77,11 +85,11 @@ Cloudflare Tunnel already provides:
 
 Having nginx in addition creates a double proxy situation that causes conflicts and adds unnecessary latency.
 
-### Using docker-compose.cloudflare.yml
+### Default Deployment (Cloudflare/Coolify)
 
-1. **Use the Cloudflare-optimized compose file**:
+1. **Simply use the default compose file**:
 ```bash
-docker-compose -f docker-compose.cloudflare.yml up -d
+docker-compose up -d
 ```
 
 2. **Configure Cloudflare Tunnel in Coolify**:
@@ -115,7 +123,7 @@ The Docker setup includes the following services:
 - **pgadmin**: Database administration tool (internal network only)
 
 ### Optional Services
-- **nginx**: Reverse proxy for production (profile: production)
+- **nginx**: Traditional reverse proxy (use `docker-compose.nginx.yml` with profile: production)
 - **redis**: Caching layer (profile: cache)
 
 ### Networks
@@ -169,7 +177,11 @@ For HTTPS, place SSL certificates in `docker/nginx/ssl/`:
 
 ```bash
 # Start with production profile
-docker-compose --profile production up -d
+# Default (Cloudflare/Coolify)
+docker-compose up -d
+
+# With nginx (traditional deployment)
+docker-compose -f docker-compose.nginx.yml --profile production up -d
 
 # View logs
 docker-compose logs -f
@@ -246,14 +258,14 @@ The database connection is pre-configured in pgAdmin. After login:
 Use profiles to enable optional services:
 
 ```bash
-# Default (app, db only)
+# Default (Cloudflare-ready: app, db)
 docker-compose up
 
 # With pgAdmin
 docker-compose --profile tools up
 
-# With nginx (production)
-docker-compose --profile production up
+# With nginx (traditional deployment)
+docker-compose -f docker-compose.nginx.yml --profile production up
 
 # With Redis cache
 docker-compose --profile cache up
