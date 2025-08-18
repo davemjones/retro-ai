@@ -63,6 +63,47 @@ openssl rand -base64 32
 docker-compose --profile production up -d
 ```
 
+## Cloudflare Tunnel Deployment (Coolify)
+
+If you're using Cloudflare Tunnel through Coolify or similar platforms, use the optimized configuration that excludes nginx to avoid double proxy conflicts:
+
+### Why a Separate Configuration?
+
+Cloudflare Tunnel already provides:
+- Reverse proxy functionality
+- SSL/TLS termination at the edge
+- DDoS protection
+- Load balancing
+
+Having nginx in addition creates a double proxy situation that causes conflicts and adds unnecessary latency.
+
+### Using docker-compose.cloudflare.yml
+
+1. **Use the Cloudflare-optimized compose file**:
+```bash
+docker-compose -f docker-compose.cloudflare.yml up -d
+```
+
+2. **Configure Cloudflare Tunnel in Coolify**:
+   - Point to `http://app:3000` for the main application
+   - Configure `http://app:3001` for Socket.io (or use subdomain routing)
+   - No external ports needed - everything routes through the tunnel
+
+3. **Environment Variables in Coolify**:
+```bash
+BETTER_AUTH_URL=https://your-domain.com
+NEXT_PUBLIC_APP_URL=https://your-domain.com
+BETTER_AUTH_SECRET=<your-secret>
+DATABASE_URL=postgresql://retroai:password@db:5432/retroai
+RESEND_API_KEY=re_your_key
+```
+
+4. **Access pgAdmin** (SSH tunnel only for security):
+```bash
+ssh -L 5050:pgadmin:80 your-server.com
+# Then access http://localhost:5050
+```
+
 ## Architecture Overview
 
 The Docker setup includes the following services:
