@@ -78,9 +78,11 @@ docker-compose -f docker-compose.nginx.yml --profile production up -d
 
 ## Cloudflare Tunnel Deployment (Coolify)
 
-If you're using Cloudflare Tunnel through Coolify or similar platforms, use the optimized configuration that excludes nginx to avoid double proxy conflicts:
+**Note: The default `docker-compose.yml` is now optimized for Cloudflare Tunnel deployments.**
 
-### Why a Separate Configuration?
+If you're using Cloudflare Tunnel through Coolify or similar platforms, the default configuration automatically excludes nginx to avoid double proxy conflicts.
+
+### Why No Nginx by Default?
 
 Cloudflare Tunnel already provides:
 
@@ -91,12 +93,14 @@ Cloudflare Tunnel already provides:
 
 Having nginx in addition creates a double proxy situation that causes conflicts and adds unnecessary latency.
 
-### Using docker-compose.cloudflare.yml
+### Default Deployment (Cloudflare/Coolify)
+
+1. **Simply use the default compose file**:
 
 1. **Use the Cloudflare-optimized compose file**:
 
 ```bash
-docker-compose -f docker-compose.cloudflare.yml up -d
+docker-compose up -d
 ```
 
 2. **Configure Cloudflare Tunnel in Coolify**:
