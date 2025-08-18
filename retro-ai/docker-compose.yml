@@ -2,12 +2,12 @@
 # This configuration is optimized for use with Cloudflare Tunnel
 # nginx is excluded as Cloudflare Tunnel provides reverse proxy functionality
 
-version: '3.8'
+version: "3.8"
 
 services:
   # Main application service
   app:
-    build: 
+    build:
       context: .
       dockerfile: Dockerfile
     container_name: retro-ai-app
@@ -24,7 +24,7 @@ services:
       - EMAIL_FROM=${EMAIL_FROM}
       - EMAIL_FROM_NAME=${EMAIL_FROM_NAME}
       - SOCKET_PORT=${SOCKET_PORT:-3001}
-    command: sh -c "npx prisma migrate deploy && npm run build && node server.js"
+    command: sh -c "npx prisma migrate deploy && node server.js"
     depends_on:
       db:
         condition: service_healthy
@@ -32,11 +32,19 @@ services:
       - internal
     # Only expose ports internally - Cloudflare Tunnel handles external access
     expose:
-      - "3000"  # Next.js application
-      - "3001"  # Socket.io server
+      - "3000" # Next.js application
+      - "3001" # Socket.io server
     # No port binding - Cloudflare Tunnel manages external access
     healthcheck:
-      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:3000/api/health"]
+      test:
+        [
+          "CMD",
+          "wget",
+          "--quiet",
+          "--tries=1",
+          "--spider",
+          "http://localhost:3000/api/health",
+        ]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -44,10 +52,10 @@ services:
     deploy:
       resources:
         limits:
-          cpus: '2'
+          cpus: "2"
           memory: 1G
         reservations:
-          cpus: '0.5'
+          cpus: "0.5"
           memory: 256M
     logging:
       driver: "json-file"
@@ -71,7 +79,11 @@ services:
       - internal
     # Database not exposed externally for security
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-retroai} -d ${DB_NAME:-retroai}"]
+      test:
+        [
+          "CMD-SHELL",
+          "pg_isready -U ${DB_USER:-retroai} -d ${DB_NAME:-retroai}",
+        ]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -79,10 +91,10 @@ services:
     deploy:
       resources:
         limits:
-          cpus: '1'
+          cpus: "1"
           memory: 512M
         reservations:
-          cpus: '0.25'
+          cpus: "0.25"
           memory: 128M
     logging:
       driver: "json-file"
@@ -113,7 +125,15 @@ services:
     expose:
       - "80"
     healthcheck:
-      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:80/misc/ping"]
+      test:
+        [
+          "CMD",
+          "wget",
+          "--quiet",
+          "--tries=1",
+          "--spider",
+          "http://localhost:80/misc/ping",
+        ]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -121,10 +141,10 @@ services:
     deploy:
       resources:
         limits:
-          cpus: '0.5'
+          cpus: "0.5"
           memory: 256M
         reservations:
-          cpus: '0.1'
+          cpus: "0.1"
           memory: 64M
     logging:
       driver: "json-file"
@@ -144,7 +164,6 @@ networks:
   # Single internal network - Cloudflare Tunnel handles external routing
   internal:
     driver: bridge
-
 # Notes for Coolify/Cloudflare Tunnel deployment:
 # 1. Configure Cloudflare Tunnel in Coolify to point to:
 #    - Main app: http://app:3000
