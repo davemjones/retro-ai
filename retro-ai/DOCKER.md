@@ -97,8 +97,6 @@ Having nginx in addition creates a double proxy situation that causes conflicts 
 
 1. **Simply use the default compose file**:
 
-1. **Use the Cloudflare-optimized compose file**:
-
 ```bash
 docker-compose up -d
 ```
