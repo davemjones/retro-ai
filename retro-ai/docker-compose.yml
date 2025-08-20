@@ -124,7 +124,7 @@ services:
         condition: service_healthy
     # pgAdmin not exposed - access via SSH tunnel only
     expose:
-      - "80"
+      - "192.168.1.151:3080:80"
     healthcheck:
       test:
         [
