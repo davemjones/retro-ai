@@ -122,9 +122,8 @@ services:
     depends_on:
       db:
         condition: service_healthy
-    # pgAdmin not exposed - access via SSH tunnel only
-    expose:
-      - "192.168.1.151:3080:80"
+    ports:
+      - "3080:80"
     healthcheck:
       test:
         [
