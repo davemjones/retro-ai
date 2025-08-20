@@ -1,0 +1,159 @@
+# Docker Compose configuration for Cloudflare Tunnel deployments (Coolify)
+# This configuration is optimized for use with Cloudflare Tunnel
+# nginx is excluded as Cloudflare Tunnel provides reverse proxy functionality
+
+version: '3.8'
+
+services:
+  # Main application service
+  app:
+    build: 
+      context: .
+      dockerfile: Dockerfile
+    container_name: retro-ai-app
+    restart: unless-stopped
+    env_file:
+      - .env.docker
+    environment:
+      - NODE_ENV=${NODE_ENV:-production}
+      - DATABASE_URL=postgresql://${DB_USER:-retroai}:${DB_PASSWORD:-changeme}@db:5432/${DB_NAME:-retroai}
+      - BETTER_AUTH_URL=${BETTER_AUTH_URL}
+      - NEXT_PUBLIC_APP_URL=${NEXT_PUBLIC_APP_URL}
+      - BETTER_AUTH_SECRET=${BETTER_AUTH_SECRET}
+      - RESEND_API_KEY=${RESEND_API_KEY}
+      - EMAIL_FROM=${EMAIL_FROM}
+      - EMAIL_FROM_NAME=${EMAIL_FROM_NAME}
+      - SOCKET_PORT=${SOCKET_PORT:-3001}
+    command: sh -c "npx prisma migrate deploy && npm run build && node server.js"
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - internal
+    # Only expose ports internally - Cloudflare Tunnel handles external access
+    expose:
+      - "3000"  # Next.js application
+      - "3001"  # Socket.io server
+    # No port binding - Cloudflare Tunnel manages external access
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:3000/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    deploy:
+      resources:
+        limits:
+          cpus: '2'
+          memory: 1G
+        reservations:
+          cpus: '0.5'
+          memory: 256M
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # PostgreSQL database service
+  db:
+    image: postgres:15-alpine
+    container_name: retro-ai-db
+    restart: unless-stopped
+    environment:
+      - POSTGRES_DB=${DB_NAME:-retroai}
+      - POSTGRES_USER=${DB_USER:-retroai}
+      - POSTGRES_PASSWORD=${DB_PASSWORD:-changeme}
+      - PGDATA=/var/lib/postgresql/data/pgdata
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - internal
+    # Database not exposed externally for security
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-retroai} -d ${DB_NAME:-retroai}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    deploy:
+      resources:
+        limits:
+          cpus: '1'
+          memory: 512M
+        reservations:
+          cpus: '0.25'
+          memory: 128M
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # pgAdmin service for database administration (internal only)
+  # Access via SSH tunnel: ssh -L 5050:localhost:5050 your-server
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    container_name: retro-ai-pgadmin
+    restart: unless-stopped
+    environment:
+      - PGADMIN_DEFAULT_EMAIL=${PGADMIN_EMAIL:-admin@retroai.local}
+      - PGADMIN_DEFAULT_PASSWORD=${PGADMIN_PASSWORD:-changeme}
+      - PGADMIN_CONFIG_SERVER_MODE=False
+      - PGADMIN_CONFIG_MASTER_PASSWORD_REQUIRED=False
+    volumes:
+      - pgadmin_data:/var/lib/pgadmin
+      - ./docker/pgadmin/servers.json:/pgadmin4/servers.json:ro
+    networks:
+      - internal
+    depends_on:
+      db:
+        condition: service_healthy
+    # pgAdmin not exposed - access via SSH tunnel only
+    expose:
+      - "80"
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:80/misc/ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 256M
+        reservations:
+          cpus: '0.1'
+          memory: 64M
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    profiles:
+      - tools
+
+volumes:
+  postgres_data:
+    driver: local
+  pgadmin_data:
+    driver: local
+
+networks:
+  # Single internal network - Cloudflare Tunnel handles external routing
+  internal:
+    driver: bridge
+
+# Notes for Coolify/Cloudflare Tunnel deployment:
+# 1. Configure Cloudflare Tunnel in Coolify to point to:
+#    - Main app: http://app:3000
+#    - Socket.io: http://app:3001 (or use subdomain/path routing)
+# 2. No nginx needed - Cloudflare Tunnel provides:
+#    - SSL/TLS termination
+#    - DDoS protection
+#    - Reverse proxy functionality
+#    - Load balancing
+# 3. pgAdmin access via SSH tunnel for security:
+#    ssh -L 5050:pgadmin:80 your-server.com
+# 4. All environment variables should be configured in Coolify's environment section
