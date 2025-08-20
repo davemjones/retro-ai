@@ -67,7 +67,6 @@ openssl rand -base64 32
 ```
 
 3. Start services:
-
 ```bash
 # Default (Cloudflare-ready, no nginx):
 docker-compose up -d
@@ -85,7 +84,6 @@ If you're using Cloudflare Tunnel through Coolify or similar platforms, the defa
 ### Why No Nginx by Default?
 
 Cloudflare Tunnel already provides:
-
 - Reverse proxy functionality
 - SSL/TLS termination at the edge
 - DDoS protection
@@ -96,7 +94,6 @@ Having nginx in addition creates a double proxy situation that causes conflicts 
 ### Default Deployment (Cloudflare/Coolify)
 
 1. **Simply use the default compose file**:
-
 ```bash
 docker-compose up -d
 ```
@@ -107,7 +104,6 @@ docker-compose up -d
    - No external ports needed - everything routes through the tunnel
 
 3. **Environment Variables in Coolify**:
-
 ```bash
 BETTER_AUTH_URL=https://your-domain.com
 NEXT_PUBLIC_APP_URL=https://your-domain.com
@@ -117,11 +113,11 @@ RESEND_API_KEY=re_your_key
 ```
 
 4. **Access pgAdmin** (SSH tunnel only for security):
-
 ```bash
 ssh -L 5050:pgadmin:80 your-server.com
 # Then access http://localhost:5050
 ```
+
 
 ## Architecture Overview
 
@@ -134,7 +130,6 @@ The Docker setup includes the following services:
 - **pgadmin**: Database administration tool (internal network only)
 
 ### Optional Services
-
 - **nginx**: Traditional reverse proxy (use `docker-compose.nginx.yml` with profile: production)
 - **redis**: Caching layer (profile: cache)
 
